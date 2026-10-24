@@ -70,4 +70,4 @@ refusals, N-independent area weights, mixed radiance, continuation partitioning,
 They remain **NOT RUN**. Combined anisotropic/reflection/HDR fixtures, CLI
 workflow parity, exact-build layout and presentation acceptance remain pending.
 No external assets, dependencies or license changes are introduced; the existing
-SolidCraft implementations and their contribution licenses are retained.
+DeSurface implementations and their contribution licenses are retained.

@@ -1,6 +1,6 @@
 use std::f64::consts::PI;
 
-use solidcraft_geom::{Loop2, Plane, Region2, Seg2, Vec2, Vec3};
+use desurface_geom::{Loop2, Plane, Region2, Seg2, Vec2, Vec3};
 
 use crate::*;
 
@@ -156,7 +156,7 @@ fn chamfer_and_step() {
     let b = box_solid(Vec3::ZERO, Vec3::new(20.0, 20.0, 20.0)).unwrap();
     let c = chamfer(&b, &[Vec3::new(20.0, 10.0, 20.0)], 2.0).unwrap();
     assert!(rel(measure(&c).unwrap().volume, 8000.0 - 2.0 * 20.0) < 1e-4);
-    let s = step_export(&[&c], "SolidCraft").unwrap();
+    let s = step_export(&[&c], "DeSurface").unwrap();
     assert!(s.starts_with("ISO-10303-21;"));
     assert!(s.contains("MANIFOLD_SOLID_BREP") || s.contains("CLOSED_SHELL"));
 }
@@ -621,7 +621,7 @@ fn tapered_extrude_swallows_a_short_tip() {
     let meet = |(p0, t0): (Vec2, Vec2), (p1, t1): (Vec2, Vec2)| p0 + t0 * ((p1 - p0).cross(t1) / t0.cross(t1));
     let (low, high, left) = (moved(pts[0], pts[1]), moved(pts[2], pts[3]), moved(pts[3], pts[0]));
     let top = [meet(left, low), meet(low, high), meet(high, left)];
-    let area = |q: &[Vec2]| solidcraft_geom::Ring::from(q.to_vec()).signed_area();
+    let area = |q: &[Vec2]| desurface_geom::Ring::from(q.to_vec()).signed_area();
     // Halfway up, each side edge's midpoint (the two tip corners both run to the top's tip).
     let mid = [pts[0].lerp(top[0], 0.5), pts[1].lerp(top[1], 0.5), pts[2].lerp(top[1], 0.5), pts[3].lerp(top[2], 0.5)];
     let v = h / 6.0 * (area(&pts) + 4.0 * area(&mid) + area(&top));
@@ -960,7 +960,7 @@ fn connected_logo_join_preserves_exact_faces_at_edge_contact() {
     let tops =
         logo.faces(0.01).unwrap().iter().filter(|f| f.plane_normal.is_some_and(|n| n.z > 0.999999) && (f.centroid.z - 20.0).abs() < 1e-9).count();
     assert_eq!(tops, 1);
-    let text = step_export(&[&logo], "SolidCraft").unwrap();
+    let text = step_export(&[&logo], "DeSurface").unwrap();
     let imported = step_import(&text).unwrap();
     assert_eq!(imported.bodies.len(), 1);
     let roundtrip = &imported.bodies.first().unwrap().body;
@@ -1438,7 +1438,7 @@ fn mesh_bodies_move_measure_and_refuse_solid_ops() {
     // scan's size is asked for every frame.
     for body in [&b, &moved, &mirrored] {
         assert!(body.size > 0.0, "measured when made");
-        let walked = body.mesh.as_ref().unwrap().positions.iter().fold(solidcraft_geom::Aabb3::EMPTY, |mut a, p| {
+        let walked = body.mesh.as_ref().unwrap().positions.iter().fold(desurface_geom::Aabb3::EMPTY, |mut a, p| {
             a.add(*p);
             a
         });
@@ -1721,7 +1721,7 @@ fn circle_loop_fillets_and_chamfers() {
 
 #[test]
 fn trimmed_revolved_faces_measure_exactly() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     use std::f64::consts::FRAC_PI_2;
     // A slot with concave ends sketched on the plane x = 12.5, cut 4 deep into a revolved shaft
     // of radius 12.5 (the cut faces' triangulation spans wide angles unless refined).
@@ -1777,7 +1777,7 @@ fn shell_with_cylindrical_faces() {
 
 #[test]
 fn draft_of_a_round_ended_pocket() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     use std::f64::consts::FRAC_PI_2;
     let block = box_solid(Vec3::ZERO, Vec3::new(80.0, 60.0, 25.0)).unwrap();
     let segs = vec![
@@ -1966,7 +1966,7 @@ fn fillet_where_a_branch_pipe_meets_a_main_pipe() {
 
 #[test]
 fn fillet_an_open_curved_edge() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     // A D-shaped block: the round top edge only, ending at the flat wall's sharp corners.
     let d = Loop2 {
         segs: vec![
@@ -1988,7 +1988,7 @@ fn fillet_an_open_curved_edge() {
 }
 
 fn mixed_arc_and_line_prism() -> Body {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     let d = Loop2 {
         segs: vec![
             Seg2::Arc { center: Vec2::ZERO, radius: 10.0, start: 0.0, sweep: PI },
@@ -2000,7 +2000,7 @@ fn mixed_arc_and_line_prism() -> Body {
 
 #[test]
 fn fillet_smooth_arc_and_line_loop_keeps_exact_removal() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     // A stadium: four tangent joints, none of which should use a sharp-corner mitre.
     let outline = Loop2 {
         segs: vec![
@@ -2073,7 +2073,7 @@ fn fillet_rounded_rectangle_with_tiny_end_edges() {
 
 #[test]
 fn fillet_sharp_arc_and_arc_loop() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     // The intersection of two radius-10 disks whose centres are 10 mm apart.
     let outline = Loop2 {
         segs: vec![
@@ -2102,7 +2102,7 @@ fn fillet_sharp_arc_and_arc_loop() {
 
 #[test]
 fn fillet_tabbed_plate_outer_loop_and_partial_selection_after_hole() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     // Reconstruct the outer outline from its seven public pick coordinates:
     // R25 plate, x=+/-4 tab sides, R2 corners and a 4 mm straight top.
     // The hole's dimensions come from the public reproduction, not an original design file.
@@ -2151,7 +2151,7 @@ fn fillet_tabbed_plate_outer_loop_and_partial_selection_after_hole() {
 }
 
 fn partial_mixed_run_prism() -> Body {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     let outline = Loop2 {
         segs: vec![
             Seg2::Line { a: Vec2::new(0.0, 0.0), b: Vec2::new(40.0, 0.0) },
@@ -2465,7 +2465,7 @@ fn fillet_three_edges_at_a_corner() {
 #[test]
 fn shell_with_spherical_and_conical_faces() {
     // A cylinder capped by a hemisphere (a dome), revolved, opened at the bottom.
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     let xz = Plane::new(Vec3::ZERO, Vec3::X, Vec3::new(0.0, 0.0, -1.0)).unwrap();
     let segs = vec![
         Seg2::Line { a: Vec2::new(0.0, 0.0), b: Vec2::new(10.0, 0.0) },
@@ -2677,7 +2677,7 @@ fn measure_of_a_body_with_many_faces() {
 }
 
 /// The time it takes (run alone, the suite's other tests share the machine):
-/// `cargo test --release -p solidcraft-kernel perf_measure_5000_faces -- --ignored`.
+/// `cargo test --release -p desurface-kernel perf_measure_5000_faces -- --ignored`.
 #[test]
 #[ignore]
 fn perf_measure_5000_faces() {

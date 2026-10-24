@@ -1,5 +1,5 @@
 {
-  "schema": "solidcraft-physical-card-bundle/1",
+  "schema": "desurface-physical-card-bundle/1",
   "native_card_schema": 1,
   "native_library_format": false,
   "source_sha256": {

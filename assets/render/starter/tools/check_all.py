@@ -49,7 +49,7 @@ def input_snapshot() -> dict[str, str]:
 
 
 def check_native_report(report: dict) -> None:
-    if report.get("schema") != "solidcraft-native-starter-check/1" or report.get("runtime_ready") is not False:
+    if report.get("schema") != "desurface-native-starter-check/1" or report.get("runtime_ready") is not False:
         raise ValueError("Native report has an invalid schema or runtime claim")
     expected = {"surfaces": 48, "texture_inputs": 192,
                 "height_sources_verified_not_bound": 48, "hdr_inputs": 24,
@@ -111,7 +111,7 @@ def stages(authoring_only: bool, independent_decode: bool) -> list[tuple[str, li
     ]
     if not authoring_only:
         cargo = ["cargo"]
-        native = ["--locked", "--profile", "ci", "-p", "solidcraft-render"]
+        native = ["--locked", "--profile", "ci", "-p", "desurface-render"]
         commands += [
             ("format", cargo + ["fmt", "--all", "--", "--check"]),
             ("attribution", cargo + ["xtask", "assets"]),
@@ -136,7 +136,7 @@ def main() -> int:
     identifier = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
     directory = ROOT / "target/render-starter-checks" / identifier
     directory.mkdir(parents=True, exist_ok=False)
-    report = {"schema": "solidcraft-starter-gate/1", "status": "failed",
+    report = {"schema": "desurface-starter-gate/1", "status": "failed",
               "python": platform.python_version(), "platform": platform.system(),
               "native_requested": not args.authoring_only, "independent_ffmpeg_requested": args.independent_decode,
               "full_workspace_ci": "not_run_by_this_gate", "runtime_ready": False, "stages": []}

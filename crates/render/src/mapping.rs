@@ -1,7 +1,7 @@
 //! Definition-local visual coordinates, independent of geometry and engineering axes.
 //! This numerical foundation installs no texture sampler, shader or persistent record.
 
-use solidcraft_geom::{Aabb3, Vec3};
+use desurface_geom::{Aabb3, Vec3};
 
 /// Admission bounds, not a GPU precision or engineering applicability guarantee.
 pub const MAX_LOCAL_MM: f64 = 1e9;

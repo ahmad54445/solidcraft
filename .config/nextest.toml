@@ -8,7 +8,7 @@
 # Keep this list in sync with docs/book/src/dev/testing.md and CONTRIBUTING.md.
 default-filter = """
 not (
-    (package(solidcraft-engine) & (
+    (package(desurface-engine) & (
         test(=tests::hostile_params_never_panic)
         | test(/^tests::robustness::/)
         | test(/^tests::robustness_goldens::seed_/)
@@ -16,11 +16,11 @@ not (
         | test(=pattern_suppress_tests::enclosure_datums_follow_wall_height_and_board_depth_with_material_proofs)
         | test(=cmd::plastic::tests::enclosure_snap_fit_follows_resized_front_wall)
     ))
-    | (package(solidcraft-kernel) & test(=tests::boolean_identity_on_tangent_primitives))
-    | (package(solidcraft-kernel) & test(=tspline::tests::hostile_tsplines_never_panic))
-    | (package(solidcraft-kernel) & binary(boolean_props))
-    | (package(solidcraft-engine) & binary(atomic_commands))
-    | (package(solidcraft-ui-egui) & binary(scenarios) & test(=acceptance_sensor_enclosure))
+    | (package(desurface-kernel) & test(=tests::boolean_identity_on_tangent_primitives))
+    | (package(desurface-kernel) & test(=tspline::tests::hostile_tsplines_never_panic))
+    | (package(desurface-kernel) & binary(boolean_props))
+    | (package(desurface-engine) & binary(atomic_commands))
+    | (package(desurface-ui-egui) & binary(scenarios) & test(=acceptance_sensor_enclosure))
 )
 """
 fail-fast = false
@@ -47,7 +47,7 @@ priority = 100
 # from the CI test timings (the junit artifacts), slowest first; a test over ~100 s belongs here.
 [[profile.ci.overrides]]
 filter = """
-(package(solidcraft-engine) & (
+(package(desurface-engine) & (
     test(/^tests::robustness_goldens::seed_(81|45|20|24|95|02|57|40|18|48|32|46|85|61)$/)
     | test(/^tests::robustness::/)
     | test(=tests::hostile_params_never_panic)
@@ -58,8 +58,8 @@ filter = """
     | test(=cmd::sheet::tests::perforated_sheet_takes_a_thousand_round_holes)
     | test(=boolean_regression_tests::joined_loft_frames_plan_their_display_at_every_quality)
 ))
-| (package(solidcraft-engine) & (binary(atomic_commands) | binary(step_export_regressions)))
-| (package(solidcraft-kernel) & (
+| (package(desurface-engine) & (binary(atomic_commands) | binary(step_export_regressions)))
+| (package(desurface-kernel) & (
     test(=curveblend::tests::rolling_ball_turns_about_a_rounded_corner_of_its_radius)
     | test(=tests::fillet_tabbed_plate_outer_loop_and_partial_selection_after_hole)
     | test(=tspline::tests::hostile_tsplines_never_panic)
@@ -76,7 +76,7 @@ priority = 100
 max-threads = 1
 
 [[profile.ci.overrides]]
-filter = "package(=solidcraft-gpu) & test(/^path::/)"
+filter = "package(=desurface-gpu) & test(/^path::/)"
 test-group = "gpu-path"
 
 # Full local validation opts into its own scheduling policy. Keep GitHub CI's
@@ -90,12 +90,12 @@ threads-required = "num-cpus"
 priority = 100
 
 [[profile.local-ci.overrides]]
-filter = "(package(solidcraft-engine) & test(=tests::robustness_goldens::seed_81)) | (package(solidcraft-kernel) & test(=tspline::tests::hostile_tsplines_never_panic))"
+filter = "(package(desurface-engine) & test(=tests::robustness_goldens::seed_81)) | (package(desurface-kernel) & test(=tspline::tests::hostile_tsplines_never_panic))"
 priority = 99
 
 [[profile.local-ci.overrides]]
 filter = """
-(package(solidcraft-engine) & (
+(package(desurface-engine) & (
     test(/^tests::robustness_goldens::seed_(81|45|20|24|95|02|57|40|18|48|32|46|85|61)$/)
     | test(/^tests::robustness::/)
     | test(=tests::hostile_params_never_panic)
@@ -106,8 +106,8 @@ filter = """
     | test(=cmd::sheet::tests::perforated_sheet_takes_a_thousand_round_holes)
     | test(=boolean_regression_tests::joined_loft_frames_plan_their_display_at_every_quality)
 ))
-| (package(solidcraft-engine) & (binary(atomic_commands) | binary(step_export_regressions)))
-| (package(solidcraft-kernel) & (
+| (package(desurface-engine) & (binary(atomic_commands) | binary(step_export_regressions)))
+| (package(desurface-kernel) & (
     test(=curveblend::tests::rolling_ball_turns_about_a_rounded_corner_of_its_radius)
     | test(=tests::fillet_tabbed_plate_outer_loop_and_partial_selection_after_hole)
     | test(=tspline::tests::hostile_tsplines_never_panic)
@@ -123,5 +123,5 @@ max-threads = 1
 
 [[profile.local-ci.overrides]]
 platform = "cfg(windows)"
-filter = "package(solidcraft-gpu) | package(solidcraft) | (package(solidcraft-ui-egui) & test(/(offscreen|gpu)/))"
+filter = "package(desurface-gpu) | package(desurface) | (package(desurface-ui-egui) & test(/(offscreen|gpu)/))"
 test-group = "windows-gpu"

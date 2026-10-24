@@ -1,4 +1,4 @@
-# SolidCraft material concept catalog 0.2.0
+# DeSurface material concept catalog 0.2.0
 
 ## Scope and status
 
@@ -114,7 +114,7 @@ Emission from an LED or display can be an authored steady source without simulat
 - Engineering material selection remains separate from appearance. No recipe certifies flight readiness, vacuum compatibility, outgassing, sample cleanliness, sealing, electrical performance or a manufacturing result.
 - Descriptions and proposed procedural recipes are original authoring under `ORIGINAL-2026-10-CATALOG`. No commercial material presets, proprietary CAD extraction, GPL/LGPL/AGPL source code or copied artwork were used to create this catalog.
 - Optional later reference capture, measured data, photographs or external assets require their own provenance and redistribution review. AI-assisted image creation would remain authored imagery, not automatically a measured BSDF or validated physical texture set.
-- The authoring script is an offline data/document-generation aid, not application runtime code. It introduces no Python dependency into SolidCraft's Rust application.
+- The authoring script is an offline data/document-generation aid, not application runtime code. It introduces no Python dependency into DeSurface's Rust application.
 
 ## Validation and publication gate
 

@@ -3,13 +3,13 @@ use super::CommandSpec;
 use crate::{Result, Session, params::bad};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_io::catalog::{Catalog, Definition, Provenance};
+use desurface_io::catalog::{Catalog, Definition, Provenance};
 
 pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("library.inspect", "Inspect Local Library", inspect).icon("inspect").noundo().doc_only()
         .params("path: v1/v2 library JSON; returns validated catalog and exact entry revisions, without changing the design"),
     CommandSpec::new("library.export", "Export Design Library", export).icon("export").noundo().doc_only()
-        .params("path: .json; id? (default user.local), name?, provenance?, overwrite? false, format? solidcraft-library/2 (default) | solidcraft-library/1 (refuses PBR/cards). Copies assigned looks and design-local physical definitions; never changes the design"),
+        .params("path: .json; id? (default user.local), name?, provenance?, overwrite? false, format? desurface-library/2 (default) | desurface-library/1 (refuses PBR/cards). Copies assigned looks and design-local physical definitions; never changes the design"),
     CommandSpec::new("library.apply", "Apply Local Library Entry", apply).icon("import").enabled(super::not_in_sketch)
         .params("path, entry: qualified ID, revision: exact content SHA-256; targets?: {bodies?, faces?: [{body,point}], components?}; name?: physical material name on import. Copies values in one undo step; material conflicts are explicit"),
 ];
@@ -35,7 +35,7 @@ struct Export {
     format: String,
 }
 fn default_format() -> String {
-    solidcraft_io::catalog::FORMAT.into()
+    desurface_io::catalog::FORMAT.into()
 }
 fn default_id() -> String {
     "user.local".into()
@@ -93,7 +93,7 @@ fn path(cmd: &str, value: &str) -> Result<()> {
     if value.is_empty() || value.len() > 4096 || value.chars().any(char::is_control) {
         return Err(bad(cmd, "invalid library path"));
     }
-    solidcraft_io::vfs::check(value).map_err(|e| bad(cmd, e.to_string()))
+    desurface_io::vfs::check(value).map_err(|e| bad(cmd, e.to_string()))
 }
 fn nested(s: &mut Session, id: &str, p: &Value) -> Result<Value> {
     crate::find_command(id).ok_or_else(|| bad("library.apply", "required assignment command is unavailable"))?.run_nested(s, p)
@@ -118,15 +118,15 @@ fn export(s: &mut Session, p: &Value) -> Result<Value> {
     let bytes = catalog.encode().map_err(|e| bad(cmd, e.to_string()))?;
     #[cfg(not(target_arch = "wasm32"))]
     let result = if request.overwrite {
-        solidcraft_io::write_atomic(std::path::Path::new(&request.path), &bytes, false)
+        desurface_io::write_atomic(std::path::Path::new(&request.path), &bytes, false)
     } else {
-        solidcraft_io::safe_write::create_atomic(std::path::Path::new(&request.path), &bytes)
+        desurface_io::safe_write::create_atomic(std::path::Path::new(&request.path), &bytes)
     };
     #[cfg(target_arch = "wasm32")]
-    let result = if !request.overwrite && solidcraft_io::vfs::exists(&request.path) {
+    let result = if !request.overwrite && desurface_io::vfs::exists(&request.path) {
         Err(std::io::Error::new(std::io::ErrorKind::AlreadyExists, "library file already exists"))
     } else {
-        solidcraft_io::vfs::write(&request.path, &bytes)
+        desurface_io::vfs::write(&request.path, &bytes)
     };
     result.map_err(|e| bad(cmd, format!("could not export library: {e}")))?;
     Ok(json!({"path":request.path,"entries":catalog.entries.len(),"bytes":bytes.len(),"catalog":catalog}))

@@ -3,8 +3,8 @@
 mod support;
 
 use serde_json::json;
-use solidcraft_engine::{Sel, sketch::ConstraintKind};
-use solidcraft_ui_egui::scenario::Harness;
+use desurface_engine::{Sel, sketch::ConstraintKind};
+use desurface_ui_egui::scenario::Harness;
 
 fn lines() -> Harness {
     support::sketch_lines(&[[[10, 10], [40, 10]], [[10, 30], [40, 35]]], None)
@@ -197,7 +197,7 @@ fn curvature_polygon_and_fix_consume_clicked_operands_atomically() {
         };
         h.call("ui.view", json!({"view":"top"}));
         h.app.cam.distance = 80.0;
-        h.app.cam.target = solidcraft_engine::geom::Vec3::new(30.0, 15.0, 0.0);
+        h.app.cam.target = desurface_engine::geom::Vec3::new(30.0, 15.0, 0.0);
         h.settle();
         for (i, p) in picks.iter().enumerate() {
             h.step(&json!({"click":{"sketch":p},"shift":i>0})).unwrap();

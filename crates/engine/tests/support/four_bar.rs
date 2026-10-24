@@ -1,7 +1,7 @@
 //! Public-safe 10/40/20/42 mm linkage, matching the reported one-degree-of-freedom sketch.
 use serde_json::json;
-use solidcraft_engine::Session;
-use solidcraft_geom::Vec2;
+use desurface_engine::Session;
+use desurface_geom::Vec2;
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 

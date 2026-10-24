@@ -10,8 +10,8 @@
 //! together; the flat solid is the outline extruded through the thickness.
 
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::{Aabb2, LINEAR_TOL, Loop2, Plane, Region2, Ring, Seg2, Vec2, Vec3};
-use solidcraft_kernel::{self as kernel, Body, EdgeSpec, FaceSpec, SurfSpec};
+use desurface_geom::{Aabb2, LINEAR_TOL, Loop2, Plane, Region2, Ring, Seg2, Vec2, Vec3};
+use desurface_kernel::{self as kernel, Body, EdgeSpec, FaceSpec, SurfSpec};
 
 use crate::expr::{self, Kind, Value};
 use crate::{DocError, Document, IDENTITY, Mat, Result, apply_point, apply_vector, mat_inverse, mat_mul};
@@ -5065,8 +5065,8 @@ mod tests {
         );
         let lobe = |f: fn(Vec2) -> Vec2| Loop2 {
             segs: vec![
-                solidcraft_geom::bezier(&cubic.map(f)).unwrap(),
-                solidcraft_geom::bezier(&quartic.map(f)).unwrap(),
+                desurface_geom::bezier(&cubic.map(f)).unwrap(),
+                desurface_geom::bezier(&quartic.map(f)).unwrap(),
                 Seg2::Line { a: f(b), b: f(a) },
             ],
         };

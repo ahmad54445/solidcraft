@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-/// An agent SolidCraft knows how to start in ACP mode.
+/// An agent DeSurface knows how to start in ACP mode.
 pub struct Known {
     pub id: &'static str,
     pub name: &'static str,
@@ -485,10 +485,10 @@ mod tests {
         use super::super::process::{AgentProcess, FromAgent};
         use std::os::unix::fs::PermissionsExt;
 
-        const CHILD: &str = "SOLIDCRAFT_AGENT_PATH_TEST";
+        const CHILD: &str = "DESURFACE_AGENT_PATH_TEST";
         if let Some(root) = std::env::var_os(CHILD) {
             let root = PathBuf::from(root);
-            let agent = find_in("solidcraft-test-agent", &search_dirs()).unwrap();
+            let agent = find_in("desurface-test-agent", &search_dirs()).unwrap();
             assert_eq!(version(&agent, Duration::from_secs(3)).as_deref(), Some("1.2.3"));
             let mut p = AgentProcess::spawn(&[agent.to_string_lossy().into_owned()], &root, &[], || {}).unwrap();
             let message = serde_json::json!({"id": 1, "method": "initialize"});
@@ -506,8 +506,8 @@ mod tests {
         let bin = root.join(".local/bin");
         std::fs::create_dir_all(&bin).unwrap();
         for (name, script) in [
-            ("solidcraft-test-agent", "#!/usr/bin/env solidcraft-test-runtime\n"),
-            ("solidcraft-test-runtime", "#!/bin/sh\nif [ \"$2\" = \"--version\" ]; then printf 'test-agent 1.2.3\\n'; else cat; fi\n"),
+            ("desurface-test-agent", "#!/usr/bin/env desurface-test-runtime\n"),
+            ("desurface-test-runtime", "#!/bin/sh\nif [ \"$2\" = \"--version\" ]; then printf 'test-agent 1.2.3\\n'; else cat; fi\n"),
         ] {
             let path = bin.join(name);
             std::fs::write(&path, script).unwrap();

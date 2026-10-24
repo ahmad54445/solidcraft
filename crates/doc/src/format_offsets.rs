@@ -369,7 +369,7 @@ mod tests {
             damaged["features"][1]["profiles"]["associations"] = associations;
             assert!(validate_raw(&damaged).is_err());
             damaged["format"] = json!(crate::format::format_string(crate::format::FORMAT + 1));
-            assert!(crate::format::read(&damaged.to_string()).unwrap_err().to_string().contains("newer SolidCraft"));
+            assert!(crate::format::read(&damaged.to_string()).unwrap_err().to_string().contains("newer DeSurface"));
         }
         // Absent metadata preserves the historical one-to-one chain representation.
         let mut legacy = fixture();
@@ -380,11 +380,11 @@ mod tests {
 
     #[test]
     fn formats_one_through_eleven_keep_legacy_offset_geometry_and_ids() {
-        let mut sketch = solidcraft_sketch::Sketch::new();
-        let center = sketch.add_point(solidcraft_geom::Vec2::new(4., 7.), Some("center")).unwrap();
-        sketch.add_circle(solidcraft_geom::Vec2::new(4., 7.), 10., Some(center), Some("source")).unwrap();
-        sketch.add_circle(solidcraft_geom::Vec2::new(4., 7.), 9., Some(center), Some("offset")).unwrap();
-        sketch.offsets.push(solidcraft_sketch::OffsetChain {
+        let mut sketch = desurface_sketch::Sketch::new();
+        let center = sketch.add_point(desurface_geom::Vec2::new(4., 7.), Some("center")).unwrap();
+        sketch.add_circle(desurface_geom::Vec2::new(4., 7.), 10., Some(center), Some("source")).unwrap();
+        sketch.add_circle(desurface_geom::Vec2::new(4., 7.), 9., Some(center), Some("offset")).unwrap();
+        sketch.offsets.push(desurface_sketch::OffsetChain {
             sources: vec![("source".into(), true)],
             outputs: vec!["offset".into()],
             distance: 1.,
@@ -409,15 +409,15 @@ mod tests {
             let state = model.state();
             let solved = state.sketch(sketch_id).unwrap();
             let radius = solved.sketch.curves.iter().find(|curve| curve.id == "offset").map(|curve| &curve.kind);
-            assert!(matches!(radius,Some(solidcraft_sketch::CurveKind::Circle {r,..}) if *r ==9.));
+            assert!(matches!(radius,Some(desurface_sketch::CurveKind::Circle {r,..}) if *r ==9.));
         }
     }
 
     #[test]
     fn missing_boundary_or_defining_sketch_reopens_as_a_model_error_without_retarget() {
         for missing_sketch in [false, true] {
-            let mut sketch = solidcraft_sketch::Sketch::new();
-            sketch.add_circle(solidcraft_geom::Vec2::new(0., 0.), 10., None, Some("unrelated-circle")).unwrap();
+            let mut sketch = desurface_sketch::Sketch::new();
+            sketch.add_circle(desurface_geom::Vec2::new(0., 0.), 10., None, Some("unrelated-circle")).unwrap();
             let mut document = Document::new("repairable lost boundary");
             let id = document.add_feature(FeatureKind::Sketch { plane: crate::PlaneRef::Origin { name: "XY".into() }, sketch }, None).unwrap();
             document

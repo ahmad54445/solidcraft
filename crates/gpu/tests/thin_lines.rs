@@ -1,23 +1,23 @@
 //! Lines thinner than a pixel (the grid's minor lines are 0.7 px) are drawn wherever they fall,
 //! without multisampling (#2823). A quad narrower than a pixel covers no pixel centre when it
 //! falls between two rows, so such lines came and went as the view zoomed. Skipped, with the
-//! reason printed, without a GPU adapter (`SOLIDCRAFT_REQUIRE_GPU=1` makes that a failure).
+//! reason printed, without a GPU adapter (`DESURFACE_REQUIRE_GPU=1` makes that a failure).
 
-use solidcraft_engine::geom::Vec3;
-use solidcraft_engine::render::{Camera, Rgb, Scene, SceneLine, StandardView};
-use solidcraft_gpu::GpuError;
-use solidcraft_gpu::capture::Capturer;
+use desurface_engine::geom::Vec3;
+use desurface_engine::render::{Camera, Rgb, Scene, SceneLine, StandardView};
+use desurface_gpu::GpuError;
+use desurface_gpu::capture::Capturer;
 
 /// Pictures drawn with one sample per pixel: with 4× multisampling a thin line covers some
 /// samples wherever it falls, which hides the fault.
 fn capturer() -> Option<&'static Capturer> {
-    static SINGLE: std::sync::OnceLock<solidcraft_gpu::Result<Capturer>> = std::sync::OnceLock::new();
+    static SINGLE: std::sync::OnceLock<desurface_gpu::Result<Capturer>> = std::sync::OnceLock::new();
     match SINGLE.get_or_init(Capturer::headless_single_sample).as_ref() {
         Ok(c) => {
             assert_eq!(c.samples(), 1);
             Some(c)
         }
-        Err(e @ GpuError::NoAdapter(_)) if std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none() => {
+        Err(e @ GpuError::NoAdapter(_)) if std::env::var_os("DESURFACE_REQUIRE_GPU").is_none() => {
             eprintln!("skipping: {e}");
             None
         }

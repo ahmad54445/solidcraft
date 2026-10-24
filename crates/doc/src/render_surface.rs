@@ -3,7 +3,7 @@
 //! hashes pin the installed built-in resource revision; no paths or device objects are saved.
 use crate::{DocError, Result, render_resources::HdrId};
 use serde::{Deserialize, Serialize};
-use solidcraft_render::job::textures::PlanarFrame;
+use desurface_render::job::textures::PlanarFrame;
 use std::{collections::BTreeSet, fmt};
 
 pub const MAX_SURFACE_BINDINGS: usize = 128;

@@ -1,7 +1,7 @@
 # Perspective UV differential reference
 
 The independent L1 helper in #1346 supports the first wood consumer #1345.
-`solidcraft_render::texture_interpolation::PerspectiveUv` accepts three unwrapped
+`desurface_render::texture_interpolation::PerspectiveUv` accepts three unwrapped
 vertex UVs and positive reciprocal clip-w values. `evaluate` takes the existing
 rasterizer's screen barycentric weights and their x/y derivatives. It returns UV
 and analytic perspective-correct derivatives without changing raster coverage,
@@ -46,7 +46,7 @@ of that caller policy. GPU interpolation/gradient precision requires separate pa
 evidence. Anisotropy, normal filtering, grain-frame inference and a visible texture
 consumer remain separate work. No HDRI or final renderer capability is advertised.
 
-Version identifier `solidcraft.perspective-uv-differential/1` documents the input,
+Version identifier `desurface.perspective-uv-differential/1` documents the input,
 partition, precision and refusal policy. Original analytic tests cover affine and
 perspective values/derivatives, reciprocal-w scaling, vertex order, large constant
 offsets, edges, supersampling units and hostile/refused outputs. This invisible

@@ -1,7 +1,7 @@
 //! Read-only discovery for the original effect editors; no device or capture.
 use crate::{Result, Session, params::bad};
 use serde_json::{Value, json};
-use solidcraft_render::job::{
+use desurface_render::job::{
     aging::{AgingKind, AgingLayer},
     looks::{LookKind, LookLayer},
 };
@@ -24,19 +24,19 @@ pub(super) fn presentation(_: &mut Session, p: &Value) -> Result<Value> {
     empty(p, "render.effects.describe")?;
     Ok(json!({"maximum_look_layers":8,"storage":"GPU saved job.options.finishing; retained-master presentation uses the same schema",
         "looks":LookKind::ALL.map(|kind|LookLayer{kind,..Default::default()}),
-        "photographic_default":solidcraft_render::job::photographic::Photographic::default(),
+        "photographic_default":desurface_render::job::photographic::Photographic::default(),
         "flare_source":"up to four separated scene-linear high-luminance samples from the actual image; no arbitrary light source is invented",
         "preserves":["raw FLOAT32 EXR bytes","captured geometry and lighting","engineering materials"],
         "limitations":["original artistic transforms, not film-brand LUTs or calibrated camera emulation","image-space flare/distortion/chromatic shifts are not physical lens transport","spatial photographic effects require opaque output and use clamped edges","regrading does not rerun denoising or trace rays"]}))
 }
 pub(super) fn resolve_aging(
     session: &Session,
-    scene: &solidcraft_render::ProductScene,
-    saved: &solidcraft_doc::render_aging::SavedAgingStack,
+    scene: &desurface_render::ProductScene,
+    saved: &desurface_doc::render_aging::SavedAgingStack,
     command: &str,
-) -> Result<solidcraft_render::job::aging::AgingStack> {
-    use solidcraft_doc::DocError;
-    use solidcraft_render::job::aging::{BodyName, BodyTarget};
+) -> Result<desurface_render::job::aging::AgingStack> {
+    use desurface_doc::DocError;
+    use desurface_render::job::aging::{BodyName, BodyTarget};
     if saved.is_empty() {
         return Ok(Default::default());
     }
@@ -76,8 +76,8 @@ mod tests {
     }
     #[test]
     fn saved_aging_tracks_its_occurrence_across_capture_reordering_and_cold_reopen() {
-        use solidcraft_doc::render_aging::SavedAgingStack;
-        use solidcraft_render::job::aging::{AgingKind, AgingLayer};
+        use desurface_doc::render_aging::SavedAgingStack;
+        use desurface_render::job::aging::{AgingKind, AgingLayer};
         let mut session = Session::default();
         let component = session.execute("component.create", &json!({"name":"Weathered part"})).unwrap();
         session.execute("solid.box", &json!({"body_name":"Panel","length":10,"width":10,"height":2})).unwrap();
@@ -101,11 +101,11 @@ mod tests {
         assert_ne!(moved.body_index, first.body_index);
         assert_eq!(moved.body_name, first.body_name);
         assert_eq!(reordered.meshes[moved.body_index as usize].name, name);
-        let native = solidcraft_io::write_design_container(&session.doc).unwrap();
+        let native = desurface_io::write_design_container(&session.doc).unwrap();
         let json = session.doc.to_json();
-        let native_doc = solidcraft_io::read_design(&native).unwrap();
+        let native_doc = desurface_io::read_design(&native).unwrap();
         assert_eq!(native_doc.render, session.doc.render);
-        assert_eq!(solidcraft_doc::Document::from_json(&json).unwrap().render, session.doc.render);
+        assert_eq!(desurface_doc::Document::from_json(&json).unwrap().render, session.doc.render);
         session.execute("edit.undo", &json!({})).unwrap();
         assert!(!session.doc.render.setups.contains_key("Aging"));
         session.execute("edit.redo", &json!({})).unwrap();
@@ -152,22 +152,22 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn saved_targeted_aging_is_refused_by_an_executor_without_aging() {
-        use solidcraft_render::job::{self, ImageExecutor, ImageHost};
+        use desurface_render::job::{self, ImageExecutor, ImageHost};
         use std::sync::Arc;
         struct UnsupportedGpu;
         impl ImageExecutor for UnsupportedGpu {
-            fn descriptor(&self) -> job::Result<solidcraft_render::ExecutorDescriptor> {
+            fn descriptor(&self) -> job::Result<desurface_render::ExecutorDescriptor> {
                 let mut descriptor = job::CpuHost::cooperative().descriptor()?;
-                descriptor.id = solidcraft_render::ExecutorId::new("gpu-path").unwrap();
-                descriptor.profiles[0].features.push(solidcraft_render::RenderFeature::Progressive);
+                descriptor.id = desurface_render::ExecutorId::new("gpu-path").unwrap();
+                descriptor.profiles[0].features.push(desurface_render::RenderFeature::Progressive);
                 Ok(descriptor)
             }
-            fn admit(&self, _: &solidcraft_render::ProductScene, _: &job::ImageRequest, _: job::JobOptions) -> job::Result<job::Admission> {
+            fn admit(&self, _: &desurface_render::ProductScene, _: &job::ImageRequest, _: job::JobOptions) -> job::Result<job::Admission> {
                 panic!("unsupported aging must be refused before executor admission")
             }
             fn begin(
                 &self,
-                _: solidcraft_render::ProductScene,
+                _: desurface_render::ProductScene,
                 _: job::ImageRequest,
                 _: job::JobOptions,
                 _: job::CancelToken,
@@ -179,8 +179,8 @@ mod tests {
         session.execute("solid.box", &json!({"body_name":"Target panel","length":2,"width":2,"height":1})).unwrap();
         let identities = super::super::surface_bindings::targets(&session, "test").unwrap();
         let target = identities.keys().next().unwrap().clone();
-        let mut layers = solidcraft_doc::render_aging::SavedAgingStack::default();
-        layers.push(solidcraft_render::job::aging::AgingLayer::default()).unwrap();
+        let mut layers = desurface_doc::render_aging::SavedAgingStack::default();
+        layers.push(desurface_render::job::aging::AgingLayer::default()).unwrap();
         layers.get_mut(0).unwrap().target = Some(target);
         session
             .execute(
@@ -188,7 +188,7 @@ mod tests {
                 &json!({"name":"Aging","set":{"width":4,"height":4,"job":{"method":"gpu_path","options":{"samples":1,"aging":layers}}}}),
             )
             .unwrap();
-        session = Session::new(solidcraft_io::read_design(&solidcraft_io::write_design_container(&session.doc).unwrap()).unwrap());
+        session = Session::new(desurface_io::read_design(&desurface_io::write_design_container(&session.doc).unwrap()).unwrap());
         session.set_render_job_host(Some(job::CpuHost::cooperative())).unwrap();
         let host = ImageHost::with_executor(Arc::new(UnsupportedGpu)).unwrap();
         session.register_render_job_host(host.clone()).unwrap();

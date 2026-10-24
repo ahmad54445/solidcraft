@@ -73,7 +73,7 @@ mod tests {
     use super::*;
 
     fn scratch(tag: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("solidcraft-legacy-dir-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("desurface-legacy-dir-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -86,7 +86,7 @@ mod tests {
         std::fs::create_dir_all(old.join("recovery")).unwrap();
         std::fs::write(old.join("graphics.json"), "{\"msaa\":8}").unwrap();
         std::fs::write(old.join("recovery").join("a.solvecraft"), "x").unwrap();
-        let new = d.join("solidcraft");
+        let new = d.join("desurface");
         assert!(adopt_legacy_dir(&new, &old).unwrap());
         assert_eq!(std::fs::read_to_string(new.join("graphics.json")).unwrap(), "{\"msaa\":8}");
         assert!(new.join("recovery").join("a.solvecraft").is_file());
@@ -102,18 +102,18 @@ mod tests {
     #[test]
     fn flatpak_twin_maps_our_sandbox_data_to_the_old_app_id() {
         let home = Path::new("/home/u");
-        let ours = home.join(".var/app/ai.storyteller.solidcraft/data/solidcraft");
+        let ours = home.join(".var/app/ai.storyteller.solidcraft/data/desurface");
         let id = std::ffi::OsStr::new(APP_ID);
-        assert_eq!(flatpak_twin(&ours, id, home), Some(home.join(".var/app/ai.storyteller.solvecraft/data/solidcraft")));
+        assert_eq!(flatpak_twin(&ours, id, home), Some(home.join(".var/app/ai.storyteller.solvecraft/data/desurface")));
         // Outside our sandbox folder, or in another app's sandbox, there is nothing to map.
-        assert_eq!(flatpak_twin(&home.join(".local/share/solidcraft"), id, home), None);
+        assert_eq!(flatpak_twin(&home.join(".local/share/desurface"), id, home), None);
         assert_eq!(flatpak_twin(&ours, std::ffi::OsStr::new("org.example.Other"), home), None);
     }
 
     #[test]
     fn nothing_to_adopt() {
         let d = scratch("none");
-        let new = d.join("solidcraft");
+        let new = d.join("desurface");
         assert!(!adopt_legacy_dir(&new, &d.join("missing")).unwrap());
         assert!(!new.exists());
         // An existing current folder is never overwritten.

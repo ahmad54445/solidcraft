@@ -2,13 +2,13 @@
 //! native composition. Not a visual certification or all-pairs material matrix.
 use super::*;
 use serde_json::json;
-use solidcraft_render::job::{JobId, Phase};
+use desurface_render::job::{JobId, Phase};
 
 #[test]
 fn all_authored_surfaces_and_native_studios_render_from_saved_exact_bindings() {
     let Some(executor) = executor() else { return };
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();
-    let output = std::env::var_os("SOLIDCRAFT_RESOURCE_EVIDENCE_DIR").map(std::path::PathBuf::from);
+    let output = std::env::var_os("DESURFACE_RESOURCE_EVIDENCE_DIR").map(std::path::PathBuf::from);
     if let Some(folder) = &output {
         assert!(folder.is_absolute() && !folder.exists(), "fresh evidence directory required");
         std::fs::create_dir_all(folder).unwrap();
@@ -16,7 +16,7 @@ fn all_authored_surfaces_and_native_studios_render_from_saved_exact_bindings() {
     let mut receipts = Vec::new();
     for (kind, count) in [("surface", 48), ("studio", 25)] {
         for index in 1..=count {
-            let mut session = solidcraft_engine::Session::default();
+            let mut session = desurface_engine::Session::default();
             session.register_render_job_host(host.clone()).unwrap();
             session.execute("solid.box", &json!({"length":20,"width":15,"height":4,"body_name":"Original coupon"})).unwrap();
             let geometry = session.doc.features.clone();
@@ -49,7 +49,7 @@ fn all_authored_surfaces_and_native_studios_render_from_saved_exact_bindings() {
             } else {
                 studio
             };
-            let reopened = solidcraft_engine::doc::Document::from_json(&session.doc.to_json()).unwrap();
+            let reopened = desurface_engine::doc::Document::from_json(&session.doc.to_json()).unwrap();
             assert_eq!(reopened.render.setups["Smoke"], session.doc.render.setups["Smoke"]);
             assert_eq!(session.doc.features, geometry);
             assert_eq!(session.doc.materials, materials);

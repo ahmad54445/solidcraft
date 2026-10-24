@@ -1,12 +1,12 @@
 use super::*;
 use serde_json::json;
-use solidcraft_render::job::{JobId, Phase};
+use desurface_render::job::{JobId, Phase};
 
 #[test]
 fn engine_regrades_retained_master_after_geometry_changes_without_new_transport_or_design_edits() {
     let Some(executor) = executor() else { return };
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();
-    let mut session = solidcraft_engine::Session::default();
+    let mut session = desurface_engine::Session::default();
     session.register_render_job_host(host).unwrap();
     session.execute("solid.box", &json!({"length":2,"width":2,"height":1,"body_name":"Captured subject"})).unwrap();
     let input = json!({"progressive":true,"samples":32,"linear_exr":true,"settings":{"width":16,"height":12},

@@ -1,6 +1,6 @@
 # Application resources
 
-`assets/` is the design resource home for SolidCraft.
+`assets/` is the design resource home for DeSurface.
 [ATTRIBUTION.md](../ATTRIBUTION.md) is the file inventory and provenance record.
 Keep one editable master per resource and place shipped derivatives in `exports/`.
 
@@ -9,7 +9,7 @@ assets/
   icons/
     app/
       shared/source/                 # original Rust mark and executable ICO encoder
-      macos/source/SolidCraft.icon/   # approved Composer project and linked SVGs
+      macos/source/DeSurface.icon/   # approved Composer project and linked SVGs
       macos/exports/                 # paired Assets.car and icon.icns
       windows/exports/               # executable DIB ICO and installer PNG ICO
       linux/exports/hicolor/         # Linux/FreeBSD package images, 16–512 px
@@ -37,7 +37,7 @@ Read the mandatory [UI style guide](icons/ui/STYLE_GUIDE.md) before editing an i
 Edit SVG geometry and its command/UI assignments together; inspect both themes
 and small sizes. Temporary media and generated reports belong in ignored target/. Palettes and model presets are also editable Rust data.
 
-The current macOS master is `icons/app/macos/source/SolidCraft.icon/`, including
+The current macOS master is `icons/app/macos/source/DeSurface.icon/`, including
 its linked SVG layers and appearance settings. The earlier VectorCraft document
 is preserved in the archive. No other native design projects were available for
 the current UI set or preview card. Keep any future `.vectorcraft`, `.ai` or other
@@ -54,32 +54,32 @@ For macOS, use Xcode with Icon Composer support:
 
 ```sh
 mkdir -p target/resources/macos-icon
-xcrun actool assets/icons/app/macos/source/SolidCraft.icon \
+xcrun actool assets/icons/app/macos/source/DeSurface.icon \
   --compile target/resources/macos-icon --platform macosx \
-  --minimum-deployment-target 11.0 --app-icon SolidCraft \
+  --minimum-deployment-target 11.0 --app-icon DeSurface \
   --output-partial-info-plist target/resources/macos-icon/icon-info.plist \
   --output-format human-readable-text
 cp target/resources/macos-icon/Assets.car assets/icons/app/macos/exports/Assets.car
-cp target/resources/macos-icon/SolidCraft.icns assets/icons/app/macos/exports/icon.icns
+cp target/resources/macos-icon/DeSurface.icns assets/icons/app/macos/exports/icon.icns
 ```
 
 Review and commit source changes and required exports together. Temporary renders,
 tool caches and package staging belong under ignored `target/` or `dist/`.
 Normal builds use the committed exports and require no design applications.
-The CLI still supports arbitrary PNG/ICO exports with `solidcraft-cli icon`.
+The CLI still supports arbitrary PNG/ICO exports with `desurface-cli icon`.
 
 ## Platform bindings
 
 | Platform | Resources and output paths |
 | --- | --- |
-| macOS | Composer master and paired exports; bundle installs `Assets.car` and `SolidCraft.icns` |
-| Windows executable | `solidcraft-executable.ico`: original DIB/mask representations at 16/24/32/48/64/128/256 px |
-| Windows installer | `solidcraft.ico`: PNG representations at 16/20/24/32/40/48/64/128/256 px; `SOLIDCRAFT_ICONS` override retained |
+| macOS | Composer master and paired exports; bundle installs `Assets.car` and `DeSurface.icns` |
+| Windows executable | `desurface-executable.ico`: original DIB/mask representations at 16/24/32/48/64/128/256 px |
+| Windows installer | `desurface.ico`: PNG representations at 16/20/24/32/40/48/64/128/256 px; `DESURFACE_ICONS` override retained |
 | Linux, Nix, deb/rpm, tar, Flatpak, Snap | Copy canonical hicolor images; icon name stays `ai.storyteller.solidcraft` |
 | AppImage | Uses the Linux 256 px image and `.DirIcon` alias |
 | FreeBSD | Shares Linux hicolor images and freedesktop metadata |
-| Web | HTML/Trunk and `manifest.webmanifest` stay in `apps/solidcraft-web/`; copies Japanese font/licence to `fonts/`, uses the collected CSS, and copies the Linux 32/256/512 px images to `icons/` for the favicon and installed app |
-| Docs and link previews | `xtask book` copies the shared card to the existing `/solidcraft/og.png` public path |
+| Web | HTML/Trunk and `manifest.webmanifest` stay in `apps/desurface-web/`; copies Japanese font/licence to `fonts/`, uses the collected CSS, and copies the Linux 32/256/512 px images to `icons/` for the favicon and installed app |
+| Docs and link previews | `xtask book` copies the shared card to the existing `/desurface/og.png` public path |
 
 ## Code and provenance
 

@@ -4,8 +4,8 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use serde_json::{Map, Value, json};
-use solidcraft_engine::io::vfs;
-use solidcraft_engine::timing;
+use desurface_engine::io::vfs;
+use desurface_engine::timing;
 
 use crate::backend::{Backend, STILL_RUNNING};
 
@@ -248,11 +248,11 @@ pub fn tool_definitions() -> Vec<Value> {
         tool(
             "crash_reports",
             "Crash reports",
-            "SolidCraft's crash reports on this computer (the app's when connected to it). Without `id`: the list, newest \
+            "DeSurface's crash reports on this computer (the app's when connected to it). Without `id`: the list, newest \
              first (id, kind, time, message, command, count, version, path, replayable). With `id`: the whole report: \
              message, location, backtrace, app version and commit, system, the command that crashed and the recent ones, \
-             and design_path / replay_path when it can be replayed: `solidcraft-cli crashes replay <id>`, or \
-             `solidcraft-cli run <replay_path> --in <design_path>`. Reports never leave this computer.",
+             and design_path / replay_path when it can be replayed: `desurface-cli crashes replay <id>`, or \
+             `desurface-cli run <replay_path> --in <design_path>`. Reports never leave this computer.",
             obj(
                 json!({
                     "id": string("A report id from the list"),
@@ -324,12 +324,12 @@ pub fn tool_definitions() -> Vec<Value> {
         tool(
             "skill_reference",
             "Skill reference",
-            "Read a document of SolidCraft's bundled agent skills (solidcraft-modeling, solidcraft-mechanisms, \
-             solidcraft-editing, solidcraft-checking) from the copy built into SolidCraft. `file` defaults to reference.md; \
+            "Read a document of DeSurface's bundled agent skills (desurface-modeling, desurface-mechanisms, \
+             desurface-editing, desurface-checking) from the copy built into DeSurface. `file` defaults to reference.md; \
              each skill also has SKILL.md. Unknown skills or files are refused with the available ones.",
             obj(
                 json!({
-                    "skill": string("Skill name, such as solidcraft-modeling"),
+                    "skill": string("Skill name, such as desurface-modeling"),
                     "file": {"type": "string", "description": "Document of that skill", "default": "reference.md"},
                 }),
                 &["skill"],
@@ -442,7 +442,7 @@ fn command_error(command: &str, error: String) -> String {
         return error;
     }
     let words: Vec<_> = id.split(|c: char| !c.is_ascii_alphanumeric()).filter(|s| !s.is_empty()).collect();
-    let mut closest: Vec<_> = solidcraft_engine::command_specs()
+    let mut closest: Vec<_> = desurface_engine::command_specs()
         .into_iter()
         .filter_map(|spec| {
             let candidate = normalize(spec.id);
@@ -801,7 +801,7 @@ fn batch(b: &mut dyn Backend, a: &Map<String, Value>) -> Value {
         o.insert("timings".into(), Value::Bool(true));
         o.insert("profile".into(), Value::Bool(profile));
     }
-    if params.to_string().len() + 64 * 1024 <= solidcraft_engine::MAX_LINE {
+    if params.to_string().len() + 64 * 1024 <= desurface_engine::MAX_LINE {
         match b.call("engine.batch", params) {
             Ok(mut r) => {
                 if let Some(failed) = r.get_mut("failed")

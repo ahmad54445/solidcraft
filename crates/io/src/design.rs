@@ -12,13 +12,13 @@ pub use thumbnail::{THUMBNAIL_SIZE, read_design_thumbnail, read_design_thumbnail
 
 use serde_json::{Map, Value, json};
 use sha2::{Digest, Sha256};
-use solidcraft_doc::{Document, FeatureKind, MeshData};
+use desurface_doc::{Document, FeatureKind, MeshData};
 
 use crate::{IoError, MAX_DESIGN_BYTES, Result, design_metadata::replace};
 
 const VERSION: &str = "solidcraft-container/1";
 const LEGACY_VERSION: &str = "solvecraft-container/1";
-const PREVIEW_VERSION: &str = "solidcraft-preview/1";
+const PREVIEW_VERSION: &str = "desurface-preview/1";
 const MAX_ENTRIES: usize = 10_000;
 /// An embedded STEP source may be as large as an import accepts. It is always stored
 /// Deflate-compressed, so the file itself stays within [`MAX_DESIGN_BYTES`] (#3221).
@@ -198,7 +198,7 @@ pub fn write_design_container_with_cache(
     doc: &Document,
     compression: DesignCompression,
     preview: Option<&DesignPreview>,
-    geometry: Option<&solidcraft_doc::SavedModel>,
+    geometry: Option<&desurface_doc::SavedModel>,
 ) -> Result<Vec<u8>> {
     write_design_container_with_thumbnail(doc, compression, preview, geometry, None)
 }
@@ -209,7 +209,7 @@ pub fn write_design_container_with_thumbnail(
     doc: &Document,
     compression: DesignCompression,
     preview: Option<&DesignPreview>,
-    geometry: Option<&solidcraft_doc::SavedModel>,
+    geometry: Option<&desurface_doc::SavedModel>,
     thumbnail: Option<&[u8]>,
 ) -> Result<Vec<u8>> {
     write_container(doc, compression, preview, geometry, thumbnail, MAX_DESIGN_BYTES)
@@ -221,7 +221,7 @@ fn write_container(
     doc: &Document,
     compression: DesignCompression,
     preview: Option<&DesignPreview>,
-    geometry: Option<&solidcraft_doc::SavedModel>,
+    geometry: Option<&desurface_doc::SavedModel>,
     thumbnail: Option<&[u8]>,
     budget: usize,
 ) -> Result<Vec<u8>> {
@@ -259,11 +259,11 @@ fn write_container(
     }
     let mut canvases = Vec::with_capacity(doc.canvases.len());
     for canvas in &doc.canvases {
-        if canvas.data.len() > solidcraft_doc::canvas::MAX_CANVAS_BYTES.div_ceil(3) * 4 {
+        if canvas.data.len() > desurface_doc::canvas::MAX_CANVAS_BYTES.div_ceil(3) * 4 {
             return Err(invalid("canvas too large"));
         }
         let bytes = canvas.bytes().ok_or_else(|| invalid("invalid canvas base64"))?;
-        if !matches!(canvas.format.as_str(), "png" | "jpeg") || bytes.len() > solidcraft_doc::canvas::MAX_CANVAS_BYTES {
+        if !matches!(canvas.format.as_str(), "png" | "jpeg") || bytes.len() > desurface_doc::canvas::MAX_CANVAS_BYTES {
             return Err(invalid("invalid canvas format or size"));
         }
         let blob = writer.blob(&bytes, &canvas.format, false)?;
@@ -608,7 +608,7 @@ impl<R: Read + Seek> DesignContainerReader<R> {
     }
 
     /// The saved model, when this build wrote it for exactly this document.
-    pub fn geometry(&mut self) -> Option<solidcraft_doc::SavedModel> {
+    pub fn geometry(&mut self) -> Option<desurface_doc::SavedModel> {
         let document = self.reader.document(16 << 20).ok()?;
         native_cache::read_geometry_with(&mut self.reader, &document).ok()
     }
@@ -625,10 +625,10 @@ pub(super) fn read(bytes: &[u8]) -> Result<Document> {
 
 /// Open from disk (or browser VFS), publishing only provisional display before
 /// authoritative blob hydration, with the model the file keeps when this build saved it for
-/// exactly this document ([`solidcraft_doc::Model::adopt`] takes it as the evaluation). Desktop
+/// exactly this document ([`desurface_doc::Model::adopt`] takes it as the evaluation). Desktop
 /// keeps one seekable file handle instead of buffering the complete archive. JSON continues
 /// through the normal migrations.
-pub fn read_design_file(path: &str, notify: Option<impl FnOnce(DesignPreview)>) -> Result<(Document, Option<solidcraft_doc::SavedModel>)> {
+pub fn read_design_file(path: &str, notify: Option<impl FnOnce(DesignPreview)>) -> Result<(Document, Option<desurface_doc::SavedModel>)> {
     #[cfg(not(target_arch = "wasm32"))]
     let mut source = {
         crate::vfs::check(path).map_err(invalid)?;
@@ -723,10 +723,10 @@ fn read_document<R: Read + Seek>(reader: &mut PackageReader<R>) -> Result<Docume
         }
         let value = metadata.get("canvases").and_then(|v| v.get(index)).ok_or_else(|| invalid("missing canvas metadata"))?;
         let bytes = reader.blob(value, "image_blob", &canvas.format)?;
-        if bytes.len() > solidcraft_doc::canvas::MAX_CANVAS_BYTES {
+        if bytes.len() > desurface_doc::canvas::MAX_CANVAS_BYTES {
             return Err(invalid("canvas too large"));
         }
-        canvas.data = solidcraft_doc::canvas::base64_encode(bytes);
+        canvas.data = desurface_doc::canvas::base64_encode(bytes);
     }
     Ok(doc)
 }
@@ -738,7 +738,7 @@ fn check_hdr_manifest(bytes: &[u8]) -> Result<()> {
         Deserialize,
         de::{MapAccess, Visitor},
     };
-    use solidcraft_doc::render_resources::{HdrId, MAX_HDR_RESOURCES};
+    use desurface_doc::render_resources::{HdrId, MAX_HDR_RESOURCES};
     #[derive(Default, Deserialize)]
     struct Render {
         #[serde(default, deserialize_with = "resources")]
@@ -814,7 +814,7 @@ fn check_hdr_manifest(bytes: &[u8]) -> Result<()> {
 }
 
 fn hydrate_hdr_resources<R: Read + Seek>(metadata: &mut Value, reader: &mut PackageReader<R>) -> Result<bool> {
-    use solidcraft_doc::render_resources::{HdrId, MAX_HDR_RESOURCE_BYTES, MAX_HDR_RESOURCES, encode_hdr_base64};
+    use desurface_doc::render_resources::{HdrId, MAX_HDR_RESOURCE_BYTES, MAX_HDR_RESOURCES, encode_hdr_base64};
 
     let Some(resources) = metadata.get_mut("render").and_then(|render| render.get_mut("resources")) else {
         return Ok(false);
@@ -832,7 +832,7 @@ fn hydrate_hdr_resources<R: Read + Seek>(metadata: &mut Value, reader: &mut Pack
         {
             return Err(invalid("HDR metadata requires radiance_hdr, empty data and one blob; inline data plus blob is ambiguous"));
         }
-        let remaining = MAX_HDR_RESOURCE_BYTES.saturating_sub(total).min(solidcraft_doc::render_resources::MAX_HDR_BYTES);
+        let remaining = MAX_HDR_RESOURCE_BYTES.saturating_sub(total).min(desurface_doc::render_resources::MAX_HDR_BYTES);
         let bytes = reader.limited_blob(value, "hdr_blob", "hdr", remaining)?;
         if HdrId::of(bytes) != id {
             return Err(invalid("HDR resource key does not match its blob hash"));
@@ -849,7 +849,7 @@ fn hydrate_hdr_resources<R: Read + Seek>(metadata: &mut Value, reader: &mut Pack
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solidcraft_geom::Vec2;
+    use desurface_geom::Vec2;
 
     struct CountingReader {
         source: Cursor<Vec<u8>>,
@@ -943,7 +943,7 @@ mod tests {
 
     /// A saved model of one state holding `bodies` (no document evaluated it: enough for the
     /// container, which stores whatever model it is given).
-    fn saved_model(bodies: Vec<solidcraft_kernel::Body>) -> solidcraft_doc::SavedModel {
+    fn saved_model(bodies: Vec<desurface_kernel::Body>) -> desurface_doc::SavedModel {
         let records: Vec<Value> = (0..bodies.len())
             .map(|i| json!({"name": format!("Body{i}"), "feature": 1, "component": 0, "key": "0000000000000001", "names": 0, "body": i}))
             .collect();
@@ -951,7 +951,7 @@ mod tests {
             "bodies": [[0, bodies.len()]], "sketches": [], "body_counter": 7, "sheets": [], "construct": [], "threads": [],
             "sketch_keys": [], "blend_edges": {}, "fitted": {}, "tapered": {},
         });
-        solidcraft_doc::SavedModel {
+        desurface_doc::SavedModel {
             records: json!({
                 "features": [{"id": 1, "fingerprint": "0000000000000000", "ms": 0.0, "skipped": false, "state": 0}],
                 "states": [state], "model_bodies": records, "names": [{"faces": [], "info": []}], "sketches": [],
@@ -960,8 +960,8 @@ mod tests {
         }
     }
 
-    fn native_geometry() -> solidcraft_doc::SavedModel {
-        saved_model(vec![solidcraft_kernel::box_solid(solidcraft_geom::Vec3::ZERO, solidcraft_geom::Vec3::new(10., 20., 30.)).unwrap()])
+    fn native_geometry() -> desurface_doc::SavedModel {
+        saved_model(vec![desurface_kernel::box_solid(desurface_geom::Vec3::ZERO, desurface_geom::Vec3::new(10., 20., 30.)).unwrap()])
     }
 
     #[test]
@@ -987,12 +987,12 @@ mod tests {
 
     #[test]
     fn model_cache_stores_repeated_parts_once_and_keeps_placed_copies() {
-        use solidcraft_geom::Vec3;
-        let part = solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(10., 20., 30.)).unwrap();
-        let share = solidcraft_kernel::DisplayShare::new(part.clone());
+        use desurface_geom::Vec3;
+        let part = desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(10., 20., 30.)).unwrap();
+        let share = desurface_kernel::DisplayShare::new(part.clone());
         let mut bodies = vec![part.clone(), part.clone()];
         for x in [50., 90.] {
-            let moved = solidcraft_kernel::transform(&part, Vec3::new(x, 0., 0.), Vec3::ZERO, Vec3::Z, 0.).unwrap();
+            let moved = desurface_kernel::transform(&part, Vec3::new(x, 0., 0.), Vec3::ZERO, Vec3::Z, 0.).unwrap();
             let t = [[1., 0., 0., 0.], [0., 1., 0., 0.], [0., 0., 1., 0.], [x, 0., 0., 1.]];
             bodies.push(moved.with_display_share(&share, t));
         }
@@ -1009,7 +1009,7 @@ mod tests {
         assert_eq!(copies[1].1[3][0], 90.);
         assert!(read.bodies[0].display_share().is_none());
         for (a, b) in model.bodies.iter().zip(&read.bodies) {
-            assert_eq!(solidcraft_kernel::encode_native_body(a).unwrap(), solidcraft_kernel::encode_native_body(b).unwrap());
+            assert_eq!(desurface_kernel::encode_native_body(a).unwrap(), desurface_kernel::encode_native_body(b).unwrap());
         }
     }
 
@@ -1030,9 +1030,9 @@ mod tests {
     /// A saved model of four features (5, 50, 20 and 1 ms) whose states each hold the eight
     /// bodies all of them share and eight of their own (a body each feature replaces). No
     /// document evaluated it.
-    fn timeline_model() -> solidcraft_doc::SavedModel {
+    fn timeline_model() -> desurface_doc::SavedModel {
         let bodies: Vec<_> = (0..40)
-            .map(|i| solidcraft_kernel::box_solid(solidcraft_geom::Vec3::ZERO, solidcraft_geom::Vec3::new(10. + f64::from(i), 20., 30.)).unwrap())
+            .map(|i| desurface_kernel::box_solid(desurface_geom::Vec3::ZERO, desurface_geom::Vec3::new(10. + f64::from(i), 20., 30.)).unwrap())
             .collect();
         let records: Vec<Value> = (0..40)
             .map(|i| json!({"name": format!("Body{i}"), "feature": 1 + i / 8, "component": 0, "key": "0000000000000001", "names": 0, "body": i}))
@@ -1052,7 +1052,7 @@ mod tests {
             .enumerate()
             .map(|(i, ms)| json!({"id": i + 1, "fingerprint": "0000000000000000", "ms": ms, "skipped": false, "state": i}))
             .collect();
-        solidcraft_doc::SavedModel {
+        desurface_doc::SavedModel {
             records: json!({"features": features, "states": states, "model_bodies": records, "names": [{"faces": [], "info": []}], "sketches": []}),
             bodies,
         }
@@ -1128,7 +1128,7 @@ mod tests {
             let (manifest, payload) = native_cache::encode_model(&thin, document, usize::MAX).unwrap();
             (manifest.len(), payload.len())
         };
-        let encoded = |i: usize| solidcraft_kernel::encode_native_body(&model.bodies[i]).unwrap().len();
+        let encoded = |i: usize| desurface_kernel::encode_native_body(&model.bodies[i]).unwrap().len();
         // What a state's own bodies add: more than the records of the caches below, so the sizes
         // below pick one set of states each.
         let own = (8..40).step_by(8).map(|s| (s..s + 8).map(encoded).sum::<usize>()).min().unwrap();
@@ -1149,7 +1149,7 @@ mod tests {
         let part = model.bodies[0].clone();
         model.bodies.iter_mut().for_each(|b| *b = part.clone());
         let document = b"{}";
-        let size = |m: &solidcraft_doc::SavedModel| {
+        let size = |m: &desurface_doc::SavedModel| {
             let (manifest, payload) = native_cache::encode_model(m, document, usize::MAX).unwrap();
             (manifest.len() + payload.len(), serde_json::from_slice::<Value>(&manifest).unwrap()["slices"].as_array().unwrap().len())
         };
@@ -1275,13 +1275,13 @@ mod tests {
         other.color = None;
         doc.add_feature(FeatureKind::MeshImport { file: "example.obj".into(), meshes: vec![mesh(), other] }, None).unwrap();
         let id = doc.allocate_id().unwrap();
-        doc.canvases.push(solidcraft_doc::canvas::Canvas {
+        doc.canvases.push(desurface_doc::canvas::Canvas {
             id,
             name: "Reference".into(),
             format: "png".into(),
-            data: solidcraft_doc::canvas::base64_encode(b"original image bytes"),
+            data: desurface_doc::canvas::base64_encode(b"original image bytes"),
             pixels: [1, 1],
-            plane: solidcraft_doc::PlaneRef::Origin { name: "XY".into() },
+            plane: desurface_doc::PlaneRef::Origin { name: "XY".into() },
             center: Vec2::new(0.0, 0.0),
             width: 10.0,
             angle: 0.0,
@@ -1538,9 +1538,9 @@ mod tests {
     /// A valid STEP cube, padded with a comment to `length` bytes. `noisy` padding barely
     /// compresses; otherwise it is repetitive like the text of a real large export.
     fn padded_step(length: usize, noisy: bool) -> String {
-        use solidcraft_geom::Vec3;
-        let cube = solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(10.0, 20.0, 30.0)).unwrap();
-        let step = solidcraft_kernel::step_export(&[&cube], "padded").unwrap();
+        use desurface_geom::Vec3;
+        let cube = desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(10.0, 20.0, 30.0)).unwrap();
+        let step = desurface_kernel::step_export(&[&cube], "padded").unwrap();
         let (head, tail) = step.split_at(step.find("DATA;").unwrap() + 5);
         let end = length - tail.len() - 2;
         let mut out = String::with_capacity(length);
@@ -1689,9 +1689,9 @@ mod tests {
     fn metadata_round_trip_preserves_new_and_existing_fields() {
         let mut doc = Document::new("Empty");
         doc.units = "in".into();
-        doc.named_views.push(solidcraft_doc::NamedView { name: "View".into(), ..Default::default() });
+        doc.named_views.push(desurface_doc::NamedView { name: "View".into(), ..Default::default() });
         doc.param_comments.insert("test".into(), "metadata".into());
-        let setup = solidcraft_doc::render_settings::RenderSetup { exposure_ev: 1.5, ..Default::default() };
+        let setup = desurface_doc::render_settings::RenderSetup { exposure_ev: 1.5, ..Default::default() };
         std::sync::Arc::make_mut(&mut doc.render).setups.insert("Studio".into(), setup);
         // Design properties and other tools' data (#1015), kept as they are in both forms.
         doc.metadata = serde_json::from_value(json!({
@@ -1726,7 +1726,7 @@ mod tests {
 
     #[test]
     fn embedded_hdr_is_one_required_blob_shared_by_cpu_gpu_and_strictly_hydrated() {
-        use solidcraft_doc::{render_resources::HdrResource, render_settings::RenderSettings};
+        use desurface_doc::{render_resources::HdrResource, render_settings::RenderSettings};
         let mut source = b"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\nPRIMARIES=0.64 0.33 0.30 0.60 0.15 0.06 0.3127 0.3290\n\n-Y 2 +X 4\n".to_vec();
         for _ in 0..8 {
             source.extend_from_slice(&[128, 64, 32, 129]);
@@ -1785,7 +1785,7 @@ mod tests {
 
     #[test]
     fn embedded_hdr_container_refuses_oversized_part_before_reading_payload() {
-        use solidcraft_doc::render_resources::{HdrId, MAX_HDR_BYTES};
+        use desurface_doc::render_resources::{HdrId, MAX_HDR_BYTES};
         let source = vec![0u8; MAX_HDR_BYTES + 1];
         let id = HdrId::of(&source).to_string();
         let blob = format!("blobs/{id}.hdr");
@@ -1832,14 +1832,14 @@ mod tests {
     #[test]
     #[ignore = "manual IO performance measurement"]
     fn benchmark_step_storage() {
-        use solidcraft_geom::Vec3;
+        use desurface_geom::Vec3;
         let bodies: Vec<_> = (0..512)
             .map(|i| {
                 let corner = Vec3::new((i % 32) as f64 * 12.0, (i / 32) as f64 * 12.0, 0.0);
-                solidcraft_kernel::box_solid(corner, corner + Vec3::new(10.0, 10.0, 10.0)).unwrap()
+                desurface_kernel::box_solid(corner, corner + Vec3::new(10.0, 10.0, 10.0)).unwrap()
             })
             .collect();
-        let step = solidcraft_kernel::step_export(&bodies.iter().collect::<Vec<_>>(), "SolidCraft storage benchmark").unwrap();
+        let step = desurface_kernel::step_export(&bodies.iter().collect::<Vec<_>>(), "DeSurface storage benchmark").unwrap();
         let mut doc = Document::new("Generated STEP benchmark");
         doc.add_feature(FeatureKind::Import { file: "generated.step".into(), step: step.into(), components: Vec::new(), skip: Vec::new() }, None)
             .unwrap();

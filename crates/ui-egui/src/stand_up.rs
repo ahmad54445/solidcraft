@@ -1,5 +1,5 @@
 //! Standing up a Y-up file (#3). Many CAD programs save parts with Y up, so a STEP or IGES file
-//! from them opens lying on its back in a Z-up design. After such a file opens, SolidCraft
+//! from them opens lying on its back in a Z-up design. After such a file opens, DeSurface
 //! offers to stand it up: a quarter turn about X (Y → Z) of the component the file came in as
 //! (#1386), so an assembly's parts and instances turn together, in one step that can be undone.
 //! Preferences › Design › "Offer to stand up Y-up files" turns the offer off; with Y up as the
@@ -16,13 +16,13 @@ use crate::ui_kit;
 /// new design), and the import's component placement from the command's `result`: offer to
 /// stand them up.
 pub fn offer(app: &mut SolveApp, path: &str, before: &[String], result: Option<&serde_json::Value>) {
-    let io = &solidcraft_engine::io::is_step_path;
-    if !(io(path) || solidcraft_engine::io::is_iges_path(path)) || app.preferences.up_axis != "z" {
+    let io = &desurface_engine::io::is_step_path;
+    if !(io(path) || desurface_engine::io::is_iges_path(path)) || app.preferences.up_axis != "z" {
         return;
     }
     let text = |k: &str| result.and_then(|r| r.get(k)).and_then(serde_json::Value::as_str);
-    // SolidCraft's own STEP exports already use Z up.
-    if text("system") == Some("SolidCraft") || text("exporter_up") == Some("z") {
+    // DeSurface's own STEP exports already use Z up.
+    if text("system") == Some("DeSurface") || text("exporter_up") == Some("z") {
         return;
     }
     let bodies: Vec<String> = app.session.world_state().bodies.iter().map(|b| b.name.clone()).filter(|n| !before.contains(n)).collect();

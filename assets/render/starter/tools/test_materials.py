@@ -169,7 +169,7 @@ class NumericalSurfaceChecks(unittest.TestCase):
 
 class SourceAdmissionChecks(unittest.TestCase):
     def setUp(self):
-        self.source = {"schema": "solidcraft-authored-surfaces/1",
+        self.source = {"schema": "desurface-authored-surfaces/1",
                        "generator_version": mat.VERSION, "resolution": 256,
                        "items": [synthetic_item()]}
 
@@ -264,7 +264,7 @@ class ExportAdmissionChecks(unittest.TestCase):
         catalog = root / "docs/render-materials/materials.json"
         catalog.parent.mkdir(parents=True)
         catalog.write_text(json.dumps({"items": [{"id": "MAT-031"}]}), encoding="utf-8")
-        source = {"schema": "solidcraft-authored-surfaces/1",
+        source = {"schema": "desurface-authored-surfaces/1",
                   "generator_version": mat.VERSION, "resolution": 256,
                   "items": [synthetic_item()]}
         recipes.write_text(json.dumps(source), encoding="utf-8")

@@ -1,7 +1,7 @@
 //! Perspective-correct unwrapped UV and analytic gradients from caller-owned barycentrics.
 //! No projection, clipping, raster coverage, instance transform or texture sampling.
 
-pub const UV_INTERPOLATION_POLICY: &str = "solidcraft.perspective-uv-differential/1";
+pub const UV_INTERPOLATION_POLICY: &str = "desurface.perspective-uv-differential/1";
 /// Matches the existing raster's near-edge admission; does not replace its top-left rule.
 pub const BARYCENTRIC_EDGE_TOLERANCE: f64 = 1e-9;
 const MAX_UV: f64 = 1_000_000.0;

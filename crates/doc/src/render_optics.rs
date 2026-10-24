@@ -5,8 +5,8 @@ use crate::{
     render_surface::{RenderBodyTarget, bounded_sequence},
 };
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::Vec3;
-use solidcraft_render::{
+use desurface_geom::Vec3;
+use desurface_render::{
     surface::OpaqueSurface,
     transmission::{Transmission, subsurface::Subsurface},
 };

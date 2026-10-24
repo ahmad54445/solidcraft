@@ -9,8 +9,8 @@ use std::hash::{Hash, Hasher};
 
 use egui::{Align2, FontId, Rect, RichText, Sense, Stroke, pos2, vec2};
 use serde_json::{Value, json};
-use solidcraft_engine::Session;
-use solidcraft_engine::doc::joints::JointKind;
+use desurface_engine::Session;
+use desurface_engine::doc::joints::JointKind;
 
 use crate::SolveApp;
 use crate::dialogs::{combo, form_row};

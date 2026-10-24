@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::render_settings::{RenderSettings, RenderSetup};
+use desurface_doc::render_settings::{RenderSettings, RenderSetup};
 
 use super::CommandSpec;
 use crate::params::bad;
@@ -241,7 +241,7 @@ fn backends(s: &mut Session, params: &Value) -> Result<Value> {
         return Err(bad("render.backends", "expected an empty parameter object"));
     }
     Ok(json!({"schema_version": 1, "default_backend": "builtin", "backends": [s.render_backend()],
-        "cpu_resource_profiles": solidcraft_render::job::CpuBudget::ALL.map(|budget| json!({"id":budget,"limits":budget.limits()}))}))
+        "cpu_resource_profiles": desurface_render::job::CpuBudget::ALL.map(|budget| json!({"id":budget,"limits":budget.limits()}))}))
 }
 
 #[cfg(test)]
@@ -293,16 +293,16 @@ mod tests {
 
     #[test]
     fn cooperative_host_never_discovers_cpu_raytracing_or_accepts_its_reserved_viewport_id() {
-        use solidcraft_render::job::CpuHost;
+        use desurface_render::job::CpuHost;
         let mut s = Session::default();
         s.set_render_job_host(Some(CpuHost::cooperative())).unwrap();
         let reply = assert_unchanged(&mut s, json!({})).unwrap();
-        let backend: solidcraft_render::BackendDescriptor = serde_json::from_value(reply["backends"][0].clone()).unwrap();
+        let backend: desurface_render::BackendDescriptor = serde_json::from_value(reply["backends"][0].clone()).unwrap();
         assert!(backend.executors.iter().any(|d| d.id.as_str() == "cpu-product"));
         assert!(!backend.executors.iter().any(|d| d.id.as_str() == "cpu-raytrace"));
         let mut viewport = CpuHost::cooperative().descriptor().unwrap();
-        viewport.id = solidcraft_render::ExecutorId::new("cpu-raytrace").unwrap();
-        viewport.profiles[0].operation = solidcraft_render::RenderOperation::Viewport;
+        viewport.id = desurface_render::ExecutorId::new("cpu-raytrace").unwrap();
+        viewport.profiles[0].operation = desurface_render::RenderOperation::Viewport;
         viewport.profiles[0].formats.clear();
         assert!(s.set_render_viewport(Some(viewport)).unwrap_err().to_string().contains("reserved"));
         assert_eq!(s.render_backend(), backend);
@@ -311,8 +311,8 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn native_cpu_discovery_matches_installed_features_and_preserves_raster_default() {
-        use solidcraft_render::job::{CpuHost, Integrator};
-        use solidcraft_render::{RenderFeature, RenderFormat, RenderMode, RenderOperation, RenderRequest};
+        use desurface_render::job::{CpuHost, Integrator};
+        use desurface_render::{RenderFeature, RenderFormat, RenderMode, RenderOperation, RenderRequest};
         let host = CpuHost::for_platform().unwrap();
         // Query the host so the same test covers feature-off builds and workspace
         // feature unification without assuming the engine's own cfg is sufficient.
@@ -324,11 +324,11 @@ mod tests {
         assert!(Arc::ptr_eq(&doc, &s.doc));
         assert!(!s.is_dirty());
         assert!(s.undo.is_empty());
-        let backend: solidcraft_render::BackendDescriptor = serde_json::from_value(reply["backends"][0].clone()).unwrap();
+        let backend: desurface_render::BackendDescriptor = serde_json::from_value(reply["backends"][0].clone()).unwrap();
         let descriptors: Vec<_> = backend.executors.iter().filter(|d| d.id.as_str() == "cpu-raytrace").collect();
         assert_eq!(descriptors.len(), usize::from(raytrace));
         if let Some(descriptor) = descriptors.first() {
-            assert_eq!(descriptor.availability, solidcraft_render::Availability::Available);
+            assert_eq!(descriptor.availability, desurface_render::Availability::Available);
             assert_eq!(*descriptor, &host.descriptor_for(Integrator::Raytrace).unwrap());
             assert!(!descriptor.profiles.iter().any(|p| p.features.contains(&RenderFeature::Progressive)));
         }
@@ -342,14 +342,14 @@ mod tests {
             features: vec![RenderFeature::Pbr],
             policy: Default::default(),
         };
-        assert_eq!(solidcraft_render::resolve_request(std::slice::from_ref(&backend), &request).unwrap().executor.as_str(), "cpu-product");
+        assert_eq!(desurface_render::resolve_request(std::slice::from_ref(&backend), &request).unwrap().executor.as_str(), "cpu-product");
         assert_eq!(s.scratch().render_backend(), backend);
         s.set_render_job_host(Some(host)).unwrap();
         assert_eq!(s.render_backend(), backend, "reinstalling the same host cannot duplicate method descriptors");
         s.set_render_job_host(Some(CpuHost::cooperative())).unwrap();
         assert!(!s.render_backend().executors.iter().any(|d| d.id.as_str() == "cpu-raytrace"));
         s.set_render_job_host(None).unwrap();
-        assert_eq!(s.render_backend(), solidcraft_render::builtin_backend());
+        assert_eq!(s.render_backend(), desurface_render::builtin_backend());
         assert_unchanged(&mut s, json!({})).unwrap();
         assert!(Arc::ptr_eq(&doc, &s.doc));
         assert!(!s.is_dirty());

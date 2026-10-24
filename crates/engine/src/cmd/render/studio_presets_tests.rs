@@ -39,7 +39,7 @@ fn native_studios_resolve_without_mutation_and_apply_one_complete_undo() {
         assert!(!saved.stage.is_empty());
         assert_eq!(s.doc.features.len(), 1);
         assert!(s.doc.materials.is_empty());
-        let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
+        let reopened = desurface_doc::Document::from_json(&s.doc.to_json()).unwrap();
         assert_eq!(reopened.render.setups["Shot"], *saved);
         s.execute("edit.undo", &json!({})).unwrap();
         assert_eq!(s.doc.to_json(), before);
@@ -138,7 +138,7 @@ fn resource_availability_and_original_previews_are_bounded_and_nonmutating() {
     let preview = s.execute("render.library.preview", &json!({"id":"SURF-001"})).unwrap();
     let bytes: Vec<u8> = serde_json::from_value(preview["bytes"].clone()).unwrap();
     assert!(bytes.starts_with(b"\x89PNG\r\n\x1a\n"));
-    assert_eq!(preview["sha256"], json!(solidcraft_doc::render_resources::HdrId::of(&bytes)));
+    assert_eq!(preview["sha256"], json!(desurface_doc::render_resources::HdrId::of(&bytes)));
     assert_eq!(preview["fidelity"], "authored_base_color_source_map_not_a_render");
     for id in ["../SURF-001", "HDR-001", "MAT-001", "SURF-999"] {
         assert!(s.execute("render.library.preview", &json!({"id":id})).is_err());
@@ -171,7 +171,7 @@ fn physical_backgrounds_preserve_geometry_lights_camera_and_one_undo() {
         super::super::staging::apply(&mut scene, after, "test").unwrap();
         assert!(Arc::ptr_eq(&first, &scene.meshes[0].mesh));
         assert_eq!(scene.meshes.len(), 1 + after.stage.iter().count());
-        let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
+        let reopened = desurface_doc::Document::from_json(&s.doc.to_json()).unwrap();
         assert_eq!(&reopened.render.setups["Shot"], after);
         let snapshot = s.doc.to_json();
         assert!(s.execute("render.stage.backdrop", &json!({"name":"Shot","kind":kind,"expected_revision":s.revision,"set":{"stage":[]}})).is_err());
@@ -190,7 +190,7 @@ fn finishing_and_linear_master_saved_intent_survive_reopen_without_host_and_reje
         "backdrop":{"mode":"radial","first_srgb":[230,220,200],"second_srgb":[25,35,45],"center":[0.4,0.3],"radius":0.8}}});
     s.execute("render.settings.set", &json!({"name":"Shot","set":{"job":job}})).unwrap();
     let after = s.doc.to_json();
-    let reopened = solidcraft_doc::Document::from_json(&after).unwrap();
+    let reopened = desurface_doc::Document::from_json(&after).unwrap();
     assert_eq!(reopened.render, s.doc.render);
     for patch in [
         json!({"job":{"method":"gpu_path","transparent_background":true,"options":job["options"]}}),

@@ -253,7 +253,7 @@ mod tests {
     }
 
     fn dir(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("solidcraft-safe-write-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("desurface-safe-write-{tag}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&d);
         fs::create_dir_all(&d).unwrap();
         d
@@ -490,7 +490,7 @@ mod rename_retry_tests {
     #[test]
     fn native_windows_rename_preserves_old_bytes_until_a_reader_releases_delete_sharing() {
         use std::os::windows::fs::OpenOptionsExt;
-        let directory = std::env::temp_dir().join(format!("solidcraft-rename-reader-release-{}", std::process::id()));
+        let directory = std::env::temp_dir().join(format!("desurface-rename-reader-release-{}", std::process::id()));
         fs::create_dir(&directory).unwrap();
         let old = directory.join("image.png");
         let pending = directory.join("completed.tmp");
@@ -523,7 +523,7 @@ mod rename_retry_tests {
     #[test]
     fn persistent_native_lock_is_an_error_without_destroying_or_bypassing_the_target() {
         use std::os::windows::fs::OpenOptionsExt;
-        let directory = std::env::temp_dir().join(format!("solidcraft-rename-persistent-reader-{}", std::process::id()));
+        let directory = std::env::temp_dir().join(format!("desurface-rename-persistent-reader-{}", std::process::id()));
         fs::create_dir(&directory).unwrap();
         let path = directory.join("image.exr");
         fs::write(&path, b"old whole raw master").unwrap();

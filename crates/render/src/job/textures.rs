@@ -8,7 +8,7 @@ use crate::{
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 pub const MAX_TEXTURE_BINDINGS: usize = 128;
 pub const MAX_TEXTURE_PIXELS_BYTES: u64 = 96 * 1024 * 1024;

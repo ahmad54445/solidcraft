@@ -2,7 +2,7 @@
 use crate::{Services, SolveApp, scenario::Harness};
 use egui::{Event, FullOutput, RawInput, Shape, Ui};
 use serde_json::{Value, json};
-use solidcraft_engine::{Sel, Session};
+use desurface_engine::{Sel, Session};
 
 pub(crate) fn app_with_script(script: Value) -> SolveApp {
     let mut session = Session::default();
@@ -11,7 +11,7 @@ pub(crate) fn app_with_script(script: Value) -> SolveApp {
 }
 
 pub(crate) fn sample_app() -> SolveApp {
-    app_with_script(solidcraft_engine::sample::script())
+    app_with_script(desurface_engine::sample::script())
 }
 
 pub(crate) fn run_all(app: &mut SolveApp, commands: Vec<(String, Value)>) {

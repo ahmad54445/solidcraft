@@ -4,7 +4,7 @@ use super::{HdrDecodeTask, HdrSource, HdrTaskPoll};
 use crate::job::{CancelToken, ErrorCode, JobError, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 use std::{
     f64::consts::{PI, TAU},
     sync::Arc,
@@ -109,7 +109,7 @@ impl EnvironmentSource {
     pub fn sky(sky: SkyGradient, rotation_rad: f64, intensity: f64) -> Result<Self> {
         sky.validate()?;
         let mut hash = Sha256::new();
-        hash.update(b"solidcraft.original-gradient-sky/1");
+        hash.update(b"desurface.original-gradient-sky/1");
         for v in sky.zenith.into_iter().chain(sky.horizon).chain(sky.ground) {
             hash.update(v.to_le_bytes());
         }

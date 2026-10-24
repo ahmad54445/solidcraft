@@ -1,5 +1,5 @@
 //! How long the window thread spends on each frame, by what the app is doing (#3053): the window
-//! must stay responsive through every phase of opening a design. `SOLIDCRAFT_PROFILE_FRAMES=1`
+//! must stay responsive through every phase of opening a design. `DESURFACE_PROFILE_FRAMES=1`
 //! logs every frame slower than [`SLOW_MS`] with its phase; tests read [`Watch::slowest`].
 
 use crate::SolveApp;
@@ -55,8 +55,8 @@ pub(crate) fn end(app: &mut SolveApp) {
     if ms > app.frame_watch.slowest.0 {
         app.frame_watch.slowest = (ms, phase);
     }
-    if ms > SLOW_MS && solidcraft_engine::geom::env::var_os("PROFILE_FRAMES").is_some() {
+    if ms > SLOW_MS && desurface_engine::geom::env::var_os("PROFILE_FRAMES").is_some() {
         let steps: Vec<String> = app.frame_watch.steps.iter().filter(|(_, t)| *t >= 1.0).map(|(n, t)| format!("{n} {t:.0}")).collect();
-        eprintln!("SolidCraft slow frame: {ms:.0} ms ({phase}) [{}]", steps.join(", "));
+        eprintln!("DeSurface slow frame: {ms:.0} ms ({phase}) [{}]", steps.join(", "));
     }
 }

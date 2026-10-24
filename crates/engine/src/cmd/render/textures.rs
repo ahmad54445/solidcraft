@@ -1,7 +1,7 @@
 //! Bounded immutable file capture; decoding is deferred to the admitted worker.
 use crate::{Result, params::bad};
 use serde::Deserialize;
-use solidcraft_render::{
+use desurface_render::{
     ProductScene,
     job::textures::{BaseColorMode, MAX_TEXTURE_BINDINGS, MAX_TEXTURE_SOURCE_BYTES, PlanarFrame, RuntimeTextures, TextureBinding, TextureMap},
     texture_input::MapRole,
@@ -53,11 +53,11 @@ fn load(
     if let Some(map) = captured.get(&key) {
         return Ok(map.clone());
     }
-    let maximum = (*remaining).min(solidcraft_render::texture_input::MAX_TEXTURE_BYTES as u64);
+    let maximum = (*remaining).min(desurface_render::texture_input::MAX_TEXTURE_BYTES as u64);
     let bytes = if let Some(key) = path.strip_prefix("builtin://") {
         super::library::texture_bytes(key, role, maximum, command)?
     } else {
-        solidcraft_io::vfs::read(path, maximum as usize).map_err(|e| bad(command, format!("could not capture texture: {e}")))?
+        desurface_io::vfs::read(path, maximum as usize).map_err(|e| bad(command, format!("could not capture texture: {e}")))?
     };
     if bytes.is_empty() {
         return Err(bad(command, "texture file must not be empty"));
@@ -89,7 +89,7 @@ pub(super) fn validate_targets(scene: &ProductScene, overrides: &[Override], com
         for x in [bounds.min.x, bounds.max.x] {
             for y in [bounds.min.y, bounds.max.y] {
                 for z in [bounds.min.z, bounds.max.z] {
-                    input.frame.uv(solidcraft_geom::Vec3::new(x, y, z)).map_err(|e| bad(command, e.to_string()))?;
+                    input.frame.uv(desurface_geom::Vec3::new(x, y, z)).map_err(|e| bad(command, e.to_string()))?;
                 }
             }
         }
@@ -145,18 +145,18 @@ pub(super) fn capture(scene: &ProductScene, overrides: &[Override], command: &st
 mod tests {
     use super::*;
     use serde_json::json;
-    use solidcraft_geom::{Aabb3, Mesh};
+    use desurface_geom::{Aabb3, Mesh};
     #[test]
     fn unsupported_or_stale_map_targets_fail_before_file_io() {
         let scene = ProductScene {
             bounds: Aabb3::EMPTY,
-            meshes: vec![solidcraft_render::ProductMesh {
+            meshes: vec![desurface_render::ProductMesh {
                 name: "Glass".into(),
                 mesh: Arc::new(Mesh::default()),
                 color: [255; 3],
                 opacity: 1.,
                 surface: None,
-                transmission: Some(solidcraft_render::transmission::Transmission::new(solidcraft_geom::Vec3::ZERO, Some(1.)).unwrap()),
+                transmission: Some(desurface_render::transmission::Transmission::new(desurface_geom::Vec3::ZERO, Some(1.)).unwrap()),
                 faces: vec![],
             }],
         };

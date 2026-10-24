@@ -131,12 +131,12 @@ fn hostile_meshes_never_panic() {
     assert!(made.iter().all(|l| l.triangles.iter().flatten().all(|i| (*i as usize) < l.positions.len())));
 }
 
-/// Timing, not a check (`SOLIDCRAFT_BENCH_STL=part.stl cargo test --release -p solidcraft-geom
+/// Timing, not a check (`DESURFACE_BENCH_STL=part.stl cargo test --release -p desurface-geom
 /// --lib simplify_timing -- --ignored --nocapture`): the levels of a binary STL.
 #[test]
 #[ignore]
 fn simplify_timing() {
-    let Some(path) = std::env::var_os("SOLIDCRAFT_BENCH_STL") else { return };
+    let Some(path) = std::env::var_os("DESURFACE_BENCH_STL") else { return };
     let bytes = std::fs::read(path).unwrap();
     let n = u32::from_le_bytes(bytes[80..84].try_into().unwrap()) as usize;
     let f = |o: usize| f64::from(f32::from_le_bytes(bytes[o..o + 4].try_into().unwrap()));

@@ -3,7 +3,7 @@
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use solidcraft_engine::{Sel, doc::Document};
+use desurface_engine::{Sel, doc::Document};
 
 use crate::SolveApp;
 use crate::dialogs::Kind;
@@ -211,7 +211,7 @@ pub fn commands(app: &SolveApp, k: &Resize) -> Result<Vec<(String, Value)>, Stri
 mod tests {
     use super::*;
     use crate::context_menu::{self, Target};
-    use solidcraft_engine::{Session, geom::Vec3};
+    use desurface_engine::{Session, geom::Vec3};
 
     fn part(family: &str, size: &str, length: Option<f64>) -> (SolveApp, u64) {
         let mut app = SolveApp::new(Session::default(), crate::Services::default());
@@ -297,7 +297,7 @@ mod tests {
         assert_eq!(crate::browser::drawn_rows().iter().filter(|(label, _, _, _)| label.ends_with("[M6×20]")).count(), 2);
         h.app.run("edit.redo", json!({})).unwrap();
         assert_eq!(configuration(&h.app, component).as_deref(), Some("M8×25"));
-        let file = std::env::temp_dir().join(format!("solidcraft-part-configuration-{}.solidcraft", std::process::id()));
+        let file = std::env::temp_dir().join(format!("desurface-part-configuration-{}.solidcraft", std::process::id()));
         h.app.run("file.save", json!({"path":file})).unwrap();
         let mut reopened = Session::default();
         reopened.execute("doc.open", &json!({"path":file})).unwrap();
@@ -305,7 +305,7 @@ mod tests {
         assert_eq!(configuration(&reopened, component).as_deref(), Some("M8×25"));
         assert_eq!(reopened.session.doc.occurrences, occurrences);
         let _ = std::fs::remove_file(&file);
-        let _ = std::fs::remove_file(file.with_extension("solidcraft.bak"));
+        let _ = std::fs::remove_file(file.with_extension("desurface.bak"));
     }
 
     #[test]

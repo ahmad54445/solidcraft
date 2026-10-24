@@ -7,7 +7,7 @@
 //! ATTRIBUTION.md); [`crate::fonts`] finds others by file path or installed family name.
 
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::{Ring, Vec2};
+use desurface_geom::{Ring, Vec2};
 
 use crate::fonts::font_data_styled;
 use crate::link::{LinkGeom, LinkKind, LinkSource, MAX_LINK_ENTITIES};

@@ -357,7 +357,7 @@ fn short_name(name: &str) -> bool {
     name.as_bytes().windows(2).any(|w| w[0] == b'~' && w[1].is_ascii_digit())
 }
 
-/// `path` spelled with long names, for the folders SolidCraft derives from the environment
+/// `path` spelled with long names, for the folders DeSurface derives from the environment
 /// itself (the temporary folder, the recovery folder). On Windows those may hold a short (8.3)
 /// name: the temporary folder is often `…\NAME~1.XYZ\AppData\Local\Temp`, with the user folder's
 /// short name, when that folder's name is long, and [`windows_refusal`] refuses short names in
@@ -385,7 +385,7 @@ pub fn long_names(path: &std::path::Path) -> std::path::PathBuf {
     }
 }
 
-/// The temporary folder spelled with long names ([`long_names`]), for the folders SolidCraft
+/// The temporary folder spelled with long names ([`long_names`]), for the folders DeSurface
 /// makes in it.
 pub fn temp_dir() -> std::path::PathBuf {
     long_names(&std::env::temp_dir())
@@ -416,7 +416,7 @@ pub fn scoped<T>(scope: Option<PathScope>, f: impl FnOnce() -> T) -> T {
         }
     }
     // Sketch text reads the font files a design names, below this crate: it asks here first.
-    solidcraft_doc::sketch::set_font_file_check(|p| check(&p.to_string_lossy()).map_err(|e| e.to_string()));
+    desurface_doc::sketch::set_font_file_check(|p| check(&p.to_string_lossy()).map_err(|e| e.to_string()));
     let _restore = Restore(SCOPE.with(|s| s.replace(scope)));
     f()
 }
@@ -447,7 +447,7 @@ pub fn read_to_string(path: &str, max: usize) -> Result<String> {
 mod tests {
     #[test]
     fn files_round_trip() {
-        let dir = std::env::temp_dir().join(format!("solidcraft-vfs-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-vfs-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let p = dir.join("a.txt").to_string_lossy().to_string();
         assert!(!super::exists(&p));
@@ -474,7 +474,7 @@ mod tests {
         assert!(e.to_string().contains("not a regular file"), "{e}");
         assert!(super::read_to_string("/dev/zero", 1024).is_err());
 
-        let dir = std::env::temp_dir().join(format!("solidcraft-vfs-fifo-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-vfs-fifo-{}", std::process::id()));
         let _ = std::fs::create_dir_all(&dir);
         let fifo = dir.join("p");
         let made = std::process::Command::new("mkfifo").arg(&fifo).status().map(|s| s.success()).unwrap_or(false);
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn a_scope_confines_every_call_to_its_folders() {
         use super::{PathScope, scoped};
-        let base = std::env::temp_dir().join(format!("solidcraft-vfs-scope-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("desurface-vfs-scope-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let (root, out) = (base.join("root"), base.join("out"));
         std::fs::create_dir_all(root.join("sub")).unwrap();
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn roots_are_folders_and_new_files_resolve_through_their_folder() {
         use super::PathScope;
-        let base = std::env::temp_dir().join(format!("solidcraft-vfs-prefix-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("desurface-vfs-prefix-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let (a, ab, out) = (base.join("a"), base.join("ab"), base.join("out"));
         for d in [&a, &ab, &out] {
@@ -632,7 +632,7 @@ mod tests {
     #[cfg(windows)]
     #[test]
     fn windows_unc_verbatim_drive_relative_and_device_paths_are_refused() {
-        let root = super::temp_dir().join(format!("solidcraft-vfs-win-{}", std::process::id()));
+        let root = super::temp_dir().join(format!("desurface-vfs-win-{}", std::process::id()));
         std::fs::create_dir_all(&root).unwrap();
         let scope = super::PathScope::new([root.clone()]);
         let inside = |f: &str| root.join(f).to_string_lossy().to_string();
@@ -663,7 +663,7 @@ mod tests {
         Some(String::from_utf8_lossy(&out.stdout).trim().to_string()).filter(|s| s.split('\\').any(super::short_name)).map(Into::into)
     }
 
-    /// The folders SolidCraft derives from the environment are spelled with long names: on Windows
+    /// The folders DeSurface derives from the environment are spelled with long names: on Windows
     /// the temporary folder's path often has a short (8.3) name (the user folder's `NAME~1.XYZ`
     /// when its name is long), and the server's own folders in it were refused like an agent's
     /// short names. An agent's own short spelling of a folder it may use stays refused.
@@ -672,7 +672,7 @@ mod tests {
     fn derived_folders_are_spelled_with_long_names_and_short_names_from_agents_stay_refused() {
         use super::{PathScope, long_names, short_name, temp_dir};
         assert!(!temp_dir().iter().any(|n| short_name(&n.to_string_lossy())), "{}", temp_dir().display());
-        let long = temp_dir().join(format!("solidcraft-vfs-long-names-{}", std::process::id()));
+        let long = temp_dir().join(format!("desurface-vfs-long-names-{}", std::process::id()));
         std::fs::create_dir_all(&long).unwrap();
         let Some(short) = short_spelling(&long) else {
             eprintln!("skipped: {} has no short (8.3) name on this volume", long.display());
@@ -700,7 +700,7 @@ mod tests {
     #[test]
     fn the_designs_folder_counts_only_when_safe_and_never_reaches_hidden_files() {
         use super::{PathScope, design_folder_refusal_in as refusal};
-        let base = std::env::temp_dir().join(format!("solidcraft-vfs-design-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("desurface-vfs-design-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let home = base.join("home");
         let (proj, dotdir) = (home.join("work/proj"), home.join(".config/x"));
@@ -757,7 +757,7 @@ mod tests {
     #[test]
     fn a_link_is_judged_by_where_it_leads() {
         use super::PathScope;
-        let base = std::env::temp_dir().join(format!("solidcraft-vfs-link-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("desurface-vfs-link-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let (root, out) = (base.join("root"), base.join("out"));
         std::fs::create_dir_all(&root).unwrap();

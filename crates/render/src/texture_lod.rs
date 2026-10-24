@@ -4,7 +4,7 @@ use crate::texture_input::MAX_TEXTURE_EDGE;
 
 /// Versioned convention: largest singular value, log2, magnification at zero,
 /// saturated at the last floor-halved level. Not a GPU parity guarantee.
-pub const LOD_POLICY_ID: &str = "solidcraft.isotropic-singular-value-lod/1";
+pub const LOD_POLICY_ID: &str = "desurface.isotropic-singular-value-lod/1";
 pub const MAX_UV_GRADIENT: f64 = 1_048_576.0;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

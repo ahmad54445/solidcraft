@@ -3,8 +3,8 @@
 mod planar_patches;
 use std::collections::HashMap;
 
-use solidcraft_geom::Vec3;
-use solidcraft_render::{
+use desurface_geom::Vec3;
+use desurface_render::{
     ProductScene,
     job::{CancelToken, ErrorCode, JobError, Result},
     surface::{OpaqueSurface, srgb8_to_linear},
@@ -82,7 +82,7 @@ pub(super) fn flatten_with_media(scene: &ProductScene, origin: Vec3, cancel: &Ca
     let vertex_count = scene.meshes.iter().map(|m| m.mesh.positions.len()).sum::<usize>();
     let mut vertices = reserved(vertex_count * 32)?;
     let mut vertex_offset = 0u32;
-    let mut media_bounds = reserved::<super::media_hierarchy::Region>(solidcraft_render::job::MAX_GPU_DIELECTRICS)?;
+    let mut media_bounds = reserved::<super::media_hierarchy::Region>(desurface_render::job::MAX_GPU_DIELECTRICS)?;
     for (body_index, body) in scene.meshes.iter().enumerate() {
         cancel.check()?;
         let body_start = triangles.len();
@@ -104,7 +104,7 @@ pub(super) fn flatten_with_media(scene: &ProductScene, origin: Vec3, cancel: &Ca
             if !position.is_finite() || [position.x, position.y, position.z].iter().any(|x| x.abs() > 1e7) {
                 return Err(invalid("path geometry must be finite and within 1e7 mm of the camera target"));
             }
-            let normal = solidcraft_render::surface::unit_direction(*normal).map_err(|_| invalid("invalid mesh normal"))?;
+            let normal = desurface_render::surface::unit_direction(*normal).map_err(|_| invalid("invalid mesh normal"))?;
             vector(&mut vertices, position, 0.0);
             vector(&mut vertices, normal, 0.0);
         }
@@ -160,7 +160,7 @@ pub(super) fn flatten_with_media(scene: &ProductScene, origin: Vec3, cancel: &Ca
         validate_medium(&triangles[body_start..], cancel)?;
         let body_triangles = &triangles[body_start..];
         if body_triangles.iter().any(|t| t.transmission.is_some()) {
-            if media_bounds.len() >= solidcraft_render::job::MAX_GPU_DIELECTRICS {
+            if media_bounds.len() >= desurface_render::job::MAX_GPU_DIELECTRICS {
                 return Err(invalid("at most 32 disjoint dielectric bodies are supported"));
             }
             let closed = body_triangles.iter().any(|t| t.transmission.is_some_and(|v| v.thin_wall_thickness_mm().is_none()));

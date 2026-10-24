@@ -6,9 +6,9 @@
 
 use egui::RichText;
 use serde_json::{Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::Session;
-use solidcraft_engine::doc::joints::JointKind;
+use desurface_engine::Sel;
+use desurface_engine::Session;
+use desurface_engine::doc::joints::JointKind;
 
 use super::{ROUND, joint_row, occurrence, pick, picked_radius, trim, turn};
 use crate::SolveApp;

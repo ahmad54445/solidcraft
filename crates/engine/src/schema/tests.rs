@@ -439,7 +439,7 @@ fn recorder_lines_have_the_documented_shape() {
     assert_eq!(outcome_text(Some(&Ok(json!({})))), "ok");
     assert_eq!(outcome_text(Some(&Err(crate::EngineError::Other("boom".into())))), "error: boom");
     // The recorder is on exactly when built with `param-audit` and the variable names a directory.
-    let set = std::env::var_os("SOLIDCRAFT_PARAM_AUDIT").is_some_and(|v| !v.is_empty());
+    let set = std::env::var_os("DESURFACE_PARAM_AUDIT").is_some_and(|v| !v.is_empty());
     assert_eq!(super::record::enabled(), cfg!(feature = "param-audit") && set);
 }
 
@@ -559,7 +559,7 @@ fn face_and_edge_refs_match_the_pick_readers() {
     assert!(parse::<EdgeRef>(json!({"body": "A", "index": 1.0})).is_none());
     assert_eq!(edge_schema["anyOf"][2]["properties"]["index"]["type"], "integer");
     assert_eq!(parse::<EdgeRef>(json!({"body": "A", "index": 4})), Some(EdgeRef::Index { body: "A".into(), index: 4 }));
-    assert_eq!(parse::<FaceRef>(json!({"point": [1, 2, 3]})), Some(FaceRef::Point(solidcraft_geom::Vec3::new(1.0, 2.0, 3.0))));
+    assert_eq!(parse::<FaceRef>(json!({"point": [1, 2, 3]})), Some(FaceRef::Point(desurface_geom::Vec3::new(1.0, 2.0, 3.0))));
 }
 
 /// The pick lists take 1 to 1000 picks, as `face_points` and `edge_points` do, and so do their

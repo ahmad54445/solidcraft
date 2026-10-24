@@ -5,7 +5,7 @@ The full feature summary, moved out of the README. The commands by area are in [
 **Status: early but usable for simple parts.** 75 of 76 public reference parts
 match their analytic or FreeCAD-computed volume, area, centre of mass and bounding box
 ([oracle.md](oracle.md)); the other is a tracked bug.
-These checks do not establish complete geometric or workflow equivalence. The commands SolidCraft has
+These checks do not establish complete geometric or workflow equivalence. The commands DeSurface has
 are listed by area in [features.md](features.md); status and plans are in [ROADMAP.md](../ROADMAP.md).
 Open work and known bugs are in [GitHub issues](https://github.com/tangency-labs/solidcraft/issues),
 and help is welcome: see [CONTRIBUTING.md](../CONTRIBUTING.md).
@@ -90,10 +90,10 @@ and help is welcome: see [CONTRIBUTING.md](../CONTRIBUTING.md).
   control channel so agents and tests can drive it.
   Feature errors and Help can open an editable **Create Issue** draft with relevant context
   and an optional reviewed screenshot; opening GitHub does not submit the report.
-- **Headless CLI** `solidcraft-cli`: run command scripts, measure (volume, area, centre of mass,
+- **Headless CLI** `desurface-cli`: run command scripts, measure (volume, area, centre of mass,
   face/edge/vertex counts), export, render PNG snapshots and replay reference recipes.
   A snapshot can draw a body see-through and another solid in a colour of its own, and cut
   the model at a plane, so a picture shows the body a cut would remove inside the material
   it meets.
-- **MCP server** `solidcraft-cli mcp`: AI agents model, measure and look at parts headless or
+- **MCP server** `desurface-cli mcp`: AI agents model, measure and look at parts headless or
   in the running app (see below).

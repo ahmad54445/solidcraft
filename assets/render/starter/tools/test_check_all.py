@@ -11,7 +11,7 @@ import check_all
 
 
 def complete_report():
-    return {"schema": "solidcraft-native-starter-check/1", "runtime_ready": False,
+    return {"schema": "desurface-native-starter-check/1", "runtime_ready": False,
             "surfaces": 48, "texture_inputs": 192, "height_sources_verified_not_bound": 48,
             "hdr_inputs": 24, "mip_levels": 1920,
             "textures": [{"surface": f"SURF-{i:03}", "role": role, "source_sha256": "a" * 64,

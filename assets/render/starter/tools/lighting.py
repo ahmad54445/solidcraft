@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Original offline light-recipe calibration; not a SolidCraft runtime adapter.
+"""Original offline light-recipe calibration; not a DeSurface runtime adapter.
 
 The only rig geometry authority is docs/render-materials/studio-presets.json.
 This tool integrates its CAL-LIGHT-001 sphere directly, in linear relative units.
@@ -24,7 +24,7 @@ ROOT = Path(__file__).resolve().parents[4]
 PACK = ROOT / "assets/render/starter/lighting"
 RECIPE = PACK / "recipe.json"
 EXPORT = PACK / "exports/rigs.json"
-GENERATOR = "solidcraft-light-author/1.0.0"
+GENERATOR = "desurface-light-author/1.0.0"
 MAX_INPUT_BYTES = 2 * 1024 * 1024
 LUMA = np.array([0.2126, 0.7152, 0.0722], dtype=np.float64)
 
@@ -225,7 +225,7 @@ def encoded(value: dict[str, Any]) -> bytes:
 def load_inputs() -> tuple[dict[str, Any], dict[str, Any], str]:
     recipe, recipe_sha = read_json(RECIPE)
     expected = {"schema", "version", "provenance", "source", "calibration", "runtime_binding"}
-    if set(recipe) != expected or recipe["schema"] != "solidcraft-light-author-recipe/1":
+    if set(recipe) != expected or recipe["schema"] != "desurface-light-author-recipe/1":
         raise InvalidRecipe("Unexpected authoring recipe schema or fields")
     if recipe["runtime_binding"] != "unbound":
         raise InvalidRecipe("This authoring tool cannot claim runtime binding")
@@ -390,7 +390,7 @@ def make_export() -> dict[str, Any]:
                       "lights": lights, "modifiers": modifiers, "blockers": blockers,
                       "required_capabilities": rig["required_capabilities"], "scene_preconditions": requirements,
                       "validation_scope": "Isolated analytic reference fixture; no subject visibility, adapter, optics, CAD or runtime rendering verified."})
-    return {"schema": "solidcraft-authored-light-rigs/1", "version": "1.0.0", "generator": GENERATOR,
+    return {"schema": "desurface-authored-light-rigs/1", "version": "1.0.0", "generator": GENERATOR,
             "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
             "recipe_sha256": recipe_sha, "source": recipe["source"], "calibration": config,
             "license": "MIT OR Apache-2.0", "authoring_method": "original_deterministic_numeric_integration",
@@ -437,7 +437,7 @@ def review() -> dict[str, Any]:
     font = ImageFont.load_default(size=13)
     title_font = ImageFont.load_default(size=23)
     draw.text((24, 20), "LIGHTING / ANALYTIC REFERENCE", font=title_font, fill=(234, 240, 248))
-    draw.text((24, 55), "Lambertian sphere, fixed view and exposure. No passive cards, subject geometry or SolidCraft runtime.",
+    draw.text((24, 55), "Lambertian sphere, fixed view and exposure. No passive cards, subject geometry or DeSurface runtime.",
               font=font, fill=(163, 179, 198))
     size = 160
     axis = lighting_view = unit(np.array([1.0, -1.4, 0.8]), "review view")

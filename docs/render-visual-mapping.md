@@ -1,6 +1,6 @@
 # Definition-local visual mapping
 
-`solidcraft_render::mapping` provides numerical admission and coordinates for #1214,
+`desurface_render::mapping` provides numerical admission and coordinates for #1214,
 the first mapping foundation under #786. It is original Rust code with no new
 dependency or asset. It does not install a sampler, triplanar shader, texture pack,
 document record, command or UI. No renderer capability changes. Textured wood is

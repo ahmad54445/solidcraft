@@ -157,9 +157,9 @@ def check_derivation(record, properties):
     else:raise Invalid('unreviewed derivation formula')
 
 def validate_data(data, source_data, binding, registry, root=ROOT):
-    require(data.get('schema')=='solidcraft-physical-reference-profiles/1' and data.get('runtime_assignment') is False,'unknown profile schema or false runtime claim')
-    require(source_data.get('schema')=='solidcraft-physical-sources/1','unknown source schema')
-    require(binding.get('schema')=='solidcraft-physical-bindings/1','unknown binding schema')
+    require(data.get('schema')=='desurface-physical-reference-profiles/1' and data.get('runtime_assignment') is False,'unknown profile schema or false runtime claim')
+    require(source_data.get('schema')=='desurface-physical-sources/1','unknown source schema')
+    require(binding.get('schema')=='desurface-physical-bindings/1','unknown binding schema')
     require(registry.get('units')=={q:u for q,(_,u) in QUANTITY.items()},'quantity registry changed without validator review')
     require(registry.get('conversions')=={k:{'scale':v[1],'offset':v[2]} for k,v in CONVERSIONS.items()},'unit conversion registry drift')
     require(isinstance(source_data.get('sources'),list) and 1<=len(source_data['sources'])<=256,'source count')
@@ -277,9 +277,9 @@ def native_card(p,sources):
 def make_exports():
     profiles,sources,bindings=load();cards=[native_card(p,sources) for p in profiles.values()]
     pin={name:sha(PACK/name) for name in ('sources.json','profiles.json','quantities.json','bindings.json')}
-    data={'schema':'solidcraft-physical-card-bundle/1','native_card_schema':1,'native_library_format':False,
+    data={'schema':'desurface-physical-card-bundle/1','native_card_schema':1,'native_library_format':False,
           'source_sha256':pin,'generator_sha256':sha(Path(__file__)),'runtime_assignment':False,'items':cards}
-    coverage={'schema':'solidcraft-physical-coverage/1','profile_count':len(profiles),'source_count':len(sources),
+    coverage={'schema':'desurface-physical-coverage/1','profile_count':len(profiles),'source_count':len(sources),
               'property_records':sum(len(p['properties']) for p in profiles.values()),'catalog_specifications':len(bindings['catalog']),
               'concepts_with_reference_candidates':sum(bool(c['references']) for c in bindings['catalog']),
               'concepts_needing_specific_recipe':sum(not c['references'] for c in bindings['catalog']),
@@ -322,7 +322,7 @@ def prepare(id,acknowledge):
     densities=[v for v in result['card']['properties'] if v['data']['kind']=='density']
     require(len(densities)==1,'no single supported density; select a reviewed point value/grade before material creation')
     name='REF '+p['designation'];require(len(name.encode())<=128,'material name too long')
-    return {'schema':'solidcraft-physical-command-plan/1',
+    return {'schema':'desurface-physical-command-plan/1',
             'requires':['material.create must explicitly support physical_card; refuse older command contracts',
                         'review grade, form, temperature, moisture, process and density basis before execution',
                         'body assignment is a separate explicit operation; preserve existing appearances'],

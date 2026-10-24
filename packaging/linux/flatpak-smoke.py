@@ -29,9 +29,9 @@ export XDG_CONFIG_HOME="$work/config" XDG_DATA_HOME="$work/data" XDG_CACHE_HOME=
 mkdir -p "$XDG_CONFIG_HOME" "$XDG_DATA_HOME" "$XDG_CACHE_HOME"
 unset WGPU_BACKEND WGPU_BACKENDS
 # The control channel's token (docs/control-protocol.md), set here so this client knows it.
-SOLIDCRAFT_CONTROL_TOKEN=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
-export SOLIDCRAFT_CONTROL_TOKEN
-solidcraft --control 18837 >"$work/app.log" 2>&1 &
+DESURFACE_CONTROL_TOKEN=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
+export DESURFACE_CONTROL_TOKEN
+desurface --control 18837 >"$work/app.log" 2>&1 &
 app=$!
 cleanup() {
   kill "$app" 2>/dev/null || true
@@ -48,7 +48,7 @@ for ((attempt=0; attempt<300; attempt++)); do
 done
 test "$ready" = 1
 # The control port opens before the first frame, so ui.inspect has no viewport yet; poll until it does.
-inspect="{\"id\":1,\"method\":\"ui.inspect\",\"params\":{},\"token\":\"$SOLIDCRAFT_CONTROL_TOKEN\"}"
+inspect="{\"id\":1,\"method\":\"ui.inspect\",\"params\":{},\"token\":\"$DESURFACE_CONTROL_TOKEN\"}"
 deadline=$((SECONDS + 60))
 until printf '%s\n' "$inspect" >&3 && IFS= read -r -t 30 reply <&3 && [[ "$reply" =~ \"viewport\":\ *\[ ]]; do
   if ! kill -0 "$app" 2>/dev/null || ((SECONDS >= deadline)); then
@@ -179,10 +179,10 @@ def frame_statistics(png):
 def probe(gl_saved_four=False):
     shell = SANDBOX_PROBE
     if gl_saved_four:
-        shell = shell.replace('solidcraft --control',
-                              'mkdir -p "$XDG_DATA_HOME/solidcraft"\n'
-                              'printf \'{"msaa":4}\' >"$XDG_DATA_HOME/solidcraft/graphics.json"\n'
-                              'export WGPU_BACKEND=gl\nsolidcraft --control')
+        shell = shell.replace('desurface --control',
+                              'mkdir -p "$XDG_DATA_HOME/desurface"\n'
+                              'printf \'{"msaa":4}\' >"$XDG_DATA_HOME/desurface/graphics.json"\n'
+                              'export WGPU_BACKEND=gl\ndesurface --control')
     result = subprocess.run(["flatpak", "run", "--user", "--command=bash", APP_ID, "-c", shell],
                             text=True, capture_output=True, timeout=125)
     if result.returncode:
@@ -197,7 +197,7 @@ def probe(gl_saved_four=False):
     statistics = frame_statistics(base64.b64decode(lines[4], validate=True))
     if (capture["result"]["width"], capture["result"]["height"]) != (statistics["width"], statistics["height"]):
         raise ValueError("presented-frame dimensions disagree")
-    if gl_saved_four and "SolidCraft graphics: Gl, MSAA 1x (requested 4x)" not in result.stderr:
+    if gl_saved_four and "DeSurface graphics: Gl, MSAA 1x (requested 4x)" not in result.stderr:
         raise ValueError("forced GL did not apply the safe sample count")
     mode = "GL saved 4x" if gl_saved_four else "default backend"
     print(f"Flatpak desktop PASS: {mode}, renderer={renderer}, box=6000 mm³, frame={statistics}")
@@ -208,14 +208,14 @@ def run_backend(backend):
     for tool in tools:
         if not shutil.which(tool):
             raise RuntimeError(f"{tool} missing: install flatpak, dbus-x11, xvfb, xauth and weston")
-    with tempfile.TemporaryDirectory(prefix="solidcraft-flatpak-smoke-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="desurface-flatpak-smoke-") as temporary:
         runtime = Path(temporary) / "runtime"
         runtime.mkdir(mode=0o700)
         env = dict(os.environ, XDG_RUNTIME_DIR=str(runtime))
         env.pop("WAYLAND_DISPLAY", None)
         env.pop("WAYLAND_SOCKET", None)
         env.pop("DISPLAY", None)
-        env.pop("SOLIDCRAFT_WAYLAND", None)
+        env.pop("DESURFACE_WAYLAND", None)
         env.pop("SOLVECRAFT_WAYLAND", None)  # the legacy name is still read
         command = ["dbus-run-session", "--"]
         compositor = None
@@ -224,12 +224,12 @@ def run_backend(backend):
                 if backend == "x11":
                     command += ["xvfb-run", "-a", "-s", "-screen 0 1600x1000x24 -nolisten tcp"]
                 else:
-                    env["WAYLAND_DISPLAY"] = "solidcraft-smoke"
+                    env["WAYLAND_DISPLAY"] = "desurface-smoke"
                     compositor = subprocess.Popen(["weston", "--backend=headless", "--renderer=pixman", "--no-config",
-                                                   "--socket=solidcraft-smoke", "--width=1600", "--height=1000"],
+                                                   "--socket=desurface-smoke", "--width=1600", "--height=1000"],
                                                   env=env, stdout=log, stderr=subprocess.STDOUT)
                     deadline = time.monotonic() + 20
-                    while not (runtime / "solidcraft-smoke").exists():
+                    while not (runtime / "desurface-smoke").exists():
                         if compositor.poll() is not None or time.monotonic() >= deadline:
                             raise RuntimeError("headless Weston failed: " + (Path(temporary) / "weston.log").read_text())
                         time.sleep(.1)

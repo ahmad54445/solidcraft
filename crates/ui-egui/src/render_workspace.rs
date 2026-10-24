@@ -5,9 +5,9 @@ use std::sync::{Arc, Mutex};
 
 use egui::{Color32, Sense};
 use serde_json::json;
-use solidcraft_engine::doc::render_settings::RenderSetup;
-use solidcraft_engine::render::job::{ImageHost, Integrator, LightingPreset, PreviewInfo, RaytraceOptions};
-use solidcraft_engine::render::{
+use desurface_engine::doc::render_settings::RenderSetup;
+use desurface_engine::render::job::{ImageHost, Integrator, LightingPreset, PreviewInfo, RaytraceOptions};
+use desurface_engine::render::{
     Availability, Camera, ExecutorDescriptor, ExecutorId, ProductScene, RenderLimits, RenderMode, RenderOperation, RenderProfile, RenderRequest,
     ScratchLayout,
 };
@@ -63,7 +63,7 @@ pub struct State {
     pub setup_seconds: std::collections::BTreeMap<String, f64>,
     /// The viewport adapter the current setup runs on.
     pub setup_key: Option<String>,
-    pub image_host: Option<solidcraft_engine::render::job::CpuHost>,
+    pub image_host: Option<desurface_engine::render::job::CpuHost>,
     pub view: ViewState,
     revision: u64,
     design_camera: Option<(Camera, bool)>,
@@ -73,8 +73,8 @@ pub struct State {
     scene: Option<ProductScene>,
     scene_error: Option<String>,
     preview_upload_bytes: Option<usize>,
-    image: Option<(solidcraft_engine::render::job::JobId, Result<egui::TextureHandle, String>)>,
-    image_info: Option<solidcraft_engine::render::job::FrameInfo>,
+    image: Option<(desurface_engine::render::job::JobId, Result<egui::TextureHandle, String>)>,
+    image_info: Option<desurface_engine::render::job::FrameInfo>,
     preview_image: Option<PreviewImage>,
 }
 
@@ -85,7 +85,7 @@ struct PreviewImage {
 }
 
 struct DisplayImage<'a> {
-    info: &'a solidcraft_engine::render::job::FrameInfo,
+    info: &'a desurface_engine::render::job::FrameInfo,
     image: &'a Result<egui::TextureHandle, String>,
     preview: Option<&'a PreviewInfo>,
 }
@@ -211,8 +211,8 @@ pub struct ViewState {
     draft: RenderSetup,
     dirty: bool,
     clean_setup: Option<RenderSetup>,
-    job: Option<solidcraft_engine::render::job::JobId>,
-    completed: Option<solidcraft_engine::render::job::JobId>,
+    job: Option<desurface_engine::render::job::JobId>,
+    completed: Option<desurface_engine::render::job::JobId>,
     transparent: bool,
     method: ImageMethod,
     raytrace: RaytraceOptions,
@@ -229,7 +229,7 @@ pub struct ViewState {
     result: bool,
     result_camera: Camera,
     result_scale: ResultScale,
-    result_job: Option<solidcraft_engine::render::job::JobId>,
+    result_job: Option<desurface_engine::render::job::JobId>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -379,7 +379,7 @@ pub fn host_executor(max_dimension: u32, depth: bool, samples: u32) -> Result<Ex
             mode: RenderMode::Preview,
             operation: RenderOperation::Viewport,
             formats: Vec::new(),
-            features: vec![solidcraft_engine::render::RenderFeature::Pbr],
+            features: vec![desurface_engine::render::RenderFeature::Pbr],
         }],
         limits: RenderLimits { max_dimension: u64::from(max_dimension.clamp(1, 4096)), ..Default::default() },
         scratch: ScratchLayout {
@@ -478,7 +478,7 @@ pub fn enter(app: &mut SolveApp, render: bool) -> Result<(), String> {
         if !active(app) {
             app.render_workspace.design_camera = Some((app.cam, app.ui.perspective));
             app.ui.tab = "RENDER".into();
-            let scene = solidcraft_engine::product_scene::extract(&app.session).map_err(|e| e.to_string())?;
+            let scene = desurface_engine::product_scene::extract(&app.session).map_err(|e| e.to_string())?;
             if !scene.bounds.is_empty() {
                 app.cam.fit(&scene.bounds);
             }
@@ -537,7 +537,7 @@ fn image_host(app: &SolveApp, method: ImageMethod) -> Result<&ImageHost, String>
         };
         let descriptor = host.descriptor().map_err(|error| error.to_string())?;
         if !host.is_available()
-            || !descriptor.profiles.iter().any(|profile| profile.features.contains(&solidcraft_engine::render::RenderFeature::Progressive))
+            || !descriptor.profiles.iter().any(|profile| profile.features.contains(&desurface_engine::render::RenderFeature::Progressive))
         {
             return Err(app.tr("render.gpu_unavailable").to_string());
         }
@@ -972,7 +972,7 @@ fn cache_completed_image(app: &mut SolveApp, ctx: &egui::Context) {
             let frame = handle.frame().map_err(|e| e.to_string())?.ok_or("render has no completed image")?;
             let captured = handle.status().map_err(|e| e.to_string())?;
             let budget = if frame.info.executor.as_str() == "gpu-path" {
-                solidcraft_engine::render::job::GPU_PATH_LIMITS
+                desurface_engine::render::job::GPU_PATH_LIMITS
             } else {
                 captured_image_limits(&captured.request)
             };
@@ -1017,7 +1017,7 @@ fn cache_preview_frame(app: &mut SolveApp, ctx: &egui::Context, info: &PreviewIn
         if (info.frame.width, info.frame.height) != (captured.request.width, captured.request.height) {
             return Err("checkpoint dimensions differ from the captured request".into());
         }
-        let options = solidcraft_engine::render::job::CpuProgressiveOptions { samples_per_pixel: info.samples_per_pixel, seed: 0 };
+        let options = desurface_engine::render::job::CpuProgressiveOptions { samples_per_pixel: info.samples_per_pixel, seed: 0 };
         options.validate_image_with_budget(info.frame.width, info.frame.height, captured.request.cpu_budget()).map_err(|error| error.to_string())?;
         let image = decode_render_image(
             png,
@@ -1070,7 +1070,7 @@ fn cache_render_images(app: &mut SolveApp, ctx: &egui::Context) {
     remember_displayed_job(app, preserve_view);
 }
 
-fn captured_image_limits(request: &solidcraft_engine::render::job::ImageRequest) -> RenderLimits {
+fn captured_image_limits(request: &desurface_engine::render::job::ImageRequest) -> RenderLimits {
     if request.integrator == Integrator::Raytrace {
         request.cpu_budget().image_limits(request.raytrace.as_ref().is_some_and(|o| o.progressive.is_some()))
     } else {
@@ -1362,7 +1362,7 @@ fn preview_error(app: &mut SolveApp, ui: &mut egui::Ui, rect: egui::Rect, error:
 }
 
 /// Keep the selected image and overwrite consent fixed while the upstream picker holds model input.
-fn export_image(app: &mut SolveApp, job: solidcraft_engine::render::job::JobId, overwrite: bool) {
+fn export_image(app: &mut SolveApp, job: desurface_engine::render::job::JobId, overwrite: bool) {
     let origin = app.session.doc.clone();
     app.pick_save("render.png", &["png"], move |app, path| {
         let Some(path) = path else { return };
@@ -1375,7 +1375,7 @@ fn export_image(app: &mut SolveApp, job: solidcraft_engine::render::job::JobId, 
 }
 
 /// Captures format and completed identity before the asynchronous picker opens.
-fn export_linear_image(app: &mut SolveApp, job: solidcraft_engine::render::job::JobId, overwrite: bool) {
+fn export_linear_image(app: &mut SolveApp, job: desurface_engine::render::job::JobId, overwrite: bool) {
     let origin = app.session.doc.clone();
     app.pick_save("render.exr", &["exr"], move |app, path| {
         let Some(path) = path else {
@@ -1420,13 +1420,13 @@ impl PreviewUploadPlan {
 }
 
 fn preview_upload_plan(scene: &ProductScene, limit: usize) -> Result<PreviewUploadPlan, String> {
-    if scene.meshes.len() > solidcraft_engine::render::job::MAX_CPU_BODIES {
+    if scene.meshes.len() > desurface_engine::render::job::MAX_CPU_BODIES {
         return Err("product preview exceeds its captured-body bound".into());
     }
     let mut plan = PreviewUploadPlan::default();
     for body in &scene.meshes {
         plan.source_triangles = plan.source_triangles.checked_add(body.mesh.triangles.len()).ok_or("product triangle count overflow")?;
-        if plan.source_triangles > solidcraft_engine::render::job::MAX_CPU_TRIANGLES {
+        if plan.source_triangles > desurface_engine::render::job::MAX_CPU_TRIANGLES {
             return Err("product preview exceeds its eight-million-triangle source bound".into());
         }
         if body.faces.len() > 262_144 {
@@ -1506,7 +1506,7 @@ pub fn gpu_scene(scene: &ProductScene) -> Result<(u64, GpuScene), String> {
             let vertices = triangle.map(|i| {
                 let p = body.mesh.positions.get(i as usize)?.to_f32();
                 let n = *body.mesh.normals.get(i as usize)?;
-                let n = if surface.is_some() { solidcraft_engine::render::surface::unit_direction(n).ok()? } else { n }.to_f32();
+                let n = if surface.is_some() { desurface_engine::render::surface::unit_direction(n).ok()? } else { n }.to_f32();
                 p.into_iter().chain(n).all(f32::is_finite).then_some((p, n))
             });
             let [Some(a), Some(b), Some(c)] = vertices else { return Err("invalid product triangle".into()) };
@@ -1531,7 +1531,7 @@ pub fn gpu_scene(scene: &ProductScene) -> Result<(u64, GpuScene), String> {
     Ok((hash.finish(), gpu))
 }
 
-fn hash_surface(surface: Option<solidcraft_engine::render::surface::OpaqueSurface>, hash: &mut impl Hasher) {
+fn hash_surface(surface: Option<desurface_engine::render::surface::OpaqueSurface>, hash: &mut impl Hasher) {
     surface.is_some().hash(hash);
     if let Some(s) = surface {
         let c = s.base_color();
@@ -1588,7 +1588,7 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
             features: Vec::new(),
             policy: Default::default(),
         };
-        solidcraft_engine::render::resolve_request(&[app.session.render_backend()], &request).map_err(|e| e.to_string())?;
+        desurface_engine::render::resolve_request(&[app.session.render_backend()], &request).map_err(|e| e.to_string())?;
         if app.session.model.is_stale() {
             return Err("finish the modelling gesture before previewing".into());
         }
@@ -1597,10 +1597,10 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
         app.session.visibility.hidden_occurrences.hash(&mut visibility);
         let signature = (app.session.revision, Arc::as_ptr(&app.session.world_state()) as usize, visibility.finish());
         app.render_workspace
-            .prepare_preview(signature, || solidcraft_engine::product_scene::extract(&app.session).map_err(|error| error.to_string()))?;
+            .prepare_preview(signature, || desurface_engine::product_scene::extract(&app.session).map_err(|error| error.to_string()))?;
         let scene = app.render_workspace.scene.as_ref().ok_or("no product scene")?;
         request.features = scene.required_features();
-        solidcraft_engine::render::resolve_request(&[app.session.render_backend()], &request).map_err(|e| e.to_string())?;
+        desurface_engine::render::resolve_request(&[app.session.render_backend()], &request).map_err(|e| e.to_string())?;
         let key = app.render_workspace.key.ok_or("no product geometry")?;
         if scene.bounds.is_empty() {
             return Err("Create a visible solid in Design to preview it here.".into());
@@ -1646,7 +1646,7 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     crate::viewport::axis_view(app, ui, rect);
 }
 
-pub(crate) fn interactive_command_info(app: &SolveApp, command: &solidcraft_engine::CommandSpec) -> solidcraft_engine::CommandInfo {
+pub(crate) fn interactive_command_info(app: &SolveApp, command: &desurface_engine::CommandSpec) -> desurface_engine::CommandInfo {
     ribbon::command_info(app, command)
 }
 pub(crate) fn start_interactive(app: &mut SolveApp, id: &str) -> bool {

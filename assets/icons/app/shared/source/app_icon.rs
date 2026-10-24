@@ -1,6 +1,6 @@
-//! Original SolidCraft mark, shared by desktop, packaging and CLI: the borderless mark, five
+//! Original DeSurface mark, shared by desktop, packaging and CLI: the borderless mark, five
 //! faces with transparent gaps between them, drawn from the macOS icon's
-//! `macos/source/SolidCraft.icon/Assets/03-solid-blue-cutout.svg`.
+//! `macos/source/DeSurface.icon/Assets/03-solid-blue-cutout.svg`.
 type P = (f32, f32);
 
 /// One face in that SVG's units: its outline, and its linear gradient from one point and

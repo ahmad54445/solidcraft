@@ -12,7 +12,7 @@ use crate::browser;
 use crate::context_menu::{self, Item, Target};
 use crate::{Services, SolveApp};
 use serde_json::json;
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 /// Every English text `label()` can be asked to translate.
 fn english_texts() -> BTreeSet<String> {
@@ -57,7 +57,7 @@ fn take(app: &SolveApp, out: &mut BTreeSet<String>) {
         take_items(out, &context_menu::items(app, &Target::Group { id: *id, scope: "c0".into() }));
         take_items(out, &browser::group_items(app, *id, "c0"));
     }
-    for spec in solidcraft_engine::command_specs().iter() {
+    for spec in desurface_engine::command_specs().iter() {
         let target = Target::ToolbarCommand { id: spec.id.to_string() };
         take_items(out, &context_menu::items(app, &target));
     }

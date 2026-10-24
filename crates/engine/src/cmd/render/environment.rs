@@ -1,8 +1,8 @@
 //! Runtime environment inputs. Captures bytes through the caller's scoped VFS.
 use crate::{Result, params::bad};
 use serde::Deserialize;
-use solidcraft_doc::render_resources::{HdrId, HdrResources};
-use solidcraft_render::lighting::{
+use desurface_doc::render_resources::{HdrId, HdrResources};
+use desurface_render::lighting::{
     MAX_HDR_BYTES,
     environment::{EnvironmentResource, EnvironmentSource, SkyGradient},
 };
@@ -60,7 +60,7 @@ impl Input {
                 if path.is_empty() || path.len() > 4096 || path.chars().any(char::is_control) {
                     return Err(bad(command, "bounded HDR path required"));
                 }
-                let bytes = solidcraft_io::vfs::read(path, MAX_HDR_BYTES).map_err(|e| bad(command, format!("could not capture HDR: {e}")))?;
+                let bytes = desurface_io::vfs::read(path, MAX_HDR_BYTES).map_err(|e| bad(command, format!("could not capture HDR: {e}")))?;
                 if expected_sha256.is_some_and(|id| id != HdrId::of(&bytes)) {
                     return Err(bad(command, "HDR file changed since selection; inspect and select it again"));
                 }

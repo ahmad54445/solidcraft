@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Native SELENE bearing and arm-clearance authoring commands.
 
-All geometry and assembly edits go through SolidCraft commands. The ten bearings
+All geometry and assembly edits go through DeSurface commands. The ten bearings
 are intentionally inspectable open bearings, not catalogue-certified parts. Their
 grooves have 0.02 mm geometric clearance and the rolling relation is an ideal
 zero-contact-angle, fixed-outer-ring relation; it does not simulate contact loads,

@@ -1,6 +1,6 @@
 //! Transient CPU image controls; engine commands own file capture and admission.
 use serde_json::{Value, json};
-use solidcraft_engine::render::job::{
+use desurface_engine::render::job::{
     CpuBudget, DirectionalLightOptions, PunctualLightOptions, RaytraceEnvironmentOptions, ReflectionBody, ReflectionMode,
 };
 
@@ -15,9 +15,9 @@ pub(super) fn validate_progressive_image(app: &SolveApp) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) fn image_limits(app: &SolveApp) -> solidcraft_engine::render::RenderLimits {
+pub(super) fn image_limits(app: &SolveApp) -> desurface_engine::render::RenderLimits {
     if app.render_workspace.view.method == super::ImageMethod::GpuRaytrace {
-        return solidcraft_engine::render::job::GPU_PATH_LIMITS;
+        return desurface_engine::render::job::GPU_PATH_LIMITS;
     }
     if app.render_workspace.view.method != super::ImageMethod::CpuRaytrace {
         return Default::default();
@@ -150,7 +150,7 @@ struct Target {
 struct Binding {
     target: Target,
     revision: u64,
-    document: std::sync::Weak<solidcraft_engine::doc::Document>,
+    document: std::sync::Weak<desurface_engine::doc::Document>,
 }
 
 #[derive(Clone, Debug)]
@@ -158,7 +158,7 @@ pub(super) struct Checked {
     pub request: Value,
     pub revision: u64,
     pub environment: Value,
-    document: std::sync::Weak<solidcraft_engine::doc::Document>,
+    document: std::sync::Weak<desurface_engine::doc::Document>,
 }
 
 impl Default for View {
@@ -548,7 +548,7 @@ pub(super) fn light_controls(app: &mut SolveApp, ui: &mut egui::Ui) {
                 ui_kit::number_field(ui, &mut light.minimum_distance_mm, 0.001..=1e6, 0.01, " mm");
                 let mut spot = light.cone.is_some();
                 if ui_kit::checkbox(ui, "Spot cone", &mut spot).changed() {
-                    light.cone = spot.then_some(solidcraft_engine::render::job::SpotConeOptions {
+                    light.cone = spot.then_some(desurface_engine::render::job::SpotConeOptions {
                         emitted_axis: [0.0, 0.0, -1.0],
                         inner_half_angle_radians: 0.2,
                         outer_half_angle_radians: 0.5,
@@ -677,13 +677,13 @@ fn area_controls(app: &mut SolveApp, ui: &mut egui::Ui) {
         {
             lights.remove(index);
         }
-        if ui_kit::button(ui, app.tr("render.cpu_area_add"), ui_kit::Button::Enabled(count < solidcraft_engine::render::job::MAX_AREA_LIGHTS))
+        if ui_kit::button(ui, app.tr("render.cpu_area_add"), ui_kit::Button::Enabled(count < desurface_engine::render::job::MAX_AREA_LIGHTS))
             .clicked()
         {
             let center = app.cam.target;
             let size = app.cam.distance.clamp(1.0, 1e6) * 0.25;
             let options = &mut app.render_workspace.view.raytrace;
-            options.area_lights.get_or_insert_default().push(solidcraft_engine::render::job::RectangleLightOptions {
+            options.area_lights.get_or_insert_default().push(desurface_engine::render::job::RectangleLightOptions {
                 center_mm: [center.x, center.y, center.z + size * 3.0],
                 edge_u_mm: [size, 0.0, 0.0],
                 edge_v_mm: [0.0, -size, 0.0],

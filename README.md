@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="assets/icons/app/linux/exports/hicolor/256x256/apps/ai.storyteller.solidcraft.png" width="96" height="96" alt="SolidCraft" />
+  <img src="assets/icons/app/linux/exports/hicolor/256x256/apps/ai.storyteller.desurface.png" width="96" height="96" alt="DeSurface" />
 </p>
 
-<h1 align="center">SolidCraft</h1>
+<h1 align="center">DeSurface</h1>
 
 <p align="center">
   <strong>An open-source parametric 3D CAD application built in pure Rust.</strong><br />
@@ -42,25 +42,25 @@
 </p>
 
 <p align="center">
-  <a href="https://trendshift.io/repositories/296178?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-296178" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/296178/daily" alt="tangency-labs%2Fsolidcraft | Trendshift" width="250" height="55"/></a>
-  <a href="https://trendshift.io/repositories/296178?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-296178" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/296178/daily?language=Rust" alt="tangency-labs%2Fsolidcraft | Trendshift (Rust)" width="250" height="55"/></a>
+  <a href="https://trendshift.io/repositories/296178?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-296178" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/296178/daily" alt="tangency-labs%2Fdesurface | Trendshift" width="250" height="55"/></a>
+  <a href="https://trendshift.io/repositories/296178?utm_source=trendshift-badge&amp;utm_medium=badge&amp;utm_campaign=badge-trendshift-296178" target="_blank" rel="noopener noreferrer"><img src="https://trendshift.io/api/badge/trendshift/repositories/296178/daily?language=Rust" alt="tangency-labs%2Fdesurface | Trendshift (Rust)" width="250" height="55"/></a>
 </p>
 
-![SolidCraft 0.8: model a Raspberry Pi 4 case from an empty design: a sketch dimensioned with parameters, extrude, fillets and shell, a rim rounded in one pick, standoffs patterned on the board's mounting holes, port cut-outs, vent slots, "Pi 4" engraved in a font, a PETG material with its mass in Properties, and a height change in Parameters](docs/screenshots/demo-0.8.gif)
+![DeSurface 0.8: model a Raspberry Pi 4 case from an empty design: a sketch dimensioned with parameters, extrude, fillets and shell, a rim rounded in one pick, standoffs patterned on the board's mounting holes, port cut-outs, vent slots, "Pi 4" engraved in a font, a PETG material with its mass in Properties, and a height change in Parameters](docs/screenshots/demo-0.8.gif)
 
 *A Raspberry Pi 4 case from an empty design: a sketch dimensioned with the board's parameters, extrude, fillet, shell, the rim rounded in one pick, an M2.5 standoff patterned on the 58 × 49 mm hole rectangle, port cut-outs, vent slots, "Pi 4" engraved in DejaVu Sans Bold and a PETG material defined in the design, with its mass in Properties, then height 24 → 32 mm in Parameters and it all rebuilds. 9× playback. [Full video](https://github.com/tangency-labs/solidcraft/raw/refs/heads/main/docs/screenshots/demo-0.8.mp4), recorded with the [demo script](examples/demo/record_ui.sh).*
 
 ## Download
 
-- **Windows:** the [installer][windows-msi], or `winget install bherbruck.SolidCraft`.
+- **Windows:** the [installer][windows-msi], or `winget install bherbruck.DeSurface`.
 - **macOS:** the [disk image][macos-dmg] (Apple silicon and Intel).
-- **Linux:** the [AppImage][linux-appimage], or `sudo snap install solidcraft` ([Snap Store][snap-store]).
+- **Linux:** the [AppImage][linux-appimage], or `sudo snap install desurface` ([Snap Store][snap-store]).
 - **Web:** [try it in your browser][web-app], no install.
 
 ARM64 and 32-bit builds, portable zip, .deb, .rpm, Flatpak and the other packages are on the
 [downloads page](docs/downloads.md). The downloads aren't signed yet: on Windows choose
-**More info**, then **Run anyway** in SmartScreen; on macOS right-click SolidCraft and choose **Open**
-the first time. On SolidCraft 0.11 to 0.14, download once by hand; see
+**More info**, then **Run anyway** in SmartScreen; on macOS right-click DeSurface and choose **Open**
+the first time. On DeSurface 0.11 to 0.14, download once by hand; see
 [updating](https://docs.solidcraft.io/guide/updates.html#updating-from-011-to-014).
 
 ## What works
@@ -84,9 +84,9 @@ status and plans are in [ROADMAP.md](ROADMAP.md). See also [what people built](d
 ## Build from source
 
 ```sh
-cargo run --release -p solidcraft -- --sample      # desktop app with a sample part
-cargo run --release -p solidcraft-cli -- commands  # the command registry
-cargo run --release -p solidcraft-cli -- run examples/bracket.json --out bracket.step
+cargo run --release -p desurface -- --sample      # desktop app with a sample part
+cargo run --release -p desurface-cli -- commands  # the command registry
+cargo run --release -p desurface-cli -- run examples/bracket.json --out bracket.step
 cargo xtask ci                                     # fmt, clippy, tests, icons, assets, layers, wasm
 ```
 
@@ -94,14 +94,14 @@ More commands, the Windows cross-build and the browser build are in [docs/buildi
 
 ## AI agents (MCP)
 
-`solidcraft-cli mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. Headless it
+`desurface-cli mcp` is a [Model Context Protocol](https://modelcontextprotocol.io) server. Headless it
 runs its own design session, or with `--connect` it drives the running app so you can watch.
-Claude Code: `claude mcp add solidcraft -- solidcraft-cli mcp`. Tools, access rules and an
+Claude Code: `claude mcp add desurface -- desurface-cli mcp`. Tools, access rules and an
 example session: [docs/mcp.md](docs/mcp.md).
 
 ## Scripts
 
-A script is a JSON list of the same commands the UI runs, executed with `solidcraft-cli run`.
+A script is a JSON list of the same commands the UI runs, executed with `desurface-cli run`.
 Format and example: [docs/scripts.md](docs/scripts.md). Pages can also be driven through the
 [browser command API](docs/browser-api.md).
 
@@ -116,7 +116,7 @@ the clean-room and licence rules, and where help is wanted most. Open work is in
 
 [![CI powered by Blacksmith](docs/sponsors/blacksmith-ci-powered.png)](https://www.blacksmith.sh)
 
-SolidCraft's continuous integration runs on [Blacksmith](https://www.blacksmith.sh), which
+DeSurface's continuous integration runs on [Blacksmith](https://www.blacksmith.sh), which
 sponsors its CI minutes.
 
 ## Licence
@@ -125,9 +125,9 @@ MIT OR Apache-2.0, at your option. Developed under the
 [clean-room contribution rules](AGENTS.md); third-party code and assets retain their
 documented licences and attribution.
 
-SolidCraft is independent. Behaviour is designed from public documentation, general CAD
+DeSurface is independent. Behaviour is designed from public documentation, general CAD
 conventions and user feedback. Reference tests use analytic values and open-source tools.
-SolidCraft is not affiliated with, sponsored by or endorsed by Autodesk, Dassault Systèmes, PTC,
+DeSurface is not affiliated with, sponsored by or endorsed by Autodesk, Dassault Systèmes, PTC,
 Siemens or any other CAD vendor. Fusion, AutoCAD, Inventor, SolidWorks, Onshape, Creo, Blender and
 Tinkercad are trademarks of their respective owners, named only to describe compatibility
 (see [NOTICE](NOTICE)).

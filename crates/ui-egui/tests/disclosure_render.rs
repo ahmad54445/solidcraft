@@ -4,7 +4,7 @@ mod raster;
 
 use egui::{ColorImage, Rect, TextureId};
 use serde_json::json;
-use solidcraft_ui_egui::{
+use desurface_ui_egui::{
     scenario::{self, Harness},
     shell::LayoutMode,
     theme,
@@ -23,7 +23,7 @@ fn appearance_and_browser_folds_keep_handles_and_render_both_states() {
         h.call("ui.set", json!({"dark":dark}));
         h.app.ui.layout = LayoutMode::Floating;
         h.app.run("solid.box", json!({"length":10,"width":10,"height":10})).unwrap();
-        h.app.session.selection = vec![solidcraft_engine::Sel::Body { name: "Body1".into() }];
+        h.app.session.selection = vec![desurface_engine::Sel::Body { name: "Body1".into() }];
         h.app.start("appearance.assign");
         h.frames(3);
         for open in [true, false] {
@@ -37,7 +37,7 @@ fn appearance_and_browser_folds_keep_handles_and_render_both_states() {
             assert_eq!(scenario::handle_at("appearance:search").is_some(), open);
             // Fresh context transfers all textures to the software renderer, including fonts.
             h.ctx = egui::Context::default();
-            solidcraft_ui_egui::fonts::setup_fonts(&h.ctx);
+            desurface_ui_egui::fonts::setup_fonts(&h.ctx);
             theme::apply(&h.ctx);
             let mut textures: HashMap<TextureId, ColorImage> = HashMap::new();
             for _ in 0..8 {

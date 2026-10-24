@@ -1,6 +1,6 @@
 //! Faces that run along a seam edge twice: a whole turn of a cylinder or a cone bounded by one
 //! wire, as STEP files write them (the wire goes round one end, along the seam, round the other
-//! end and back along the seam). SolidCraft builds its own round faces in pieces with no such
+//! end and back along the seam). DeSurface builds its own round faces in pieces with no such
 //! seam, and a boolean that has to divide one of these faces can fail where the same bodies with
 //! the face in two halves work: an intersection loop lying wholly inside the face is a hole in a
 //! piece whose outer wire visits the seam's vertices twice, which the boolean refuses. So when the
@@ -9,7 +9,7 @@
 //! the boolean is asked again; the result's history is composed back over the operands as they
 //! were given.
 
-use solidcraft_geom::{Plane, Vec3};
+use desurface_geom::{Plane, Vec3};
 
 use crate::body::{Body, from_p3};
 use crate::boolean_record as recorded;

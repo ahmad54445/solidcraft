@@ -1,4 +1,4 @@
-//! Read-only access to the skill documents shipped with SolidCraft.
+//! Read-only access to the skill documents shipped with DeSurface.
 
 use serde_json::{Map, Value};
 
@@ -10,25 +10,25 @@ struct Skill {
 // Exact names only: these are embedded documents, never filesystem paths to open.
 const SKILLS: &[Skill] = &[
     Skill {
-        name: "solidcraft-checking",
+        name: "desurface-checking",
         files: &[
-            ("SKILL.md", include_str!("../../../skills/solidcraft-checking/SKILL.md")),
-            ("reference/porting.md", include_str!("../../../skills/solidcraft-checking/reference/porting.md")),
+            ("SKILL.md", include_str!("../../../skills/desurface-checking/SKILL.md")),
+            ("reference/porting.md", include_str!("../../../skills/desurface-checking/reference/porting.md")),
         ],
     },
-    Skill { name: "solidcraft-editing", files: &[("SKILL.md", include_str!("../../../skills/solidcraft-editing/SKILL.md"))] },
+    Skill { name: "desurface-editing", files: &[("SKILL.md", include_str!("../../../skills/desurface-editing/SKILL.md"))] },
     Skill {
-        name: "solidcraft-mechanisms",
+        name: "desurface-mechanisms",
         files: &[
-            ("SKILL.md", include_str!("../../../skills/solidcraft-mechanisms/SKILL.md")),
-            ("reference.md", include_str!("../../../skills/solidcraft-mechanisms/reference.md")),
+            ("SKILL.md", include_str!("../../../skills/desurface-mechanisms/SKILL.md")),
+            ("reference.md", include_str!("../../../skills/desurface-mechanisms/reference.md")),
         ],
     },
     Skill {
-        name: "solidcraft-modeling",
+        name: "desurface-modeling",
         files: &[
-            ("SKILL.md", include_str!("../../../skills/solidcraft-modeling/SKILL.md")),
-            ("reference.md", include_str!("../../../skills/solidcraft-modeling/reference.md")),
+            ("SKILL.md", include_str!("../../../skills/desurface-modeling/SKILL.md")),
+            ("reference.md", include_str!("../../../skills/desurface-modeling/reference.md")),
         ],
     },
 ];

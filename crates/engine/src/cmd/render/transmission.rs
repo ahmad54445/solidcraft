@@ -2,8 +2,8 @@
 //! Keep wire details here until the CPU contract is published. Never save them.
 use crate::{Result, params::bad};
 use serde::Deserialize;
-use solidcraft_geom::Vec3;
-use solidcraft_render::{
+use desurface_geom::Vec3;
+use desurface_render::{
     ProductScene,
     surface::{OpaqueSurface, srgb8_to_linear},
     transmission::Transmission,
@@ -26,7 +26,7 @@ fn bounded_dielectrics<'de, D: serde::Deserializer<'de>>(d: D) -> std::result::R
         fn visit_seq<A: serde::de::SeqAccess<'de>>(self, mut seq: A) -> std::result::Result<Self::Value, A::Error> {
             let mut result = Vec::new();
             while let Some(value) = seq.next_element()? {
-                if result.len() >= solidcraft_render::job::MAX_GPU_DIELECTRICS {
+                if result.len() >= desurface_render::job::MAX_GPU_DIELECTRICS {
                     return Err(serde::de::Error::custom("too many GPU dielectric overrides"));
                 }
                 result.try_reserve(1).map_err(serde::de::Error::custom)?;
@@ -50,7 +50,7 @@ pub(super) struct Override {
     #[serde(default)]
     shadow_transmission: Option<bool>,
     #[serde(default)]
-    subsurface: Option<solidcraft_render::transmission::subsurface::Subsurface>,
+    subsurface: Option<desurface_render::transmission::subsurface::Subsurface>,
 }
 #[derive(Deserialize)]
 #[serde(try_from = "String")]
@@ -71,7 +71,7 @@ impl TryFrom<String> for Boundary {
     }
 }
 pub(super) fn apply(scene: &mut ProductScene, overrides: &[Override], command: &str) -> Result<()> {
-    if overrides.len() > solidcraft_render::job::MAX_GPU_DIELECTRICS {
+    if overrides.len() > desurface_render::job::MAX_GPU_DIELECTRICS {
         return Err(bad(command, "at most 32 runtime dielectric overrides are supported"));
     }
     let mut ordinals = std::collections::BTreeSet::new();
@@ -121,7 +121,7 @@ pub(super) fn apply(scene: &mut ProductScene, overrides: &[Override], command: &
     }
     Ok(())
 }
-fn certify_box(mesh: &solidcraft_geom::Mesh, command: &str) -> Result<()> {
+fn certify_box(mesh: &desurface_geom::Mesh, command: &str) -> Result<()> {
     let bounds = mesh.bounds();
     if mesh.triangles.is_empty()
         || !bounds.min.is_finite()
@@ -176,7 +176,7 @@ mod tests {
         assert!(Arc::ptr_eq(&mesh, &scene.meshes[0].mesh));
         assert_eq!(scene.meshes[0].surface.unwrap().dielectric_ior(), 1.5);
         assert_eq!(saved, s.doc.to_json());
-        let reopened = crate::Session::new(solidcraft_doc::Document::from_json(&saved).unwrap());
+        let reopened = crate::Session::new(desurface_doc::Document::from_json(&saved).unwrap());
         assert!(!crate::product_scene::extract(&reopened).unwrap().has_transmission());
         assert!(
             s.execute(
@@ -208,7 +208,7 @@ mod tests {
             };
             assert!(rejected, "{key}");
         }
-        for count in [2, solidcraft_render::job::MAX_GPU_DIELECTRICS + 1] {
+        for count in [2, desurface_render::job::MAX_GPU_DIELECTRICS + 1] {
             let overrides = serde_json::from_value::<Vec<Override>>(json!(vec![input(); count])).unwrap();
             assert!(apply(&mut crate::product_scene::extract(&s).unwrap(), &overrides, "render.start").is_err());
         }

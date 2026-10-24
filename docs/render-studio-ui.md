@@ -71,7 +71,7 @@ Actual application screenshots must be captured from an isolated native applicat
 
 ### Isolated native review profile
 
-The desktop application accepts `SOLIDCRAFT_SETTINGS_DIR` as an explicit absolute directory for its settings, graphics preference and startup marker. Invalid/relative/file paths refuse before startup; an explicit profile never adopts the ordinary or legacy settings. Without the variable, normal behavior is unchanged. This is profile isolation, not a filesystem sandbox. Set the existing recovery/crash/control directory overrides separately when running a disposable native review. It allows the actual hardware application to be exercised without rewriting personal preferences or substituting safe-mode/software behavior.
+The desktop application accepts `DESURFACE_SETTINGS_DIR` as an explicit absolute directory for its settings, graphics preference and startup marker. Invalid/relative/file paths refuse before startup; an explicit profile never adopts the ordinary or legacy settings. Without the variable, normal behavior is unchanged. This is profile isolation, not a filesystem sandbox. Set the existing recovery/crash/control directory overrides separately when running a disposable native review. It allows the actual hardware application to be exercised without rewriting personal preferences or substituting safe-mode/software behavior.
 
 
 ## Full-detail live preview and bounded refusal

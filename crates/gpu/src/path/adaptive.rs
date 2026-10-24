@@ -1,7 +1,7 @@
 //! Read back only bounded allocation metadata; radiance remains in the existing
 //! film and source leases. The report counts work, not certified image error.
 use super::*;
-use solidcraft_render::job::adaptive::SamplingReport;
+use desurface_render::job::adaptive::SamplingReport;
 
 pub(super) fn report(task: &Task) -> Result<SamplingReport> {
     task.cancel.check()?;

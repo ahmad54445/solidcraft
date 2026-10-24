@@ -4,7 +4,7 @@ The action matrix tries every ordinary action on every face, edge, vertex and bo
 bodies of a corpus of real designs, through the same commands and parameters the desktop sends,
 and records what works. [`tests/action_matrix/baseline.json`](../tests/action_matrix/baseline.json)
 is a ratchet: an action that passed there and fails now is a regression and fails the test.
-The test is [`apps/solidcraft-cli/tests/action_matrix.rs`](../apps/solidcraft-cli/tests/action_matrix.rs).
+The test is [`apps/desurface-cli/tests/action_matrix.rs`](../apps/desurface-cli/tests/action_matrix.rs).
 
 ## Running it
 
@@ -34,8 +34,8 @@ The test is [`apps/solidcraft-cli/tests/action_matrix.rs`](../apps/solidcraft-cl
   `ACTION_MATRIX_UNFOLD=1` also unfolds and refolds every sheet metal body after each action that
   passed, recorded as `<action>+unfold`. To recheck one design on its own:
   `ACTION_MATRIX_DESIGN=oracle/69-sm-tray ACTION_MATRIX_OUT=out.jsonl ACTION_MATRIX_ACTIONS=face.hole
-  cargo test --profile ci -p solidcraft-cli --test action_matrix action_matrix_worker -- --exact --ignored`
-  (from `apps/solidcraft-cli`).
+  cargo test --profile ci -p desurface-cli --test action_matrix action_matrix_worker -- --exact --ignored`
+  (from `apps/desurface-cli`).
 
 Each design runs in its own process, so an action that hangs (90 s without a result) or aborts is
 recorded as `timeout` or `crash` and the rest of the design still runs. An action that passes in the baseline and
@@ -49,20 +49,20 @@ lying almost level can swap between runs (#569). The ratchet therefore counts pa
 pieces (the name without its numbers) and samples whole families, so a swap is not a regression.
 
 Each open cause below has a small reproduction among the ignored tests at the end of
-`action_matrix.rs` (`cargo test --profile ci -p solidcraft-cli --test action_matrix -- --ignored`
+`action_matrix.rs` (`cargo test --profile ci -p desurface-cli --test action_matrix -- --ignored`
 lists which still fail; skip `action_matrix_` to leave out the matrix itself).
 
 ## The corpus
 
-- `corpus/*`: the old design files of [`apps/solidcraft-cli/tests/corpus`](../apps/solidcraft-cli/tests/corpus/).
+- `corpus/*`: the old design files of [`apps/desurface-cli/tests/corpus`](../apps/desurface-cli/tests/corpus/).
 - `examples/*`, `regressions/*`: the scripts in [`examples/`](../examples/).
-- `oracle/*`: the 76 reference recipes, rebuilt (`solidcraft-cli recipe`).
+- `oracle/*`: the 76 reference recipes, rebuilt (`desurface-cli recipe`).
 - `demo/enclosure_steps`: the electronics enclosure built over MCP;
   `demo/pi-case`: the Raspberry Pi 4 case of the 0.6 README demo, built through the desktop UI
   and saved by `examples/demo/enclosure_ui_mcp.py --story pi-0.6 --save`;
   `demo/pi-case-0.8`: the 0.8 README demo's case (`--story pi`), with a rounded rim, engraved
   text and a PETG material;
-  `demo/logo-up-down-join`: the SolidCraft logo as it was reported in #954, one sketch extruded
+  `demo/logo-up-down-join`: the DeSurface logo as it was reported in #954, one sketch extruded
   up and down and joined.
 - `typical/*`: [`tests/action_matrix/designs`](../tests/action_matrix/designs/), parts made the
   ordinary way: a stacked extrude, a filleted and shelled box, a revolved knob, a plate with a

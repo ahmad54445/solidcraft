@@ -7,8 +7,8 @@ robustness runs build random but realistic designs and check every step.
 ## How it runs
 
 ```
-solidcraft-cli fuzz --from 0 --count 1000 --jobs 8 --timeout 90 --out runs/ --report report.md
-solidcraft-cli fuzz-one <seed> --minimise      # one design, cut down to the steps that matter
+desurface-cli fuzz --from 0 --count 1000 --jobs 8 --timeout 90 --out runs/ --report report.md
+desurface-cli fuzz-one <seed> --minimise      # one design, cut down to the steps that matter
 ```
 
 `--count` seeds are run starting at `--from`. A range that exceeds `u64::MAX` is
@@ -76,7 +76,7 @@ do not leak into GNU validation (#4104).
 To record an intended change, give the reason:
 
 ```
-ROBUSTNESS_GOLDENS_BLESS="why it changed" cargo test --profile ci -p solidcraft-engine --lib robustness_goldens::seed_
+ROBUSTNESS_GOLDENS_BLESS="why it changed" cargo test --profile ci -p desurface-engine --lib robustness_goldens::seed_
 ```
 
 The changed seeds and the reason are added to the file's `notes`; say why in the pull request too.

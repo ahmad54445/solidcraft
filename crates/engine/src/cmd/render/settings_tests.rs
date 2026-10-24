@@ -7,9 +7,9 @@ fn save(s: &mut Session, patch: Value) {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn embedded_hdr_capture_is_offline_atomic_deduplicated_and_undoable_after_source_removal() {
-    use solidcraft_doc::render_resources::HdrId;
+    use desurface_doc::render_resources::HdrId;
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let path = std::env::temp_dir().join(format!("solidcraft-saved-hdr-{}-{nonce}.hdr", std::process::id()));
+    let path = std::env::temp_dir().join(format!("desurface-saved-hdr-{}-{nonce}.hdr", std::process::id()));
     let mut bytes = b"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\nPRIMARIES=0.64 0.33 0.30 0.60 0.15 0.06 0.3127 0.3290\n\n-Y 2 +X 4\n".to_vec();
     for _ in 0..8 {
         bytes.extend_from_slice(&[128, 64, 32, 129]);
@@ -66,9 +66,9 @@ fn embedded_hdr_capture_is_offline_atomic_deduplicated_and_undoable_after_source
         s.doc.render.resources.required(&id).unwrap().bytes().as_ptr()
     ));
     assert!(!s.doc.to_json().contains(path.to_str().unwrap()));
-    assert_eq!(solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap(), *s.doc);
-    let container = solidcraft_io::write_design_container(&s.doc).unwrap();
-    assert_eq!(solidcraft_io::read_design(&container).unwrap(), *s.doc);
+    assert_eq!(desurface_doc::Document::from_json(&s.doc.to_json()).unwrap(), *s.doc);
+    let container = desurface_io::write_design_container(&s.doc).unwrap();
+    assert_eq!(desurface_io::read_design(&container).unwrap(), *s.doc);
     assert!(Arc::ptr_eq(&model, &s.model.state()));
     assert_eq!(s.evaluations, 0);
 }
@@ -100,7 +100,7 @@ fn embedded_hdr_capture_rejects_parameters_scope_and_cpu_primaries_without_mutat
         assert_eq!(state, (s.revision, s.undo.len(), s.redo.len()));
     }
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let dir = std::env::temp_dir().join(format!("solidcraft-hdr-scope-{}-{nonce}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-hdr-scope-{}-{nonce}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
     let allowed = dir.join("allowed");
     std::fs::create_dir(&allowed).unwrap();
@@ -111,7 +111,7 @@ fn embedded_hdr_capture_rejects_parameters_scope_and_cpu_primaries_without_mutat
     }
     std::fs::write(&path, &bytes).unwrap();
     let mut capture = json!({"name":"HDR","path":path,"set":{"job":{"method":"cpu_raytrace"}}});
-    solidcraft_io::vfs::scoped(Some(solidcraft_io::vfs::PathScope::new([allowed])), || {
+    desurface_io::vfs::scoped(Some(desurface_io::vfs::PathScope::new([allowed])), || {
         for (command, params) in [("render.hdr.inspect", json!({"path":path})), ("render.settings.capture_hdr", capture.clone())] {
             assert!(s.execute(command, &params).unwrap_err().to_string().contains("outside the folders this agent may use"));
         }
@@ -165,7 +165,7 @@ fn portable_job_save_is_host_independent_atomic_and_undoable_without_geometry_ch
     assert!(Arc::ptr_eq(&saved, &s.doc));
     assert_eq!(s.revision, revision);
     assert_eq!(s.execute("render.settings.get", &json!({"name":"Studio"})).unwrap()["setup"], json!(setup));
-    let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
+    let reopened = desurface_doc::Document::from_json(&s.doc.to_json()).unwrap();
     assert_eq!(*s.doc, reopened);
     save(&mut s, json!({"width":800}));
     assert_eq!(s.doc.render.setups["Studio"].job, setup.job);
@@ -183,7 +183,7 @@ fn portable_job_save_is_host_independent_atomic_and_undoable_without_geometry_ch
     save(&mut s, json!({"job":{"method":"cpu_raytrace"}}));
     assert_eq!(
         s.doc.render.setups["Studio"].job,
-        Some(solidcraft_doc::render_settings::RenderJob::CpuRaytrace { options: solidcraft_doc::render_settings::CpuJob::default() })
+        Some(desurface_doc::render_settings::RenderJob::CpuRaytrace { options: desurface_doc::render_settings::CpuJob::default() })
     );
     assert_eq!(s.doc.render.setups["Studio"].exposure_ev, 2.5);
     assert!(Arc::ptr_eq(&model, &s.model.state()));
@@ -235,7 +235,7 @@ fn settings_history_preserves_geometry_cache_and_dirty_state() {
     assert!(Arc::ptr_eq(&doc, &s.doc));
     assert_eq!(s.revision, revision);
     assert_eq!(s.undo.len(), undo + 1);
-    let restored = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
+    let restored = desurface_doc::Document::from_json(&s.doc.to_json()).unwrap();
     assert_eq!(restored.render, s.doc.render);
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(!s.is_dirty());
@@ -277,7 +277,7 @@ fn settings_history_preserves_geometry_cache_and_dirty_state() {
 #[test]
 fn invalid_settings_and_limit_are_atomic() {
     let mut s = Session::default();
-    let mut camera_with_typo = serde_json::to_value(solidcraft_render::Camera::default()).unwrap();
+    let mut camera_with_typo = serde_json::to_value(desurface_render::Camera::default()).unwrap();
     camera_with_typo["fov_degrees"] = json!(45);
     for patch in [
         json!({"width":0}),

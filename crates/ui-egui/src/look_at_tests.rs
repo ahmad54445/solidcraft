@@ -2,7 +2,7 @@
 //! origin, so a sketch drawn far from the origin (an imported part placed there) stays in view.
 
 use serde_json::json;
-use solidcraft_engine::geom::Vec3;
+use desurface_engine::geom::Vec3;
 
 use crate::scenario::Harness;
 

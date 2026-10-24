@@ -3,7 +3,7 @@
 
 use egui::{Event, PointerButton, Pos2, RawInput, Rect, ViewportCommand, ViewportId, pos2, vec2};
 use serde_json::json;
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 use crate::SolveApp;
 
@@ -70,7 +70,7 @@ fn large_design(dir: &std::path::Path, n: usize) -> String {
 }
 
 fn scratch(name: &str) -> std::path::PathBuf {
-    let d = std::env::temp_dir().join(format!("solidcraft-file-load-{name}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("desurface-file-load-{name}-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&d);
     d
 }
@@ -80,7 +80,7 @@ fn fingerprint(s: &Session) -> serde_json::Value {
     let world = s.world_state();
     let bodies: Vec<_> = world.bodies.iter().map(|b| (b.name.clone(), b.mesh().triangles.len())).collect();
     let errors = s.model.results.iter().filter(|r| r.error.is_some()).count();
-    let b = solidcraft_engine::view::bounds(s);
+    let b = desurface_engine::view::bounds(s);
     json!({
         "name": s.doc.name,
         "path": s.path,
@@ -234,9 +234,9 @@ fn a_control_import_passes_up_and_names_on() {
     let mut src = Session::default();
     src.execute("solid.box", &json!({"length": 10, "width": 40, "height": 5})).unwrap();
     src.execute("file.export", &json!({"path": path})).unwrap();
-    // Another program's file: SolidCraft's own exports are not offered (#5150).
+    // Another program's file: DeSurface's own exports are not offered (#5150).
     let text = std::fs::read_to_string(&path).unwrap();
-    std::fs::write(&path, text.replace("'SolidCraft','SolidCraft'", "'SolidCraft','Example CAD'")).unwrap();
+    std::fs::write(&path, text.replace("'DeSurface','DeSurface'", "'DeSurface','Example CAD'")).unwrap();
 
     // The reply, the part's height and whether the offer is up, for an import by this window.
     let import = |params: serde_json::Value| {
@@ -257,7 +257,7 @@ fn a_control_import_passes_up_and_names_on() {
         assert_eq!(reply["ok"], true, "{params}: {reply}");
         let mut sync = Session::default();
         assert_eq!(reply["result"], sync.execute("file.insert_step", &params).unwrap(), "the window's reply is the session's");
-        let b = solidcraft_engine::view::bounds(&w.app.session);
+        let b = desurface_engine::view::bounds(&w.app.session);
         (reply, [b.max.x - b.min.x, b.max.y - b.min.y, b.max.z - b.min.z], w.app.stand_up.is_some())
     };
 
@@ -301,7 +301,7 @@ fn a_control_import_passes_its_matrix_and_name_on() {
     assert_eq!(reply["ok"], true, "{reply}");
     let mut sync = Session::default();
     assert_eq!(reply["result"], sync.execute("file.insert_step", &params).unwrap(), "the window's reply is the session's");
-    let b = solidcraft_engine::view::bounds(&w.app.session);
+    let b = desurface_engine::view::bounds(&w.app.session);
     assert!((b.min.x - 100.0).abs() < 1e-6 && (b.max.x - 160.0).abs() < 1e-6, "moved by the matrix: {b:?}");
     assert!(w.app.session.doc.components.iter().any(|c| c.name == "Bracket"), "named as asked");
     let _ = std::fs::remove_dir_all(&dir);
@@ -336,7 +336,7 @@ fn an_opened_design_shows_its_bodies_as_they_are_meshed() {
     assert!(seen.windows(2).all(|p| p[0] <= p[1]), "the picture only grows: {seen:?}");
     let world = w.app.session.world_state();
     // Then the whole design (in the order its bodies came, kept until the design changes).
-    let names = |st: &solidcraft_engine::doc::ModelState| {
+    let names = |st: &desurface_engine::doc::ModelState| {
         let mut n: Vec<String> = st.bodies.iter().map(|b| b.name.clone()).collect();
         n.sort();
         n

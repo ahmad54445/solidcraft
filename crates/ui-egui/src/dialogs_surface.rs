@@ -5,10 +5,10 @@
 use crate::dialogs::put;
 use crate::ui_kit::{choice_row, expr_row, hint_row};
 use serde_json::{Map, Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::expr::Kind as ValueKind;
-use solidcraft_engine::doc::{AxisRef, Direction, FaceAt, FeatureKind, Mat, PlaneRef, Position, ProfileSel, RuledCorners, RuledMode};
-use solidcraft_engine::geom::Vec3;
+use desurface_engine::Sel;
+use desurface_engine::doc::expr::Kind as ValueKind;
+use desurface_engine::doc::{AxisRef, Direction, FaceAt, FeatureKind, Mat, PlaneRef, Position, ProfileSel, RuledCorners, RuledMode};
+use desurface_engine::geom::Vec3;
 
 use crate::SolveApp;
 use crate::dialogs::{Kind, OP_LABELS, OPS, combo, form_row, op_index};
@@ -801,7 +801,7 @@ fn tool_sel(app: &SolveApp, plane: &PlaneRef, tool: Option<&FaceAt>) -> Option<S
 /// `frame` maps the feature's component frame to the world, for an axis stored as a line.
 pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(Kind, Vec<SelInput>, Map<String, Value>)> {
     let s = &app.session;
-    let edge = |p: &solidcraft_engine::doc::Position| crate::dialogs::edge_sel(s, p.0);
+    let edge = |p: &desurface_engine::doc::Position| crate::dialogs::edge_sel(s, p.0);
     let (k, fill): (Surf, Vec<Vec<Sel>>) = match kind {
         FeatureKind::SurfaceRevolve { sketch, profiles, curves, axis, angle, angle2, symmetric } => {
             let (pick, stored) = match axis {
@@ -812,8 +812,8 @@ pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(K
                 AxisRef::Line { origin, dir } => (
                     None,
                     Some(json!({
-                        "origin": pt(solidcraft_engine::doc::apply_point(frame, origin.0)),
-                        "dir": pt(solidcraft_engine::doc::apply_vector(frame, dir.0))
+                        "origin": pt(desurface_engine::doc::apply_point(frame, origin.0)),
+                        "dir": pt(desurface_engine::doc::apply_vector(frame, dir.0))
                     })),
                 ),
             };
@@ -843,7 +843,7 @@ pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(K
             )
         }
         FeatureKind::SurfaceBlend { from, to, continuity, bulge, align, seam, stitch } => {
-            let index = |c: &solidcraft_engine::doc::kernel::Continuity| BLEND_CONTINUITY.iter().position(|(_, w)| *w == c.as_str()).unwrap_or(1);
+            let index = |c: &desurface_engine::doc::kernel::Continuity| BLEND_CONTINUITY.iter().position(|(_, w)| *w == c.as_str()).unwrap_or(1);
             let k = Surf::Blend { continuity: continuity.each_ref().map(index), bulge: *bulge, stitch: *stitch };
             // What the dialog does not show is kept as it was: the leave directions and the seams.
             let mut extra = Map::new();
@@ -859,7 +859,7 @@ pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(K
             return Some((Kind::Surface(k), ins, extra));
         }
         FeatureKind::SurfaceBoundary { curves, orders, crown, samples, .. } => {
-            let first = orders.first().copied().unwrap_or(solidcraft_engine::doc::kernel::Continuity::G1);
+            let first = orders.first().copied().unwrap_or(desurface_engine::doc::kernel::Continuity::G1);
             let index = PATCH_CONTINUITY.iter().position(|(_, w)| *w == first.as_str());
             // What the dialog does not show is kept as it was: a crown, the stations, and orders
             // that differ from side to side or that the list does not offer (G3).
@@ -867,7 +867,7 @@ pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(K
             if *crown != 0.0 {
                 extra.insert("crown".into(), json!(crown));
             }
-            if *samples != solidcraft_engine::doc::BOUNDARY_SAMPLES {
+            if *samples != desurface_engine::doc::BOUNDARY_SAMPLES {
                 extra.insert("samples".into(), json!(samples));
             }
             if index.is_none() || orders.iter().any(|o| *o != first) {
@@ -885,7 +885,7 @@ pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(K
             if u.iter().chain(v).any(|c| c.point.is_some()) {
                 return None;
             }
-            let sels = |list: &[solidcraft_engine::doc::NetworkCurve]| -> Vec<Sel> {
+            let sels = |list: &[desurface_engine::doc::NetworkCurve]| -> Vec<Sel> {
                 list.iter()
                     .flat_map(|c| {
                         let mut out: Vec<Sel> = c.curves.iter().map(|id| Sel::SketchCurve { id: id.clone() }).collect();
@@ -894,9 +894,9 @@ pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(K
                     })
                     .collect()
             };
-            let g = u.iter().chain(v).find(|c| c.body.is_some()).map_or(solidcraft_engine::doc::kernel::Continuity::G0, |c| c.continuity);
+            let g = u.iter().chain(v).find(|c| c.body.is_some()).map_or(desurface_engine::doc::kernel::Continuity::G0, |c| c.continuity);
             let index = PATCH_CONTINUITY.iter().position(|(_, w)| *w == g.as_str()).unwrap_or(0);
-            (Surf::Boundary { continuity: index, join: *operation == solidcraft_engine::doc::Operation::Join }, vec![sels(u), sels(v)])
+            (Surf::Boundary { continuity: index, join: *operation == desurface_engine::doc::Operation::Join }, vec![sels(u), sels(v)])
         }
         FeatureKind::SurfaceLoft { sections, rails, rail_fit, .. } => {
             let [rail, rail2] = crate::dialogs_sweep::rail_sels(rails);
@@ -997,16 +997,16 @@ pub fn for_feature(app: &SolveApp, kind: &FeatureKind, frame: &Mat) -> Option<(K
                 extra.insert("neighbours".into(), json!(false));
             }
             match up_to {
-                Some(solidcraft_engine::doc::ExtendTo::Bounds) => {
+                Some(desurface_engine::doc::ExtendTo::Bounds) => {
                     extra.insert("up_to".into(), json!("bounds"));
                 }
-                Some(solidcraft_engine::doc::ExtendTo::Face(t)) => {
+                Some(desurface_engine::doc::ExtendTo::Face(t)) => {
                     extra.insert("up_to".into(), json!({"body": t.body, "point": pt(t.point.0)}));
                 }
-                Some(solidcraft_engine::doc::ExtendTo::Plane(PlaneRef::Origin { name })) => {
+                Some(desurface_engine::doc::ExtendTo::Plane(PlaneRef::Origin { name })) => {
                     extra.insert("up_to".into(), json!(name));
                 }
-                Some(solidcraft_engine::doc::ExtendTo::Plane(PlaneRef::Construction { name })) => {
+                Some(desurface_engine::doc::ExtendTo::Plane(PlaneRef::Construction { name })) => {
                     extra.insert("up_to".into(), json!(name));
                 }
                 _ => {}

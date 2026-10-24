@@ -3,13 +3,13 @@
 use crate::{Result, Session, params::bad};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::{
+use desurface_doc::{
     render_resources::HdrId,
     render_settings::{RenderJob, RenderSetup},
     render_surface::{BuiltinSurfaceSource, RenderBodyTarget, SavedSurface, SurfaceBindings},
 };
-use solidcraft_geom::Vec3;
-use solidcraft_render::{ProductScene, job::textures::PlanarFrame};
+use desurface_geom::Vec3;
+use desurface_render::{ProductScene, job::textures::PlanarFrame};
 use std::{collections::BTreeMap, sync::Arc};
 
 fn vec(a: [f64; 3]) -> Vec3 {
@@ -18,11 +18,11 @@ fn vec(a: [f64; 3]) -> Vec3 {
 fn array(v: Vec3) -> [f64; 3] {
     [v.x, v.y, v.z]
 }
-fn transform(frame: PlanarFrame, m: &solidcraft_doc::Mat, command: &str) -> Result<PlanarFrame> {
+fn transform(frame: PlanarFrame, m: &desurface_doc::Mat, command: &str) -> Result<PlanarFrame> {
     let result = PlanarFrame {
-        origin: array(solidcraft_doc::apply_point(m, vec(frame.origin))),
-        u: array(solidcraft_doc::apply_vector(m, vec(frame.u))),
-        v: array(solidcraft_doc::apply_vector(m, vec(frame.v))),
+        origin: array(desurface_doc::apply_point(m, vec(frame.origin))),
+        u: array(desurface_doc::apply_vector(m, vec(frame.u))),
+        v: array(desurface_doc::apply_vector(m, vec(frame.v))),
     };
     result.validate().map_err(|e| bad(command, e.to_string()))?;
     Ok(result)
@@ -58,7 +58,7 @@ pub(super) fn targets(s: &Session, command: &str) -> Result<BTreeMap<RenderBodyT
         }
     }
     let frames = s.doc.body_frames_with_source(&state);
-    if frames.len() > solidcraft_render::job::MAX_CPU_BODIES {
+    if frames.len() > desurface_render::job::MAX_CPU_BODIES {
         return Err(bad(command, "too many placed surface targets"));
     }
     let mut result = BTreeMap::new();
@@ -149,7 +149,7 @@ pub(super) fn bind(s: &mut Session, params: &Value) -> Result<Value> {
     }
     let world = s.world_state();
     let body = world.body(name).ok_or_else(|| bad(command, "surface target disappeared"))?;
-    let inverse = solidcraft_doc::mat_inverse(&body.source_transform).ok_or_else(|| bad(command, "surface mapping transform is singular"))?;
+    let inverse = desurface_doc::mat_inverse(&body.source_transform).ok_or_else(|| bad(command, "surface mapping transform is singular"))?;
     let frame: PlanarFrame = serde_json::from_value(prepared["texture"]["frame"].clone()).map_err(|e| bad(command, e.to_string()))?;
     setup
         .surfaces

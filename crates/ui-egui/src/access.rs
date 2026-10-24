@@ -3,7 +3,7 @@
 
 use std::cell::RefCell;
 
-use solidcraft_engine::SurfaceAnalysis;
+use desurface_engine::SurfaceAnalysis;
 
 use crate::SolveApp;
 use crate::gpu::AccessMap;

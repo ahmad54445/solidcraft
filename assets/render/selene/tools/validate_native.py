@@ -4,7 +4,7 @@
 This tool only reads the input file and drives the in-memory copy. It never saves,
 exports, patches native JSON, or changes the source. A report lists actual native
 observations, tolerances and scope. Missing parts, unchecked pairs and timeouts
-cannot become passes. Python 3.11 standard library; SolidCraft is the CAD runtime.
+cannot become passes. Python 3.11 standard library; DeSurface is the CAD runtime.
 """
 from __future__ import annotations
 
@@ -48,7 +48,7 @@ NATIVE_ENVIRONMENT = {
     "MALLOC_ARENA_MAX": "1",
     "MALLOC_MMAP_THRESHOLD_": "65536",
     "MALLOC_TRIM_THRESHOLD_": "65536",
-    "SOLIDCRAFT_GPU": "cpu",
+    "DESURFACE_GPU": "cpu",
 }
 
 

@@ -7,9 +7,9 @@
 use crate::ui_kit::{choice_row, expr_row};
 use egui::RichText;
 use serde_json::{Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::Session;
-use solidcraft_engine::doc::expr::Kind as ValueKind;
+use desurface_engine::Sel;
+use desurface_engine::Session;
+use desurface_engine::doc::expr::Kind as ValueKind;
 
 use crate::SolveApp;
 use crate::dialogs::{field, form_row};
@@ -97,7 +97,7 @@ fn occurrence(s: &Session, body: &str) -> Option<u64> {
     s.doc.body_frames(&s.model.state()).into_iter().find(|f| f.0 == body).map(|(_, _, path, _)| path.last().copied().unwrap_or(0))
 }
 
-fn pick(inputs: &[SelInput], i: usize) -> Option<(&str, solidcraft_engine::geom::Vec3)> {
+fn pick(inputs: &[SelInput], i: usize) -> Option<(&str, desurface_engine::geom::Vec3)> {
     match inputs.get(i)?.items.first()? {
         Sel::Face { body, point, .. } | Sel::Edge { body, point, .. } => Some((body.as_str(), *point)),
         _ => None,
@@ -108,7 +108,7 @@ fn pick(inputs: &[SelInput], i: usize) -> Option<(&str, solidcraft_engine::geom:
 fn picked_radius(s: &Session, inputs: &[SelInput], i: usize) -> Option<f64> {
     let (body, point) = pick(inputs, i)?;
     let st = s.world_state();
-    solidcraft_engine::kernel::cylinder_face_at(&st.body(body)?.body, point).map(|c| c.radius)
+    desurface_engine::kernel::cylinder_face_at(&st.body(body)?.body, point).map(|c| c.radius)
 }
 
 /// Size `i` in mm: the picked face's radius, or the typed one.

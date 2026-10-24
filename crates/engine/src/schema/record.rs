@@ -1,11 +1,11 @@
 //! The audit recorder, for checking a new contract against every caller the tests have: in a
-//! build with the `param-audit` feature, when `SOLIDCRAFT_PARAM_AUDIT` names a directory, every
+//! build with the `param-audit` feature, when `DESURFACE_PARAM_AUDIT` names a directory, every
 //! call to a command with a contract that breaks it is recorded, with what the command did, so a
 //! test run shows which callers the contracts would warn about or refuse. Without the feature it
 //! is compiled (so it is linted and tested) but never on.
 //!
 //! ```text
-//! SOLIDCRAFT_PARAM_AUDIT=$PWD/audit cargo test --workspace --no-fail-fast --features solidcraft-engine/param-audit
+//! DESURFACE_PARAM_AUDIT=$PWD/audit cargo test --workspace --no-fail-fast --features desurface-engine/param-audit
 //! python3 scripts/param_audit.py audit
 //! ```
 //!
@@ -35,7 +35,7 @@ static SEEN: OnceLock<Mutex<HashMap<String, u64>>> = OnceLock::new();
 const MAX_SIGNATURES: usize = 4096;
 
 fn dir() -> Option<&'static PathBuf> {
-    DIR.get_or_init(|| std::env::var_os("SOLIDCRAFT_PARAM_AUDIT").filter(|v| !v.is_empty()).map(PathBuf::from)).as_ref()
+    DIR.get_or_init(|| std::env::var_os("DESURFACE_PARAM_AUDIT").filter(|v| !v.is_empty()).map(PathBuf::from)).as_ref()
 }
 
 /// Whether the recorder is on: built with `param-audit` and the variable set (read once per

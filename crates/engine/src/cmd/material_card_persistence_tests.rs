@@ -42,7 +42,7 @@ fn card_edits_preserve_mass_optics_and_geometry_and_survive_undo_reopen() {
     assert!(Arc::ptr_eq(&scene.meshes[0].mesh, &after.meshes[0].mesh));
     assert_eq!(scene.meshes[0].surface, after.meshes[0].surface);
     let saved = s.doc.to_json();
-    assert_eq!(serde_json::from_str::<Value>(&saved).unwrap()["format"], solidcraft_doc::format::format_string(solidcraft_doc::format::FORMAT));
+    assert_eq!(serde_json::from_str::<Value>(&saved).unwrap()["format"], desurface_doc::format::format_string(desurface_doc::format::FORMAT));
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(s.doc.user_materials[0].physical_card.is_none());
     s.execute("edit.redo", &json!({})).unwrap();
@@ -73,8 +73,8 @@ fn omission_retains_null_clears_and_unrelated_material_edits_retain_cards() {
     }
     let mut only_card = Document::default();
     only_card.user_materials.push(s.doc.user_materials[1].clone());
-    let error = solidcraft_io::catalog::Catalog::from_document(&only_card, "user.fixture", "Original", Default::default())
-        .and_then(|c| c.in_format(solidcraft_io::catalog::V1_FORMAT))
+    let error = desurface_io::catalog::Catalog::from_document(&only_card, "user.fixture", "Original", Default::default())
+        .and_then(|c| c.in_format(desurface_io::catalog::V1_FORMAT))
         .unwrap_err();
     assert!(error.to_string().contains("engineering cards"));
     s.execute("material.edit", &json!({"material":"Renamed","physical_card":null})).unwrap();
@@ -145,7 +145,7 @@ fn format21_materials_without_cards_keep_their_optical_look() {
     let loaded = Document::from_json(&saved.to_string()).unwrap();
     assert_eq!(loaded.user_materials, s.doc.user_materials);
     assert!(loaded.user_materials[0].physical_card.is_none());
-    assert_eq!(loaded.format, solidcraft_doc::format::format_string(solidcraft_doc::format::FORMAT));
+    assert_eq!(loaded.format, desurface_doc::format::format_string(desurface_doc::format::FORMAT));
 }
 
 #[test]
@@ -157,7 +157,7 @@ fn scalar_catalog_refuses_card_export_without_creating_or_replacing_files_or_his
         }
     }
     let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let file = ProbeFile(std::env::temp_dir().join(format!("solidcraft-card-refusal-{}-{unique}.json", std::process::id())));
+    let file = ProbeFile(std::env::temp_dir().join(format!("desurface-card-refusal-{}-{unique}.json", std::process::id())));
     let mut s = Session::default();
     s.execute("material.create", &json!({"name":"Card only","density_g_cm3":0.8,"physical_card":card()})).unwrap();
     s.mark_saved();
@@ -171,7 +171,7 @@ fn scalar_catalog_refuses_card_export_without_creating_or_replacing_files_or_his
             // The default writer is rich v2. Request scalar v1 explicitly so this
             // regression still exercises refusal rather than a valid lossless copy.
             let error =
-                s.execute("library.export", &json!({"path":file.0,"overwrite":overwrite,"format":solidcraft_io::catalog::V1_FORMAT})).unwrap_err();
+                s.execute("library.export", &json!({"path":file.0,"overwrite":overwrite,"format":desurface_io::catalog::V1_FORMAT})).unwrap_err();
             let message = error.to_string();
             assert!(message.contains("catalog v1") && message.contains("engineering cards"), "{message}");
             if existing {
@@ -192,10 +192,10 @@ fn native_container_keeps_large_si_card_values_sources_conditions_and_density_se
     s.execute("material.edit", &json!({"material":"Synthetic","physical_card":card()})).unwrap();
     let before = s.execute("component.properties", &json!({})).unwrap();
     let scene = product_scene::extract(&s).unwrap();
-    let native = solidcraft_io::write_design_container(&s.doc).unwrap();
-    assert!(solidcraft_io::is_design_container(&native));
-    let loaded = solidcraft_io::read_design(&native).unwrap();
-    assert_eq!(loaded.format, solidcraft_doc::format::format_string(solidcraft_doc::format::FORMAT));
+    let native = desurface_io::write_design_container(&s.doc).unwrap();
+    assert!(desurface_io::is_design_container(&native));
+    let loaded = desurface_io::read_design(&native).unwrap();
+    assert_eq!(loaded.format, desurface_doc::format::format_string(desurface_doc::format::FORMAT));
     assert_eq!(loaded.user_materials, s.doc.user_materials);
     let mut reopened = Session::new(loaded);
     assert_eq!(reopened.execute("component.properties", &json!({})).unwrap(), before);
@@ -216,7 +216,7 @@ fn format20_materials_without_cards_upgrade_to21_without_changing_their_optical_
     let loaded = Document::from_json(&saved.to_string()).unwrap();
     assert_eq!(loaded.user_materials, s.doc.user_materials);
     assert!(loaded.user_materials[0].physical_card.is_none());
-    assert_eq!(loaded.format, solidcraft_doc::format::format_string(solidcraft_doc::format::FORMAT));
+    assert_eq!(loaded.format, desurface_doc::format::format_string(desurface_doc::format::FORMAT));
 }
 
 #[test]
@@ -227,7 +227,7 @@ fn card_number_admission_preserves_metadata_without_exempting_other_material_fie
     let metadata = json!({"org.example.measurement":{"value":12.25e9,"physical_card":{"untyped":12.25e9}}});
     saved["metadata"] = metadata.clone();
     let loaded = Document::from_json(&saved.to_string()).unwrap();
-    let reopened = solidcraft_io::read_design(&solidcraft_io::write_design_container(&loaded).unwrap()).unwrap();
+    let reopened = desurface_io::read_design(&desurface_io::write_design_container(&loaded).unwrap()).unwrap();
     assert_eq!(serde_json::to_value(&reopened.metadata).unwrap(), metadata);
     assert_eq!(reopened.user_materials, loaded.user_materials);
 

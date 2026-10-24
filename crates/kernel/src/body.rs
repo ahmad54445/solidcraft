@@ -1,5 +1,5 @@
 use serde::Serialize;
-use solidcraft_geom::{Aabb3, Mesh, Vec3};
+use desurface_geom::{Aabb3, Mesh, Vec3};
 use truck_meshalgo::prelude::*;
 use truck_modeling as mt;
 
@@ -143,20 +143,20 @@ fn placed_mesh(m: &Mesh, t: &[[f64; 4]; 4]) -> Option<Mesh> {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum FaceSource {
     ExtrudeSide {
-        segment: solidcraft_geom::Seg2,
-        plane: Option<solidcraft_geom::Plane>,
+        segment: desurface_geom::Seg2,
+        plane: Option<desurface_geom::Plane>,
         coalesced: bool,
     },
     CertifiedExtrudeSide {
         producer: u64,
         sketch: u64,
         curve: String,
-        plane: Option<solidcraft_geom::Plane>,
+        plane: Option<desurface_geom::Plane>,
     },
     ExtrudeCap {
         high: bool,
-        region: solidcraft_geom::Region2,
-        plane: solidcraft_geom::Plane,
+        region: desurface_geom::Region2,
+        plane: desurface_geom::Plane,
     },
     CertifiedExtrudeCap {
         producer: u64,
@@ -164,25 +164,25 @@ pub enum FaceSource {
         high: bool,
         outer: Vec<String>,
         holes: Vec<Vec<String>>,
-        plane: solidcraft_geom::Plane,
+        plane: desurface_geom::Plane,
     },
     Box {
         producer: Option<u64>,
         axis: u8,
         high: bool,
-        plane: solidcraft_geom::Plane,
+        plane: desurface_geom::Plane,
     },
     /// A cylinder primitive's cap: `high` at the far end (its `top`), else at the base.
     CylinderCap {
         producer: u64,
         high: bool,
-        plane: solidcraft_geom::Plane,
+        plane: desurface_geom::Plane,
     },
     ShellPlanar {
         producer: Option<u64>,
         source: Box<FaceSource>,
         inner: bool,
-        plane: solidcraft_geom::Plane,
+        plane: desurface_geom::Plane,
     },
     Imported {
         item: u64,
@@ -196,7 +196,7 @@ pub type CapSignature = (Vec<String>, Vec<Vec<String>>);
 type FaceSources = std::sync::Arc<Vec<Option<FaceSource>>>;
 
 impl FaceSource {
-    fn plane_mut(&mut self) -> Option<&mut solidcraft_geom::Plane> {
+    fn plane_mut(&mut self) -> Option<&mut desurface_geom::Plane> {
         match self {
             Self::ExtrudeSide { plane, .. } | Self::CertifiedExtrudeSide { plane, .. } => plane.as_mut(),
             Self::ExtrudeCap { plane, .. }
@@ -795,7 +795,7 @@ impl Body {
     }
 
     /// An exact construction/import plane; never inferred from tessellation.
-    pub fn face_plane(&self, index: usize) -> Option<solidcraft_geom::Plane> {
+    pub fn face_plane(&self, index: usize) -> Option<desurface_geom::Plane> {
         if index >= 50_000 {
             return None;
         }
@@ -812,7 +812,7 @@ impl Body {
     }
 
     /// Exact current planar surface for an explicitly fixed snapshot, without source lineage.
-    pub fn planar_face(&self, index: usize) -> Option<solidcraft_geom::Plane> {
+    pub fn planar_face(&self, index: usize) -> Option<desurface_geom::Plane> {
         if index >= 50_000 {
             return None;
         }
@@ -821,7 +821,7 @@ impl Body {
                 mt::Surface::Plane(plane) => {
                     let u = plane.u_axis();
                     let v = plane.v_axis();
-                    solidcraft_geom::Plane::new(from_p3(plane.origin()), Vec3::new(u.x, u.y, u.z), Vec3::new(v.x, v.y, v.z))
+                    desurface_geom::Plane::new(from_p3(plane.origin()), Vec3::new(u.x, u.y, u.z), Vec3::new(v.x, v.y, v.z))
                 }
                 _ => None,
             });
@@ -938,7 +938,7 @@ impl Body {
         let mut sources = sources.as_ref().clone();
         for source in sources.iter_mut().flatten() {
             if let Some(plane) = source.plane_mut() {
-                *plane = solidcraft_geom::Plane::new(
+                *plane = desurface_geom::Plane::new(
                     vector(plane.origin) + translation,
                     vector(plane.x),
                     vector(plane.y) * if reflected { -1. } else { 1. },
@@ -1111,7 +1111,7 @@ impl Body {
         if self.size > 0.0 {
             return self.size;
         }
-        let mut b = solidcraft_geom::Aabb3::EMPTY;
+        let mut b = desurface_geom::Aabb3::EMPTY;
         if let Some(m) = &self.mesh {
             for p in &m.positions {
                 b.add(*p);
@@ -1130,20 +1130,20 @@ impl Body {
     /// its edges (a dome on a circle) can reach past it, so it frames a view while the body is
     /// still being meshed; [`Mesh::bounds`] is the exact one.
     /// A mesh body's box is its triangles'.
-    pub fn outline_bounds(&self) -> solidcraft_geom::Aabb3 {
-        crate::guard("outline bounds", || Ok(self.outline_bounds_unguarded())).unwrap_or(solidcraft_geom::Aabb3::EMPTY)
+    pub fn outline_bounds(&self) -> desurface_geom::Aabb3 {
+        crate::guard("outline bounds", || Ok(self.outline_bounds_unguarded())).unwrap_or(desurface_geom::Aabb3::EMPTY)
     }
 
-    fn outline_bounds_unguarded(&self) -> solidcraft_geom::Aabb3 {
+    fn outline_bounds_unguarded(&self) -> desurface_geom::Aabb3 {
         use mt::BoundedCurve;
-        let mut b = solidcraft_geom::Aabb3::EMPTY;
+        let mut b = desurface_geom::Aabb3::EMPTY;
         if let Some(m) = &self.mesh {
             for p in &m.positions {
                 b.add(*p);
             }
             return b;
         }
-        let homogeneous = |b: &mut solidcraft_geom::Aabb3, v: mt::Vector4| {
+        let homogeneous = |b: &mut desurface_geom::Aabb3, v: mt::Vector4| {
             if v.w > 0.0 {
                 b.add(Vec3::new(v.x / v.w, v.y / v.w, v.z / v.w));
             }
@@ -1375,21 +1375,21 @@ impl Body {
     /// The display tessellation as a plan for the CPU or GPU evaluator: every face's
     /// triangulation in its own parameters, with each edge sampled once (chord tolerance
     /// `tol`, mm) so faces meet exactly.
-    pub fn display_plan(&self, tol: f64) -> Result<solidcraft_geom::tess::TessPlan> {
+    pub fn display_plan(&self, tol: f64) -> Result<desurface_geom::tess::TessPlan> {
         self.plan_within(tol, None)
     }
 
     /// Like [`Body::display_plan`], and no facet turns more than `angle` radians (see
     /// [`Body::display_mesh_angular`]).
-    pub fn display_plan_angular(&self, tol: f64, angle: f64) -> Result<solidcraft_geom::tess::TessPlan> {
+    pub fn display_plan_angular(&self, tol: f64, angle: f64) -> Result<desurface_geom::tess::TessPlan> {
         self.plan_within(tol, Some(angle))
     }
 
-    fn plan_within(&self, tol: f64, angle: Option<f64>) -> Result<solidcraft_geom::tess::TessPlan> {
+    fn plan_within(&self, tol: f64, angle: Option<f64>) -> Result<desurface_geom::tess::TessPlan> {
         crate::profile::timed(crate::profile::Kind::Tessellate, || self.plan_within_untimed(tol, angle))
     }
 
-    fn plan_within_untimed(&self, tol: f64, angle: Option<f64>) -> Result<solidcraft_geom::tess::TessPlan> {
+    fn plan_within_untimed(&self, tol: f64, angle: Option<f64>) -> Result<desurface_geom::tess::TessPlan> {
         if self.is_mesh() {
             return Err(KernelError::Invalid("a mesh body has no surfaces to tessellate".into()));
         }
@@ -1573,11 +1573,11 @@ impl Body {
 
     /// The display mesh of a plan made from this body ([`Body::display_plan`],
     /// [`Body::display_plan_angular`]): evaluated on the CPU, with its edges flagged.
-    pub fn display_mesh_of(&self, plan: &solidcraft_geom::tess::TessPlan) -> Result<Mesh> {
+    pub fn display_mesh_of(&self, plan: &desurface_geom::tess::TessPlan) -> Result<Mesh> {
         crate::profile::timed(crate::profile::Kind::Tessellate, || self.display_mesh_of_untimed(plan))
     }
 
-    fn display_mesh_of_untimed(&self, plan: &solidcraft_geom::tess::TessPlan) -> Result<Mesh> {
+    fn display_mesh_of_untimed(&self, plan: &desurface_geom::tess::TessPlan) -> Result<Mesh> {
         self.flagged(plan.evaluate())
     }
 
@@ -1627,7 +1627,7 @@ impl Body {
     /// exactly: lines, circular arcs, and free-form curves as the Bézier spans they are, for a
     /// sketch to project them. `None` for an edge that doesn't lie in a plane parallel to
     /// `plane`, isn't read exactly or isn't there, and for every edge of a mesh body.
-    pub fn planar_edges(&self, plane: &solidcraft_geom::Plane, indices: &[usize]) -> Vec<Option<Vec<solidcraft_geom::Seg2>>> {
+    pub fn planar_edges(&self, plane: &desurface_geom::Plane, indices: &[usize]) -> Vec<Option<Vec<desurface_geom::Seg2>>> {
         let none = || vec![None; indices.len()];
         if self.is_mesh() {
             return none();

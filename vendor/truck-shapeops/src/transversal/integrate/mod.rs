@@ -50,10 +50,10 @@ impl<C, S: ShapeOpsSurface> ShapeOpsCurve<S> for C where C: ParametricCurve3D
 {
 }
 
-/// SolidCraft: the meshed form of a shell that a set operation works on (see [`meshes`]).
+/// DeSurface: the meshed form of a shell that a set operation works on (see [`meshes`]).
 pub type MeshedShell = Shell<Point3, PolylineCurve<Point3>, Option<PolygonMesh>>;
 
-/// SolidCraft: the meshes of `solid`'s shells at `tol`, as a set operation makes them: an
+/// DeSurface: the meshes of `solid`'s shells at `tol`, as a set operation makes them: an
 /// operand used in many operations at one tolerance (a large body cut down to many small
 /// regions) is meshed once and handed to [`and_with_history_meshed`], which is most of what
 /// such an operation costs. They fit any copy of `solid` with its faces in the same order.
@@ -61,7 +61,7 @@ pub fn meshes<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(solid: &Solid<Point3, C, 
     solid.boundaries().iter().map(|shell| shell.robust_triangulation(tol)).collect()
 }
 
-/// SolidCraft: whether `shell` faces inward (a solid's void, a cut's inverted tool), by the sign
+/// DeSurface: whether `shell` faces inward (a solid's void, a cut's inverted tool), by the sign
 /// of its volume with each face counted as it is oriented (a face's mesh is its surface's,
 /// whatever the face's orientation).
 fn faces_inward(shell: &MeshedShell) -> Option<bool> {
@@ -73,7 +73,7 @@ fn faces_inward(shell: &MeshedShell) -> Option<bool> {
     Some(volume < 0.0)
 }
 
-/// SolidCraft: whether `pt` is inside the closed `shell`, by the faces a ray from it crosses.
+/// DeSurface: whether `pt` is inside the closed `shell`, by the faces a ray from it crosses.
 /// For an AND (`and`) each face counts as it is oriented, and a shell facing inward (`inward`,
 /// see [`faces_inward`]) holds what lies outside it: the crossings count 0 there and -1 inside.
 /// An OR keeps truck's count, by the faces' surfaces alone: it folds a solid's voids in as if
@@ -97,7 +97,7 @@ fn process_one_pair_of_shells<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     and: bool,
 ) -> Option<[Shell<Point3, C, S>; 2]> {
     nonpositive_tolerance!(tol);
-    // SolidCraft: robust meshing (boundaries from earlier operations lie on surfaces only
+    // DeSurface: robust meshing (boundaries from earlier operations lie on surfaces only
     // within tolerance). A mesh made before is copied: the loops stores cut its edges.
     let poly_shell0 = match meshed0 {
         Some(m) if m.len() == shell0.len() => m.mapped(|p| *p, |c| c.clone(), |s| s.clone()),
@@ -116,7 +116,7 @@ fn process_one_pair_of_shells<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     let [mut and0, mut or0, unknown0] = cls0.and_or_unknown();
     let inward1 = and && !unknown0.is_empty() && faces_inward(&poly_shell1)?;
     unknown0.into_iter().try_for_each(|face| {
-        // SolidCraft: no panics (wasm can't catch them).
+        // DeSurface: no panics (wasm can't catch them).
         let pt = face.boundaries().first()?.vertex_iter().next()?.point();
         if inside_shell(&poly_shell1, pt, and, inward1)? {
             and0.push(face);
@@ -128,7 +128,7 @@ fn process_one_pair_of_shells<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     let [mut and1, mut or1, unknown1] = cls1.and_or_unknown();
     let inward0 = and && !unknown1.is_empty() && faces_inward(&poly_shell0)?;
     unknown1.into_iter().try_for_each(|face| {
-        // SolidCraft: no panics (wasm can't catch them).
+        // DeSurface: no panics (wasm can't catch them).
         let pt = face.boundaries().first()?.vertex_iter().next()?.point();
         if inside_shell(&poly_shell0, pt, and, inward0)? {
             and1.push(face);
@@ -160,7 +160,7 @@ pub fn or<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     boolean(solid0, None, solid1, tol, false).map(|(solid, _)| solid)
 }
 
-/// SolidCraft: AND operation between two solids, with where each face and edge of the result
+/// DeSurface: AND operation between two solids, with where each face and edge of the result
 /// came from (operand 0 is `solid0`, operand 1 is `solid1`): the same result as [`and`], and
 /// its history, `None` when a face or edge of it was not recorded. The operands must not share
 /// faces or edges.
@@ -172,7 +172,7 @@ pub fn and_with_history<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     boolean(solid0, None, solid1, tol, true)
 }
 
-/// SolidCraft: [`and_with_history`] with `solid0` meshed already ([`meshes`] of it, or of a
+/// DeSurface: [`and_with_history`] with `solid0` meshed already ([`meshes`] of it, or of a
 /// copy of it, at `tol`): the same result.
 pub fn and_with_history_meshed<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     solid0: &Solid<Point3, C, S>,
@@ -183,7 +183,7 @@ pub fn and_with_history_meshed<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     boolean(solid0, Some(meshed0), solid1, tol, true)
 }
 
-/// SolidCraft: OR operation between two solids, with where each face and edge of the result
+/// DeSurface: OR operation between two solids, with where each face and edge of the result
 /// came from (operand 0 is `solid0`, operand 1 is `solid1`): the same result as [`or`], and
 /// its history, `None` when a face or edge of it was not recorded. The operands must not share
 /// faces or edges.
@@ -221,7 +221,7 @@ fn boolean<C: ShapeOpsCurve<S>, S: ShapeOpsSurface>(
     Some((solid, history))
 }
 
-// SolidCraft: truck's connected components come out in hash order of face addresses, so the
+// DeSurface: truck's connected components come out in hash order of face addresses, so the
 // result's face order changed from run to run. Keep the shell's own order instead.
 fn components_in_order<C, S>(shell: &Shell<Point3, C, S>) -> Vec<Shell<Point3, C, S>> {
     let pos: rustc_hash::FxHashMap<_, usize> = shell.face_iter().enumerate().map(|(i, f)| (f.id(), i)).collect();

@@ -44,9 +44,9 @@
 use std::sync::mpsc::Sender;
 
 use serde_json::{Value, json};
-use solidcraft_engine::io::vfs;
-use solidcraft_engine::render::StandardView;
-use solidcraft_engine::timing;
+use desurface_engine::io::vfs;
+use desurface_engine::render::StandardView;
+use desurface_engine::timing;
 
 use crate::SolveApp;
 
@@ -140,7 +140,7 @@ pub(crate) fn batch_step_command(step: &Value) -> Option<&str> {
 
 /// `engine.batch {commands, rollback?, timings?, profile?}`: the steps in one request, so in one
 /// frame (#743). With `timings` the reply adds each step's time and `total_ms`, with `profile`
-/// each step's kernel share too (`solidcraft_engine::timing`, #1833). Each
+/// each step's kernel share too (`desurface_engine::timing`, #1833). Each
 /// step runs as `engine.execute` runs it; the first failure stops the batch and, with
 /// `rollback` (the default), the design goes back to its checkpoint. Step failures are part of
 /// the reply; refusals (`engine.batch unavailable: …`) come before anything runs, so the client
@@ -204,19 +204,19 @@ pub fn request_scope(app: &SolveApp, params: &Value) -> Result<Option<vfs::PathS
         return Err("`allow_paths` must be a list of folders".into());
     };
     // Plus the app's own recovery folder and, when it is a safe one, the open design's folder.
-    let roots = roots.into_iter().chain(solidcraft_engine::recovery::default_dir());
+    let roots = roots.into_iter().chain(desurface_engine::recovery::default_dir());
     Ok(Some(vfs::PathScope::new(roots).with_design(app.session.path.as_deref())))
 }
 
 /// What a picture of the view shows: the model as the window shows it (theme and colour vision
 /// mode, the section the viewport shows: an open Section Analysis dialog's preview, a sketch's
 /// Slice), with the grid and the origin's axes as `guides` says.
-pub(crate) fn view_scene(app: &SolveApp, guides: solidcraft_engine::view::Guides) -> solidcraft_engine::render::Scene {
-    let mut scene = solidcraft_engine::view::scene_with_palette_and_guides(
+pub(crate) fn view_scene(app: &SolveApp, guides: desurface_engine::view::Guides) -> desurface_engine::render::Scene {
+    let mut scene = desurface_engine::view::scene_with_palette_and_guides(
         &app.session,
         &app.cam,
         crate::viewport::section_plane(app),
-        solidcraft_engine::view::world_curve_parts,
+        desurface_engine::view::world_curve_parts,
         &crate::viewport::scene_palette(app.ui.dark, app.preferences.color_vision),
         guides,
     );
@@ -225,8 +225,8 @@ pub(crate) fn view_scene(app: &SolveApp, guides: solidcraft_engine::view::Guides
 }
 
 /// The grid and the origin's axes as the window shows them (the Grid and Origin switches).
-pub(crate) fn window_guides(app: &SolveApp) -> solidcraft_engine::view::Guides {
-    solidcraft_engine::view::Guides {
+pub(crate) fn window_guides(app: &SolveApp) -> desurface_engine::view::Guides {
+    desurface_engine::view::Guides {
         grid: app.session.active_sketch.is_some() || (app.ui.show_grid && !crate::viewport::active_view(app).hide_grid),
         axes: app.origin_visible(),
     }
@@ -235,13 +235,13 @@ pub(crate) fn window_guides(app: &SolveApp) -> solidcraft_engine::view::Guides {
 /// A picture of the view as the window shows it, RGBA, drawn on the GPU with the viewport's
 /// pipelines (the renderer the app installs).
 pub(crate) fn view_rgba(app: &SolveApp, w: u32, h: u32) -> Result<Vec<u8>, String> {
-    solidcraft_engine::capture::rgba(&view_scene(app, window_guides(app)), &app.cam, w, h).map(|p| p.rgba)
+    desurface_engine::capture::rgba(&view_scene(app, window_guides(app)), &app.cam, w, h).map(|p| p.rgba)
 }
 
 /// [`view_rgba`] as PNG.
 pub fn view_png(app: &SolveApp, w: u32, h: u32) -> Result<Vec<u8>, String> {
     let rgba = view_rgba(app, w, h)?;
-    solidcraft_engine::render::png(w as usize, h as usize, rgba).ok_or_else(|| "PNG encoding failed".to_string())
+    desurface_engine::render::png(w as usize, h as usize, rgba).ok_or_else(|| "PNG encoding failed".to_string())
 }
 
 pub fn handle(app: &mut SolveApp, ctx: &egui::Context, req: &ControlRequest) -> Outcome {
@@ -372,7 +372,7 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
                     };
                 }
             }
-            match (serde_json::from_value::<crate::UiState>(cur), serde_json::from_value::<solidcraft_engine::Visibility>(vis)) {
+            match (serde_json::from_value::<crate::UiState>(cur), serde_json::from_value::<desurface_engine::Visibility>(vis)) {
                 (Ok(mut u), Ok(v)) => {
                     if (u.tab == "RENDER") != crate::render_workspace::active(app)
                         && let Err(e) = crate::render_workspace::enter(app, u.tab == "RENDER")
@@ -596,13 +596,13 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
             let proj = crate::viewport::projection(app, rect);
             let num = |v: &Value, i: usize| v.get(i).and_then(Value::as_f64).unwrap_or(0.0);
             let world = if let Some(w) = p.get("world") {
-                Some(solidcraft_engine::geom::Vec3::new(num(w, 0), num(w, 1), num(w, 2)))
+                Some(desurface_engine::geom::Vec3::new(num(w, 0), num(w, 1), num(w, 2)))
             } else if let Some(s) = p.get("sketch") {
                 let st = app.session.world_state();
                 app.session
                     .active_sketch
                     .and_then(|id| st.sketch(id))
-                    .map(|ss| ss.plane.to_world(solidcraft_engine::geom::Vec2::new(num(s, 0), num(s, 1))))
+                    .map(|ss| ss.plane.to_world(desurface_engine::geom::Vec2::new(num(s, 0), num(s, 1))))
             } else if let Some(n) = p.get("plane").and_then(Value::as_str) {
                 crate::viewport::origin_plane_target(app, &proj, n)
             } else if let Some(n) = p.get("axis").and_then(Value::as_str) {
@@ -612,7 +612,7 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
             } else if let Some(n) = p.get("gizmo").and_then(Value::as_str) {
                 // A handle of the move triad ("x", "xy", "rz", "ball"), moved `by` [x,y,z] mm or
                 // turned `turn` degrees (rings).
-                let by = p.get("by").map(|b| solidcraft_engine::geom::Vec3::new(num(b, 0), num(b, 1), num(b, 2))).unwrap_or_default();
+                let by = p.get("by").map(|b| desurface_engine::geom::Vec3::new(num(b, 0), num(b, 1), num(b, 2))).unwrap_or_default();
                 crate::gizmo::handle_point(n, by, p.get("turn").and_then(Value::as_f64).unwrap_or(0.0))
             } else {
                 None
@@ -633,7 +633,7 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
                 .take(1000)
                 .map(|v| {
                     let c = |i: usize| v.get(i).and_then(Value::as_f64).unwrap_or(0.0);
-                    proj.to_screen(solidcraft_engine::geom::Vec3::new(c(0), c(1), c(2))).map_or(Value::Null, |q| json!([q.x, q.y]))
+                    proj.to_screen(desurface_engine::geom::Vec3::new(c(0), c(1), c(2))).map_or(Value::Null, |q| json!([q.x, q.y]))
                 })
                 .collect();
             ok(json!(pts))
@@ -653,7 +653,7 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
                 .take(1000)
                 .map(|v| {
                     let c = |i: usize| v.get(i).and_then(Value::as_f64).unwrap_or(0.0);
-                    let q = solidcraft_engine::geom::Vec2::new(c(0), c(1));
+                    let q = desurface_engine::geom::Vec2::new(c(0), c(1));
                     proj.to_screen(ss.plane.to_world(q)).map_or(Value::Null, |p| json!([p.x, p.y]))
                 })
                 .collect();
@@ -807,7 +807,7 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
             // As the window shows it (`view_scene`). The grid and the axes as the window shows
             // them, unless the request says: `grid` and `axes` leave them out or put them in.
             let shown = window_guides(app);
-            let guides = solidcraft_engine::view::Guides {
+            let guides = desurface_engine::view::Guides {
                 grid: p.get("grid").and_then(Value::as_bool).unwrap_or(shown.grid),
                 axes: p.get("axes").and_then(Value::as_bool).unwrap_or(shown.axes),
             };
@@ -816,12 +816,12 @@ fn dispatch(app: &mut SolveApp, ctx: &egui::Context, method: &str, p: &Value) ->
                 return err(e);
             }
             let scene = view_scene(app, guides);
-            let png = match solidcraft_engine::capture::png(&scene, &app.cam, w, h) {
+            let png = match desurface_engine::capture::png(&scene, &app.cam, w, h) {
                 Ok(png) => png,
                 Err(e) => return err(format!("render failed: {e}")),
             };
             // What drew it (gpu, gpu-software or cpu), and the warning a CPU render carries.
-            let (renderer, warning) = (png.renderer, solidcraft_engine::capture::warning(png.renderer));
+            let (renderer, warning) = (png.renderer, desurface_engine::capture::warning(png.renderer));
             match s("path") {
                 Some(path) => match vfs::check(path).and_then(|()| std::fs::write(path, &png.bytes)) {
                     Ok(()) => ok(json!({"path": path, "bytes": png.bytes.len(), "renderer": renderer, "warning": warning})),
@@ -917,7 +917,7 @@ fn camera(app: &mut SolveApp, p: &Value) -> Result<Value, String> {
 }
 
 /// An occurrence by id or name (or a component's name: its first occurrence); 0 is the root.
-fn occurrence(s: &solidcraft_engine::Session, v: &Value) -> Result<u64, String> {
+fn occurrence(s: &desurface_engine::Session, v: &Value) -> Result<u64, String> {
     let key = match v {
         Value::Number(n) => n.to_string(),
         Value::String(x) => x.clone(),
@@ -943,7 +943,7 @@ pub fn save_screenshot(image: &egui::ColorImage, path: Option<&str>) -> Value {
         buf.extend_from_slice(&c.to_array());
     }
     let Some(img) = image::RgbaImage::from_raw(w as u32, h as u32, buf) else { return json!({"ok": false, "error": "bad image"}) };
-    let path = path.map(str::to_string).unwrap_or_else(|| std::env::temp_dir().join("solidcraft-shot.png").to_string_lossy().to_string());
+    let path = path.map(str::to_string).unwrap_or_else(|| std::env::temp_dir().join("desurface-shot.png").to_string_lossy().to_string());
     match img.save(&path) {
         Ok(()) => json!({"ok": true, "result": {"path": path, "width": w, "height": h}}),
         Err(e) => json!({"ok": false, "error": e.to_string()}),
@@ -953,7 +953,7 @@ pub fn save_screenshot(image: &egui::ColorImage, path: Option<&str>) -> Value {
 #[cfg(test)]
 mod tests {
     use serde_json::json;
-    use solidcraft_engine::{Sel, Session};
+    use desurface_engine::{Sel, Session};
 
     use super::*;
     use crate::Services;
@@ -1063,7 +1063,7 @@ mod tests {
         let mut s = Session::default();
         s.execute("solid.box", &json!({"length": 40, "width": 30, "height": 20})).unwrap();
         let mut app = SolveApp::new(s, Services::default());
-        let dir = std::env::temp_dir().join(format!("solidcraft-render-theme-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-render-theme-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         for dark in [false, true, false] {
             app.ui.dark = dark;
@@ -1092,7 +1092,7 @@ mod tests {
         let mut s = Session::default();
         s.execute("solid.box", &json!({"length": 40, "width": 30, "height": 20})).unwrap();
         let mut app = SolveApp::new(s, Services::default());
-        let dir = std::env::temp_dir().join(format!("solidcraft-render-section-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-render-section-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let whole = render(&mut app, &dir.join("whole.png"));
         app.session.selection = vec![Sel::Plane { name: "XZ".into() }];
@@ -1134,8 +1134,8 @@ mod tests {
         let mut s = Session::default();
         s.execute("solid.box", &json!({"length": 40, "width": 30, "height": 20, "corner": [10, -15, -10]})).unwrap();
         let mut app = SolveApp::new(s, Services::default());
-        app.cam.set_view(solidcraft_engine::render::StandardView::Front);
-        let dir = std::env::temp_dir().join(format!("solidcraft-render-guides-{}", std::process::id()));
+        app.cam.set_view(desurface_engine::render::StandardView::Front);
+        let dir = std::env::temp_dir().join(format!("desurface-render-guides-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("shot.png");
         let shot = |app: &mut SolveApp, extra: serde_json::Value| render_with(app, &path, extra);
@@ -1309,7 +1309,7 @@ mod tests {
     #[test]
     fn engine_batch_stays_inside_allow_paths() {
         let mut h = crate::scenario::Harness::new();
-        let base = vfs::temp_dir().join(format!("solidcraft-batch-scope-{}", std::process::id()));
+        let base = vfs::temp_dir().join(format!("desurface-batch-scope-{}", std::process::id()));
         let (root, out) = (base.join("root"), base.join("out"));
         std::fs::create_dir_all(&root).unwrap();
         std::fs::create_dir_all(&out).unwrap();
@@ -1334,14 +1334,14 @@ mod tests {
     #[test]
     fn file_loads_stay_inside_allow_paths() {
         let mut h = crate::scenario::Harness::new();
-        let base = vfs::temp_dir().join(format!("solidcraft-load-scope-{}", std::process::id()));
+        let base = vfs::temp_dir().join(format!("desurface-load-scope-{}", std::process::id()));
         let (root, out) = (base.join("root"), base.join("out"));
         std::fs::create_dir_all(&root).unwrap();
         std::fs::create_dir_all(&out).unwrap();
         let mut s = Session::default();
         s.execute("solid.box", &json!({"length": 10, "width": 10, "height": 10})).unwrap();
         for d in [&root, &out] {
-            std::fs::write(d.join("part.solidcraft"), solidcraft_engine::io::write_design(&s.doc)).unwrap();
+            std::fs::write(d.join("part.solidcraft"), desurface_engine::io::write_design(&s.doc)).unwrap();
         }
         s.execute("file.export", &json!({"path": out.join("part.step").to_string_lossy()})).unwrap();
         let load = |command: &str, d: &std::path::Path, file: &str| json!({"command": command, "params": {"path": d.join(file).to_string_lossy()}, "allow_paths": [root.to_string_lossy()]});
@@ -1381,7 +1381,7 @@ mod tests {
         let mut s = Session::default();
         s.execute("solid.box", &json!({"length": 10, "width": 10, "height": 10})).unwrap();
         let mut app = SolveApp::new(s, Services::default());
-        let base = vfs::temp_dir().join(format!("solidcraft-control-scope-{}", std::process::id()));
+        let base = vfs::temp_dir().join(format!("desurface-control-scope-{}", std::process::id()));
         let (root, out) = (base.join("root"), base.join("out"));
         std::fs::create_dir_all(&root).unwrap();
         std::fs::create_dir_all(&out).unwrap();

@@ -5,8 +5,8 @@
 
 use egui::Color32;
 use serde_json::{Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::pbr_appearance::PbrParameters;
+use desurface_engine::Sel;
+use desurface_engine::doc::pbr_appearance::PbrParameters;
 
 use crate::SolveApp;
 use crate::dialogs::{Kind, combo};
@@ -200,12 +200,12 @@ pub fn start(app: &SolveApp, id: &str) -> Option<(Kind, Vec<SelInput>)> {
         let faces = app.session.selection.iter().any(|s| matches!(s, Sel::Face { .. }))
             && !app.session.selection.iter().any(|s| matches!(s, Sel::Body { .. }));
         let state = app.session.world_state();
-        let body_look = |body: &solidcraft_engine::doc::ModelBody| {
+        let body_look = |body: &desurface_engine::doc::ModelBody| {
             app.session.doc.model_body_look(body).or_else(|| {
                 (body.body.paint().is_some() || body.imported.is_some() || body.body.color().is_some()).then(|| {
                     let color =
                         app.session.doc.body_color(body).map(|rgb| rgb.map(|v| (v.clamp(0.0, 1.0) * 255.0).round() as u8)).unwrap_or([196, 199, 204]);
-                    solidcraft_engine::doc::appearance::Look::custom(color, app.session.doc.model_body_opacity(body))
+                    desurface_engine::doc::appearance::Look::custom(color, app.session.doc.model_body_opacity(body))
                 })
             })
         };
@@ -255,7 +255,7 @@ fn apply_params(targets: &[Sel], color: [u8; 3], opacity: f64, look: Option<&str
     if !faces.is_empty() {
         p["faces"] = json!(faces);
         // An engine without face looks: their bodies.
-        if bodies.is_empty() && solidcraft_engine::find_command("appearance.list").is_none() {
+        if bodies.is_empty() && desurface_engine::find_command("appearance.list").is_none() {
             let mut owners: Vec<String> =
                 targets.iter().filter_map(|x| if let Sel::Face { body, .. } = x { Some(body.clone()) } else { None }).collect();
             owners.dedup();
@@ -577,8 +577,8 @@ fn target_names(targets: &[Sel]) -> String {
 
 #[cfg(test)]
 mod tests {
-    use solidcraft_engine::Session;
-    use solidcraft_engine::geom::Vec3;
+    use desurface_engine::Session;
+    use desurface_engine::geom::Vec3;
 
     use super::*;
     use crate::Services;
@@ -924,7 +924,7 @@ mod tests {
 
     #[test]
     fn actual_pack_provider_all_ids_requirements_and_disabled_glass_survive_ui_parsing() {
-        use solidcraft_engine::doc::appearance_pack::STARTER_PACK;
+        use desurface_engine::doc::appearance_pack::STARTER_PACK;
         let mut app = app();
         let looks = library(&mut app);
         for preset in &STARTER_PACK {
@@ -940,12 +940,12 @@ mod tests {
         assert_eq!(pack.len(), 40);
         assert_eq!(pack.iter().filter(|look| preset_available(look)).count(), 34);
         assert_eq!(pack.iter().filter(|look| !preset_available(look)).count(), 6);
-        for (name, color, opacity) in solidcraft_engine::doc::appearance::LIBRARY {
+        for (name, color, opacity) in desurface_engine::doc::appearance::LIBRARY {
             let look = looks.iter().find(|look| look.name == name).unwrap();
             assert_eq!((look.color, look.opacity, look.pbr, look.preset.as_ref()), (color, opacity, None, None));
         }
         // The six published finishes remain independent of starter metadata.
-        for (name, color, metallic, roughness) in solidcraft_engine::doc::appearance::OPAQUE_FINISHES {
+        for (name, color, metallic, roughness) in desurface_engine::doc::appearance::OPAQUE_FINISHES {
             let matching: Vec<_> = looks.iter().filter(|look| look.name == name).collect();
             assert_eq!(matching.len(), 1);
             let look = matching[0];
@@ -962,7 +962,7 @@ mod tests {
 
     #[test]
     fn manual_edit_of_selected_or_reopened_pack_look_does_not_resolve_preset_again() {
-        use solidcraft_engine::doc::appearance_pack::STARTER_PACK;
+        use desurface_engine::doc::appearance_pack::STARTER_PACK;
         for reopened in [false, true] {
             let mut app = app();
             let preset = STARTER_PACK.iter().find(|p| p.is_opaque()).unwrap();
@@ -989,7 +989,7 @@ mod tests {
 
     #[test]
     fn manual_edit_of_published_finish_keeps_scalar_override_after_selection_and_editor_reopen() {
-        for (name, ..) in solidcraft_engine::doc::appearance::OPAQUE_FINISHES {
+        for (name, ..) in desurface_engine::doc::appearance::OPAQUE_FINISHES {
             for reopened in [false, true] {
                 let mut app = app();
                 let look = library(&mut app).into_iter().find(|look| look.name == name).unwrap();
@@ -1060,7 +1060,7 @@ mod tests {
         let available = rows.iter().filter(|row| row.get("available").and_then(Value::as_bool) != Some(false)).count();
         let selectable: Vec<_> = library(&mut h.app).into_iter().filter(preset_available).collect();
         assert_eq!(selectable.len(), available);
-        for preset in &solidcraft_engine::doc::appearance_pack::STARTER_PACK {
+        for preset in &desurface_engine::doc::appearance_pack::STARTER_PACK {
             assert_eq!(selectable.iter().any(|look| look.name == preset.name), preset.is_opaque());
         }
     }

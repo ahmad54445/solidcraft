@@ -1,6 +1,6 @@
 # Mutation testing
 
-SolidCraft will move from truck to solidcore (#1597). The tests that have to catch regressions
+DeSurface will move from truck to solidcore (#1597). The tests that have to catch regressions
 across that switch are the ones that don't depend on the kernel: the reference tests
 ([docs/oracle.md](oracle.md)), the robustness goldens ([docs/robustness.md](robustness.md)) and
 the engine's command tests. Most of the kernel's own unit tests call truck-specific code and go
@@ -15,7 +15,7 @@ nobody would notice, and solidcore could get the same thing wrong without anyone
 
 `.cargo/mutants.toml` judges mutants by the black-box suites only:
 
-- `oracle_suite` (`apps/solidcraft-cli/tests/oracle_cases.rs`): every case in `tests/oracle` with
+- `oracle_suite` (`apps/desurface-cli/tests/oracle_cases.rs`): every case in `tests/oracle` with
   expected values and no `known_failure` must pass, as `cargo xtask oracle` requires. It is
   `#[ignore]`d so CI doesn't replay the oracle twice.
 - The pull-request sample of the robustness goldens: every 8th seed, as `ci.yml` runs it.
@@ -29,7 +29,7 @@ the black-box suites would miss once the kernel is swapped.
 cargo install cargo-mutants --locked
 CARGO_TARGET_DIR=$PWD/target cargo mutants --in-place \
   -f crates/kernel/src/measure.rs \
-  --test-package solidcraft-cli --test-package solidcraft-engine \
+  --test-package desurface-cli --test-package desurface-engine \
   --baseline skip --timeout 900 --build-timeout 900
 ```
 

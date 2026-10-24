@@ -10,7 +10,7 @@ use crate::{Body, BoolOp, boolean, cylinder, fillet};
 
 #[test]
 fn issue_1303_chamfer_open_rim_after_end_chamfer() {
-    use solidcraft_geom::{Loop2, Plane, Region2, Seg2, Vec2};
+    use desurface_geom::{Loop2, Plane, Region2, Seg2, Vec2};
     let rim = Region2 {
         outer: Loop2 {
             segs: vec![
@@ -286,7 +286,7 @@ fn gap(c1: Vec3, r1: f64, c2: Vec3, r2: f64, corner: Vec3, r: f64) -> Gap {
             ring.push(c + Vec3::new(t.cos(), t.sin(), 0.0) * rr);
         }
     }
-    let area = ring.iter().map(|p| solidcraft_geom::Vec2::new(p.x, p.y)).collect::<solidcraft_geom::Ring<_>>().signed_area().abs();
+    let area = ring.iter().map(|p| desurface_geom::Vec2::new(p.x, p.y)).collect::<desurface_geom::Ring<_>>().signed_area().abs();
     let (p, q) = ((t1 - f).normalized().unwrap(), (t2 - f).normalized().unwrap());
     let arc = (0..=8).map(|i| angles[2] * i as f64 / 8.0).map(|t| f + (p * ((angles[2] - t).sin()) + q * t.sin()) * (r / angles[2].sin())).collect();
     Gap { arc, angles, area }
@@ -665,7 +665,7 @@ fn chamfer_a_chain_of_a_line_and_an_arc_into_a_slanted_end() {
     // corners, 2 − w high at w in from the edge): 2 a millimetre along the line, and along the
     // arc out to the right face, at each distance ρ from its axis, the height times the arc of
     // radius ρ inside x ≤ 40.
-    use solidcraft_geom::{Loop2, Plane, Region2, Seg2, Vec2};
+    use desurface_geom::{Loop2, Plane, Region2, Seg2, Vec2};
     let start = -std::f64::consts::FRAC_PI_2;
     let end = (-21.0f64).atan2(20.0);
     let segs = vec![

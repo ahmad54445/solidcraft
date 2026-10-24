@@ -3,7 +3,7 @@ mod faces_classification;
 mod history;
 mod integrate;
 mod intersection_curve;
-// SolidCraft: expose the constructor for workspace regression coverage of the vendored fix.
+// DeSurface: expose the constructor for workspace regression coverage of the vendored fix.
 #[doc(hidden)]
 pub use intersection_curve::IntersectionCurveWithParameters;
 mod loops_store;

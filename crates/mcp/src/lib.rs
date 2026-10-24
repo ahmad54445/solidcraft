@@ -1,4 +1,4 @@
-//! SolidCraft MCP server.
+//! DeSurface MCP server.
 //!
 //! JSON-RPC 2.0 over stdio (newline-delimited), implementing the MCP lifecycle, tools and
 //! resources. Tools map onto the control-channel methods (`engine.execute`, `document.inspect`,
@@ -20,16 +20,16 @@ pub use tools::{call_tool, tool_definitions};
 
 use std::path::PathBuf;
 
-use solidcraft_engine::io::vfs::{self, PathScope};
+use desurface_engine::io::vfs::{self, PathScope};
 
-/// The folders `solidcraft-cli mcp` lets its agent read, write and delete in by default: the
+/// The folders `desurface-cli mcp` lets its agent read, write and delete in by default: the
 /// app's own recovery folder, this server's private scratch folder (screenshots), and each
 /// `allowed` folder (`--allow-path`). The open design's folder joins on every call when it is a
 /// safe one (`vfs::design_folder_refusal`; the server adds it). The working folder, the home
 /// folder and anything above it never count by themselves, so `~/.ssh`, `~/.bashrc` and other
 /// dotfiles are out of reach unless a folder holding them is allowed on purpose.
 pub fn agent_scope(allowed: impl IntoIterator<Item = PathBuf>) -> PathScope {
-    agent_scope_with(solidcraft_engine::recovery::default_dir(), allowed)
+    agent_scope_with(desurface_engine::recovery::default_dir(), allowed)
 }
 
 /// [`agent_scope`] with the recovery folder given (tests).
@@ -48,7 +48,7 @@ pub fn agent_scope_with(recovery: Option<PathBuf>, allowed: impl IntoIterator<It
 }
 
 /// This server's own folder for screenshots it reads back and deletes (`screenshot` without a
-/// `path`): a new `<temp>/solidcraft-mcp-<pid>-<n>` made on first use (never one that was there
+/// `path`): a new `<temp>/desurface-mcp-<pid>-<n>` made on first use (never one that was there
 /// already, which could be someone else's), private to the user on Unix. `<temp>` is spelled with
 /// long names (`vfs::temp_dir`), since the scope refuses short (8.3) ones.
 pub fn scratch_dir() -> Option<PathBuf> {
@@ -61,7 +61,7 @@ pub fn scratch_dir() -> Option<PathBuf> {
         std::os::unix::fs::DirBuilderExt::mode(&mut b, 0o700);
         let seed = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.subsec_nanos()).unwrap_or(0);
         (0..16u32).find_map(|i| {
-            let d = vfs::temp_dir().join(format!("solidcraft-mcp-{}-{:x}", std::process::id(), seed.wrapping_add(i)));
+            let d = vfs::temp_dir().join(format!("desurface-mcp-{}-{:x}", std::process::id(), seed.wrapping_add(i)));
             b.create(&d).ok().map(|()| d)
         })
     })

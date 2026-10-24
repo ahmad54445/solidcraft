@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 use truck_modeling as mt;
 
 use crate::Result;

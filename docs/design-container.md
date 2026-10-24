@@ -68,7 +68,7 @@ use the same lossless encoding as imported meshes. Extra cache size is optional;
 it is omitted if it would put the container near the file-size cap.
 
 The manifest includes SHA-256 of the exact document metadata (whose blob references
-contain content hashes), the preview payload, `solidcraft-preview/1` and the application
+contain content hashes), the preview payload, `desurface-preview/1` and the application
 package version. A version mismatch invalidates the display cache. Development builds
 with the same package version may briefly show an older picture before the authoritative
 rebuild replaces it; previews never supply model state. Earlier draft containers using
@@ -139,7 +139,7 @@ encoded bodies shrink about fourfold (an imported assembly) to tenfold (modelled
 for a few tens of milliseconds.
 
 `cache/bodies.bin` holds every distinct body once, in
-[SolidCraft's native B-rep encoding](native-brep.md), as contiguous slices. The
+[DeSurface's native B-rep encoding](native-brep.md), as contiguous slices. The
 encoding is exact: a decoded body is the body that was saved, number for number
 (procedural intersection curves, placed revolutions and planes are stored as the
 kernel holds them, never refitted). Identical bodies share one slice (keyed by the
@@ -147,8 +147,8 @@ SHA-256 of their encoding), and a placed copy of a repeated part (an instance fr
 a STEP assembly) records the part and its matrix, so it shows that part's display
 again instead of being meshed on its own.
 
-`cache/model.json` records `solidcraft-model-cache/3`, the producer revision
-`solidcraft-truck-adapter/3`, the application version, the build (source commit,
+`cache/model.json` records `desurface-model-cache/3`, the producer revision
+`desurface-truck-adapter/3`, the application version, the build (source commit,
 CPU architecture and OS), the SHA-256 of the exact `document.json` (whose blob
 references pin every STEP, mesh and image payload) and of `cache/bodies.bin`, the
 slices, each kernel body's slice and display share, and the model's records. A
@@ -185,7 +185,7 @@ resolved and hashed, never parsed. Every feature is up to date, so an edit
 evaluates from the first feature it changes, as after any evaluation: a feature
 appended or edited at the end evaluates from the saved final state, an edit to
 feature k from the saved state before k. Moving the timeline marker, undo and redo
-reuse the saved results whose fingerprints come back. `SOLIDCRAFT_NO_MODEL_CACHE`
+reuse the saved results whose fingerprints come back. `DESURFACE_NO_MODEL_CACHE`
 set evaluates anyway.
 
 A thinned cache is taken the same way, and the features whose state it left out
@@ -220,11 +220,11 @@ The implementation is split into the following review increments after the
 phase-one container PR (#327):
 
 1. Seekable IO and its read-volume/hostile-input tests (the API above).
-2. A versioned SolidCraft-owned B-rep schema and bounded binary codec, tested without
+2. A versioned DeSurface-owned B-rep schema and bounded binary codec, tested without
    constructing a kernel body. Topology references, oriented edge uses and face
    loops, geometric domains, analytic/spline curve and surface definitions, units,
    tolerances and orientation must have explicit semantics. Preserve face-source
-   certificates, persistent names and history using SolidCraft-owned identities.
+   certificates, persistent names and history using DeSurface-owned identities.
    No truck serialized structs, memory layouts, pointers or opaque kernel blobs
    form part of the persisted contract. No evaluated STEP round trip is a substitute.
 3. Separate adapters between the neutral schema and supported kernels. Unsupported
@@ -254,7 +254,7 @@ run standalone wasm validation on each published code revision.
 
 A warm save (with `cache`, the default) may add `cache/thumbnail.png` and its small
 `cache/thumbnail.json` key. The picture is a 240 x 150 PNG, bounded to 256 KiB,
-keyed by `solidcraft-thumbnail/1`, application version, exact document SHA-256 and
+keyed by `desurface-thumbnail/1`, application version, exact document SHA-256 and
 PNG SHA-256. It contains an isometric view of visible solid bodies with their
 appearances. It is display-only and independent of the producing geometry kernel.
 

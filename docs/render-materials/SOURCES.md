@@ -4,7 +4,7 @@ This ledger was first reviewed on 2026-10-21. Native-source admission was update
 
 | ID | Source | Use and boundary |
 |---|---|---|
-| SRC-SOLIDCRAFT-BASE | [Personal integration branch, pinned commit](https://github.com/0xlillith/solidcraft/tree/93a2922c5ee272fb605703ae84c05825b4a74607) | Repository rules and current documented contracts. This package does not infer support from future planning entries. |
+| SRC-DESURFACE-BASE | [Personal integration branch, pinned commit](https://github.com/0xlillith/solidcraft/tree/93a2922c5ee272fb605703ae84c05825b4a74607) | Repository rules and current documented contracts. This package does not infer support from future planning entries. |
 | SRC-SETTINGS | [Render settings contract](https://github.com/0xlillith/solidcraft/blob/93a2922c5ee272fb605703ae84c05825b4a74607/docs/render-settings.md) | Fields and bounds for the six baseline setup examples. |
 | SRC-SELENE-V7 | [SELENE model repository at the inspected revision](https://github.com/0xlillith/solidcraft-rover/tree/b32437915372d32b71419dc8f5143fe22ff1e869) | Historical v7 identity, published statistics and inspected native assembly inventory; excluded as the active showcase source. The legacy v7 file and its demonstration media are not bundled. |
 | SRC-SELENE-ATTRIBUTION | [SELENE attribution](https://github.com/0xlillith/solidcraft-rover/blob/b32437915372d32b71419dc8f5143fe22ff1e869/ATTRIBUTION.md) | Original rover, emblem and modeled-lettering attribution; the native package retains the Ubuntu Font Licence notice. |

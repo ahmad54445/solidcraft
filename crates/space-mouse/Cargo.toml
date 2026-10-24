@@ -1,6 +1,6 @@
 [package]
-name = "solidcraft-space-mouse"
-description = "SolidCraft 3D mouse input: HID report descriptors and reports, independent of the device API and the UI"
+name = "desurface-space-mouse"
+description = "DeSurface 3D mouse input: HID report descriptors and reports, independent of the device API and the UI"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

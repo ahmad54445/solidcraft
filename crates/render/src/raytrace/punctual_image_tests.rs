@@ -1,6 +1,6 @@
 use super::*;
 use crate::{ProductMesh, StandardView, job::PunctualLightOptions};
-use solidcraft_geom::{Aabb3, Mesh};
+use desurface_geom::{Aabb3, Mesh};
 use std::sync::Arc;
 
 fn plane(name: &str, x: f64, z: f64, half: f64) -> ProductMesh {

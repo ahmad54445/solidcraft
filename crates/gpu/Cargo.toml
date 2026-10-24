@@ -1,6 +1,6 @@
 [package]
-name = "solidcraft-gpu"
-description = "SolidCraft GPU rendering: the viewport's render pipelines, offscreen captures, and display tessellation plans evaluated in a compute shader"
+name = "desurface-gpu"
+description = "DeSurface GPU rendering: the viewport's render pipelines, offscreen captures, and display tessellation plans evaluated in a compute shader"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -10,8 +10,8 @@ workspace = true
 
 [dependencies]
 robust = "1.2"
-solidcraft-geom = { workspace = true }
-solidcraft-render = { workspace = true }
+desurface-geom = { workspace = true }
+desurface-render = { workspace = true }
 wgpu = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }
@@ -25,10 +25,10 @@ wgpu = { workspace = true, features = ["metal", "vulkan", "dx12", "gles"] }
 
 [dev-dependencies]
 image = { workspace = true }
-solidcraft-kernel = { workspace = true }
+desurface-kernel = { workspace = true }
 # Headless pictures of real designs (capture tests).
-solidcraft-engine = { workspace = true, features = ["bundled-render-library"] }
-solidcraft-io = { workspace = true }
+desurface-engine = { workspace = true, features = ["bundled-render-library"] }
+desurface-io = { workspace = true }
 serde_json = { workspace = true }
 # The HLSL the D3D12 backend compiles (tests check it suits FXC).
 naga = { workspace = true, features = ["wgsl-in", "hlsl-out"] }

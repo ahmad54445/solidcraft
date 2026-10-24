@@ -10,18 +10,18 @@ fn server() -> Server {
     Server::new(Box::new(Headless::default()))
 }
 
-/// Screenshots are drawn on the GPU by the renderer the host installs (`solidcraft-cli mcp`); the
+/// Screenshots are drawn on the GPU by the renderer the host installs (`desurface-cli mcp`); the
 /// tests install the same one. `false`, with the reason printed, on a machine without a GPU
 /// adapter: the screenshots are then left out of the test.
 fn renders() -> bool {
-    match solidcraft_gpu::capture::shared() {
+    match desurface_gpu::capture::shared() {
         Ok(c) => {
-            solidcraft_engine::capture::install(std::sync::Arc::new(move |scene, cam, w, h| {
-                c.rgba(scene, cam, w, h).map(|rgba| solidcraft_engine::capture::Picture { rgba, renderer: c.renderer() }).map_err(|e| e.to_string())
+            desurface_engine::capture::install(std::sync::Arc::new(move |scene, cam, w, h| {
+                c.rgba(scene, cam, w, h).map(|rgba| desurface_engine::capture::Picture { rgba, renderer: c.renderer() }).map_err(|e| e.to_string())
             }));
             true
         }
-        Err(e @ solidcraft_gpu::GpuError::NoAdapter(_)) if std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none() => {
+        Err(e @ desurface_gpu::GpuError::NoAdapter(_)) if std::env::var_os("DESURFACE_REQUIRE_GPU").is_none() => {
             eprintln!("screenshots left out: {e}");
             false
         }
@@ -52,7 +52,7 @@ fn tool(s: &mut Server, name: &str, args: Value) -> Value {
 #[test]
 fn whitespace_does_not_bypass_mcp_request_limit() {
     let mut s = server();
-    let request = format!("{}{}", " ".repeat(solidcraft_engine::MAX_LINE), r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#);
+    let request = format!("{}{}", " ".repeat(desurface_engine::MAX_LINE), r#"{"jsonrpc":"2.0","id":1,"method":"ping"}"#);
     let reply: Value = serde_json::from_str(&s.handle_line(&request).expect("size error")).unwrap();
     assert_eq!(reply["error"]["code"], -32600, "{reply}");
     assert!(reply["result"].is_null(), "oversized request must not execute: {reply}");
@@ -61,7 +61,7 @@ fn whitespace_does_not_bypass_mcp_request_limit() {
 /// The transport must discard an oversized line in bounded space and resume on the next one.
 #[test]
 fn oversized_mcp_stdio_line_does_not_poison_the_next_request() {
-    let mut bytes = vec![b'X'; solidcraft_engine::MAX_LINE + 1];
+    let mut bytes = vec![b'X'; desurface_engine::MAX_LINE + 1];
     bytes.extend_from_slice(b"\n{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ping\"}\n");
     let input = std::io::BufReader::with_capacity(64, std::io::Cursor::new(bytes));
     let mut output = Vec::new();
@@ -114,7 +114,7 @@ fn handshake_and_tools_list() {
     let init =
         call(&mut s, 1, "initialize", json!({"protocolVersion": "2025-03-26", "capabilities": {}, "clientInfo": {"name": "t", "version": "0"}}));
     assert_eq!(init["result"]["protocolVersion"], "2025-03-26");
-    assert_eq!(init["result"]["serverInfo"]["name"], "solidcraft");
+    assert_eq!(init["result"]["serverInfo"]["name"], "desurface");
     assert!(init["result"]["capabilities"]["tools"].is_object());
     assert!(init["result"]["instructions"].as_str().unwrap().contains("headless"));
     // An unknown version gets ours.
@@ -161,9 +161,9 @@ fn handshake_and_tools_list() {
 
     let res = call(&mut s, 5, "resources/list", json!({}));
     assert_eq!(res["result"]["resources"].as_array().unwrap().len(), 2);
-    let d = call(&mut s, 6, "resources/read", json!({"uri": "solidcraft://design"}));
+    let d = call(&mut s, 6, "resources/read", json!({"uri": "desurface://design"}));
     assert!(d["result"]["contents"][0]["text"].as_str().unwrap().contains("timeline"));
-    assert_eq!(call(&mut s, 7, "resources/read", json!({"uri": "solidcraft://nope"}))["error"]["code"], -32002);
+    assert_eq!(call(&mut s, 7, "resources/read", json!({"uri": "desurface://nope"}))["error"]["code"], -32002);
     assert_eq!(call(&mut s, 8, "nope/nope", json!({}))["error"]["code"], -32601);
 }
 
@@ -171,13 +171,13 @@ fn handshake_and_tools_list() {
 fn skill_reference_returns_bundled_text_without_backend_calls() {
     let mut b = Recorder { calls: Vec::new(), batch: Err("unused".into()) };
     let docs = [
-        ("solidcraft-modeling", "reference.md", include_str!("../../../skills/solidcraft-modeling/reference.md")),
-        ("solidcraft-mechanisms", "reference.md", include_str!("../../../skills/solidcraft-mechanisms/reference.md")),
-        ("solidcraft-checking", "reference/porting.md", include_str!("../../../skills/solidcraft-checking/reference/porting.md")),
-        ("solidcraft-modeling", "SKILL.md", include_str!("../../../skills/solidcraft-modeling/SKILL.md")),
-        ("solidcraft-mechanisms", "SKILL.md", include_str!("../../../skills/solidcraft-mechanisms/SKILL.md")),
-        ("solidcraft-checking", "SKILL.md", include_str!("../../../skills/solidcraft-checking/SKILL.md")),
-        ("solidcraft-editing", "SKILL.md", include_str!("../../../skills/solidcraft-editing/SKILL.md")),
+        ("desurface-modeling", "reference.md", include_str!("../../../skills/desurface-modeling/reference.md")),
+        ("desurface-mechanisms", "reference.md", include_str!("../../../skills/desurface-mechanisms/reference.md")),
+        ("desurface-checking", "reference/porting.md", include_str!("../../../skills/desurface-checking/reference/porting.md")),
+        ("desurface-modeling", "SKILL.md", include_str!("../../../skills/desurface-modeling/SKILL.md")),
+        ("desurface-mechanisms", "SKILL.md", include_str!("../../../skills/desurface-mechanisms/SKILL.md")),
+        ("desurface-checking", "SKILL.md", include_str!("../../../skills/desurface-checking/SKILL.md")),
+        ("desurface-editing", "SKILL.md", include_str!("../../../skills/desurface-editing/SKILL.md")),
     ];
     for (skill, file, expected) in docs {
         let args = json!({"skill": skill, "file": file});
@@ -194,8 +194,8 @@ fn skill_reference_returns_bundled_text_without_backend_calls() {
 #[test]
 fn skill_reference_refuses_unknown_names_and_paths_with_available_choices() {
     let mut s = server();
-    let skills = ["solidcraft-checking", "solidcraft-editing", "solidcraft-mechanisms", "solidcraft-modeling"];
-    for skill in ["unknown", "../solidcraft-modeling", "/tmp/solidcraft-modeling"] {
+    let skills = ["desurface-checking", "desurface-editing", "desurface-mechanisms", "desurface-modeling"];
+    for skill in ["unknown", "../desurface-modeling", "/tmp/desurface-modeling"] {
         let r = raw_tool(&mut s, "skill_reference", json!({"skill": skill}));
         assert_eq!(r["result"]["isError"], true, "{r}");
         let text = r["result"]["content"][0]["text"].as_str().unwrap();
@@ -204,12 +204,12 @@ fn skill_reference_refuses_unknown_names_and_paths_with_available_choices() {
         }
     }
     for file in ["missing.md", "../reference.md", "/etc/passwd", "reference/../reference.md"] {
-        let r = raw_tool(&mut s, "skill_reference", json!({"skill": "solidcraft-modeling", "file": file}));
+        let r = raw_tool(&mut s, "skill_reference", json!({"skill": "desurface-modeling", "file": file}));
         assert_eq!(r["result"]["isError"], true, "{r}");
         let text = r["result"]["content"][0]["text"].as_str().unwrap();
         assert!(text.contains("Available files: SKILL.md, reference.md"), "{text}");
     }
-    for (skill, files) in [("solidcraft-checking", "SKILL.md, reference/porting.md"), ("solidcraft-editing", "SKILL.md")] {
+    for (skill, files) in [("desurface-checking", "SKILL.md, reference/porting.md"), ("desurface-editing", "SKILL.md")] {
         let r = raw_tool(&mut s, "skill_reference", json!({"skill": skill}));
         assert_eq!(r["result"]["isError"], true, "{r}");
         assert!(r["result"]["content"][0]["text"].as_str().unwrap().contains(files), "{r}");
@@ -233,7 +233,7 @@ fn skill_reference_is_advertised_as_read_only() {
 fn export_tool_writes_a_urdf_package() {
     let mut s = server();
     tool(&mut s, "execute", json!({"command": "solid.box", "params": {"length": 10, "width": 10, "height": 10}}));
-    let dir = std::env::temp_dir().join(format!("solidcraft-mcp-urdf-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mcp-urdf-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let urdf = dir.join("robot.urdf");
     let r = tool(&mut s, "export", json!({"path": urdf.to_string_lossy(), "mesh_prefix": "package://robot/meshes/"}));
@@ -299,7 +299,7 @@ fn agent_builds_box_fillet_hole() {
     }
 
     // Export, save, start over, open.
-    let dir = std::env::temp_dir().join(format!("solidcraft-mcp-test-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mcp-test-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let step = dir.join("part.step");
     tool(&mut s, "export", json!({"path": step.to_string_lossy()}));
@@ -330,7 +330,7 @@ fn agent_builds_box_fillet_hole() {
 fn open_stands_a_y_up_step_file_up() {
     let mut s = server();
     tool(&mut s, "execute", json!({"command": "solid.box", "params": {"length": 10, "width": 40, "height": 5}}));
-    let dir = std::env::temp_dir().join(format!("solidcraft-mcp-up-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mcp-up-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let step = dir.join("tall.step").to_string_lossy().to_string();
     tool(&mut s, "export", json!({"path": step}));
@@ -357,7 +357,7 @@ fn open_stands_a_y_up_step_file_up() {
 fn save_selects_container_or_json_and_reopens_by_contents() {
     let mut s = server();
     tool(&mut s, "execute", json!({"command": "solid.box", "params": {"length": 10, "width": 20, "height": 30}}));
-    let dir = std::env::temp_dir().join(format!("solidcraft-mcp-encodings-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mcp-encodings-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     for (name, format, is_json) in [
         ("default.solidcraft", None, false),
@@ -732,10 +732,10 @@ fn list_commands_filter_by_a_command_id_matches_ids() {
 #[test]
 fn legacy_design_files_and_resource_uris() {
     let mut s = server();
-    let saved = String::from_utf8(solidcraft_engine::io::write_design(&solidcraft_engine::doc::Document::default())).unwrap();
+    let saved = String::from_utf8(desurface_engine::io::write_design(&desurface_engine::doc::Document::default())).unwrap();
     assert!(saved.contains("\"solidcraft/"), "{saved}");
     let legacy = saved.replace("\"solidcraft/", "\"solvecraft/");
-    let path = std::env::temp_dir().join(format!("solidcraft-mcp-legacy-{}.solvecraft", std::process::id()));
+    let path = std::env::temp_dir().join(format!("desurface-mcp-legacy-{}.solvecraft", std::process::id()));
     std::fs::write(&path, legacy).unwrap();
     tool(&mut s, "open", json!({"path": path.to_string_lossy()}));
     let _ = std::fs::remove_file(&path);
@@ -748,7 +748,7 @@ fn legacy_design_files_and_resource_uris() {
 /// design is open there, without its hidden files. The working folder doesn't count at all.
 #[test]
 fn the_default_folders_are_the_designs_the_recovery_folder_and_the_scratch_folder() {
-    let base = solidcraft_engine::io::vfs::temp_dir().join(format!("solidcraft-mcp-defaults-{}", std::process::id()));
+    let base = desurface_engine::io::vfs::temp_dir().join(format!("desurface-mcp-defaults-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     let (proj, other, recovery) = (base.join("proj"), base.join("other"), base.join("recovery"));
     std::fs::create_dir_all(&proj).unwrap();
@@ -761,7 +761,7 @@ fn the_default_folders_are_the_designs_the_recovery_folder_and_the_scratch_folde
     assert!(scope.roots().contains(&std::fs::canonicalize(&recovery).unwrap()), "{scope:?}");
     assert!(scope.roots().contains(&std::fs::canonicalize(crate::scratch_dir().unwrap()).unwrap()), "{scope:?}");
 
-    let mut session = solidcraft_engine::Session::default();
+    let mut session = desurface_engine::Session::default();
     session.execute("solid.box", &json!({"length": 10, "width": 10, "height": 10})).unwrap();
     session.execute("file.save_as", &json!({"path": at(&proj, "part.solidcraft")})).unwrap();
     let mut s = Server::new(Box::new(Headless::new(session))).with_path_scope(Some(scope));
@@ -795,8 +795,8 @@ fn the_default_folders_are_the_designs_the_recovery_folder_and_the_scratch_folde
 /// symlink that leads out, is refused with a clear error and nothing is written.
 #[test]
 fn tool_calls_stay_inside_the_agents_folders() {
-    use solidcraft_engine::io::vfs::PathScope;
-    let base = solidcraft_engine::io::vfs::temp_dir().join(format!("solidcraft-mcp-scope-{}", std::process::id()));
+    use desurface_engine::io::vfs::PathScope;
+    let base = desurface_engine::io::vfs::temp_dir().join(format!("desurface-mcp-scope-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     let (root, out) = (base.join("root"), base.join("out"));
     std::fs::create_dir_all(&root).unwrap();
@@ -847,7 +847,7 @@ fn short_spelling(path: &std::path::Path) -> Option<std::path::PathBuf> {
     use std::os::windows::process::CommandExt;
     let out = std::process::Command::new("cmd").raw_arg(format!("/d /c for %I in (\"{}\") do @echo %~sI", path.display())).output().ok()?;
     Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
-        .filter(|s| solidcraft_engine::io::vfs::windows_refusal(s).is_some_and(|why| why.contains("8.3")))
+        .filter(|s| desurface_engine::io::vfs::windows_refusal(s).is_some_and(|why| why.contains("8.3")))
         .map(Into::into)
 }
 
@@ -855,11 +855,11 @@ fn short_spelling(path: &std::path::Path) -> Option<std::path::PathBuf> {
 /// `NAME~1.XYZ` when its name is long). The server's own folders are spelled with long names
 /// there, so `screenshot` without a `path` (the scratch folder) and `doc.recovery_list` (the
 /// recovery folder) work; on such a machine both were refused as short names. Run in a child
-/// process whose `TMP`, `TEMP` and `SOLIDCRAFT_RECOVERY_DIR` are short spellings.
+/// process whose `TMP`, `TEMP` and `DESURFACE_RECOVERY_DIR` are short spellings.
 #[cfg(windows)]
 #[test]
 fn the_servers_own_folders_work_when_the_temporary_folder_has_a_short_name() {
-    let base = solidcraft_engine::io::vfs::temp_dir().join(format!("solidcraft-mcp-short-names-{}", std::process::id()));
+    let base = desurface_engine::io::vfs::temp_dir().join(format!("desurface-mcp-short-names-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&base);
     let (temp, recovery) = (base.join("temporary"), base.join("recovery folder"));
     std::fs::create_dir_all(&temp).unwrap();
@@ -873,8 +873,8 @@ fn the_servers_own_folders_work_when_the_temporary_folder_has_a_short_name() {
         .args(["--exact", "tests::short_names_child", "--test-threads=1", "--nocapture"])
         .env("TMP", &short_temp)
         .env("TEMP", &short_temp)
-        .env("SOLIDCRAFT_RECOVERY_DIR", &short_recovery)
-        .env("SOLIDCRAFT_MCP_SHORT_NAMES_CHILD", "1")
+        .env("DESURFACE_RECOVERY_DIR", &short_recovery)
+        .env("DESURFACE_MCP_SHORT_NAMES_CHILD", "1")
         .output()
         .unwrap();
     let text = format!("{}{}", String::from_utf8_lossy(&out.stdout), String::from_utf8_lossy(&out.stderr));
@@ -886,10 +886,10 @@ fn the_servers_own_folders_work_when_the_temporary_folder_has_a_short_name() {
 #[cfg(windows)]
 #[test]
 fn short_names_child() {
-    if std::env::var_os("SOLIDCRAFT_MCP_SHORT_NAMES_CHILD").is_none() {
+    if std::env::var_os("DESURFACE_MCP_SHORT_NAMES_CHILD").is_none() {
         return;
     }
-    use solidcraft_engine::io::vfs::windows_refusal;
+    use desurface_engine::io::vfs::windows_refusal;
     let temp = std::env::temp_dir();
     assert!(windows_refusal(&temp.to_string_lossy()).is_some_and(|why| why.contains("8.3")), "{}", temp.display());
     let mut s = Server::new(Box::new(Headless::default())).with_path_scope(Some(crate::agent_scope([])));
@@ -912,7 +912,7 @@ fn short_names_child() {
 fn a_bridged_request_carries_the_agents_folders() {
     use std::io::{BufRead, BufReader, Write};
 
-    use solidcraft_engine::io::vfs::{PathScope, scoped};
+    use desurface_engine::io::vfs::{PathScope, scoped};
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     let addr = listener.local_addr().unwrap().to_string();
     let echo = std::thread::spawn(move || {
@@ -1025,7 +1025,7 @@ fn bridged_screenshots_with_grid_or_axes_are_model_renders() {
             "app".into()
         }
     }
-    let dir = std::env::temp_dir().join(format!("solidcraft-mcp-guides-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mcp-guides-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("shot.png").to_string_lossy().to_string();
     let shoot = |extra: Value| {
@@ -1081,7 +1081,7 @@ fn a_hidden_window_screenshot_says_so() {
             "app".into()
         }
     }
-    let dir = std::env::temp_dir().join(format!("solidcraft-mcp-hidden-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mcp-hidden-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("shot.png").to_string_lossy().to_string();
     let shoot = |extra: Value| {
@@ -1174,7 +1174,7 @@ fn hidden_body_stays_hidden_after_save_and_reopen() {
     };
     assert_eq!(visible(&mut s, "Variant"), false);
 
-    let dir = std::env::temp_dir().join(format!("solidcraft-mcp-visibility-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mcp-visibility-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let design = dir.join("variants.solidcraft");
     tool(&mut s, "save", json!({"path": design.to_string_lossy()}));
@@ -1267,11 +1267,11 @@ fn compact_execute_uses_one_backend_call_and_keeps_removed_bodies() {
     assert_eq!(v, json!({"feature": 7, "name": "Combine1", "created_bodies": [], "changed_bodies": ["Base"], "removed_bodies": ["Tool"]}));
 }
 
-/// The worked example in `skills/solidcraft-modeling/reference.md` is what agents copy, so it has
+/// The worked example in `skills/desurface-modeling/reference.md` is what agents copy, so it has
 /// to keep building with the volume the file documents, and follow a parameter change.
 #[test]
 fn skill_reference_example_builds_as_documented() {
-    let doc = include_str!("../../../skills/solidcraft-modeling/reference.md");
+    let doc = include_str!("../../../skills/desurface-modeling/reference.md");
     let start = doc.find("{\"commands\":[").expect("the reference has a worked example");
     let end = start + doc[start..].find("```").expect("the example's code block ends");
     let example: Value = serde_json::from_str(&doc[start..end]).expect("the example is JSON");
@@ -1341,12 +1341,12 @@ fn sketch_plane_axes_match_the_skill_reference() {
     }
 }
 
-/// The worked example in `skills/solidcraft-mechanisms/reference.md` is what agents copy: the
+/// The worked example in `skills/desurface-mechanisms/reference.md` is what agents copy: the
 /// actuator has to follow the hinge with the stroke the file computes, the mirrored panel its link,
 /// and the drive has to stop where the rod reaches its limit.
 #[test]
 fn mechanisms_skill_example_moves_as_documented() {
-    let doc = include_str!("../../../skills/solidcraft-mechanisms/reference.md");
+    let doc = include_str!("../../../skills/desurface-mechanisms/reference.md");
     let start = doc.find("{\"commands\":[").expect("the reference has a worked example");
     let end = start + doc[start..].find("```").expect("the example's code block ends");
     let example: Value = serde_json::from_str(&doc[start..end]).expect("the example is JSON");
@@ -1398,13 +1398,13 @@ fn mechanisms_skill_example_moves_as_documented() {
 #[test]
 fn skills_name_only_real_tools_and_commands() {
     let docs = [
-        include_str!("../../../skills/solidcraft-modeling/SKILL.md"),
-        include_str!("../../../skills/solidcraft-modeling/reference.md"),
-        include_str!("../../../skills/solidcraft-editing/SKILL.md"),
-        include_str!("../../../skills/solidcraft-checking/SKILL.md"),
-        include_str!("../../../skills/solidcraft-checking/reference/porting.md"),
-        include_str!("../../../skills/solidcraft-mechanisms/SKILL.md"),
-        include_str!("../../../skills/solidcraft-mechanisms/reference.md"),
+        include_str!("../../../skills/desurface-modeling/SKILL.md"),
+        include_str!("../../../skills/desurface-modeling/reference.md"),
+        include_str!("../../../skills/desurface-editing/SKILL.md"),
+        include_str!("../../../skills/desurface-checking/SKILL.md"),
+        include_str!("../../../skills/desurface-checking/reference/porting.md"),
+        include_str!("../../../skills/desurface-mechanisms/SKILL.md"),
+        include_str!("../../../skills/desurface-mechanisms/reference.md"),
     ];
     let mut s = server();
     let tools: Vec<String> = tool_definitions().iter().filter_map(|t| t["name"].as_str()).map(str::to_owned).collect();
@@ -1570,7 +1570,7 @@ fn batch_falls_back_while_the_agent_cursor_is_shown() {
 #[test]
 fn batch_does_not_resend_after_a_transport_error() {
     let (b, body, is_error) =
-        recorded_batch(Err("SolidCraft at 127.0.0.1:1: timed out".into()), json!({"commands": [{"command": "a.one"}, {"command": "a.two"}]}));
+        recorded_batch(Err("DeSurface at 127.0.0.1:1: timed out".into()), json!({"commands": [{"command": "a.one"}, {"command": "a.two"}]}));
     assert_eq!(methods(&b), ["engine.batch"]);
     assert!(is_error);
     assert!(body.as_str().is_some_and(|t| t.contains("may have run") && t.contains("timed out")), "{body}");
@@ -1579,7 +1579,7 @@ fn batch_does_not_resend_after_a_transport_error() {
 /// A batch longer than one control line goes step by step instead of being refused unrun.
 #[test]
 fn batch_too_large_for_one_control_line_goes_per_step() {
-    let big = "x".repeat(solidcraft_engine::MAX_LINE);
+    let big = "x".repeat(desurface_engine::MAX_LINE);
     let (b, body, is_error) = recorded_batch(Ok(json!({})), json!({"commands": [{"command": "a.one", "params": {"text": big}}]}));
     assert!(!is_error, "{body}");
     assert!(!methods(&b).contains(&"engine.batch"), "{:?}", methods(&b));
@@ -1647,10 +1647,10 @@ fn a_bridge_made_before_the_app_runs_connects_once_it_does() {
     let port = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
     let addr = format!("127.0.0.1:{port}");
     let mut remote = crate::Remote::new(&addr, Some("0123456789abcdef0123456789abcdef"));
-    // Still "connected to the SolidCraft app", which the skills read as bridged.
-    assert!(remote.describe().starts_with("connected to the SolidCraft app") && remote.describe().contains("not running"), "{}", remote.describe());
+    // Still "connected to the DeSurface app", which the skills read as bridged.
+    assert!(remote.describe().starts_with("connected to the DeSurface app") && remote.describe().contains("not running"), "{}", remote.describe());
     let e = remote.call("engine.execute", json!({"command": "inspect.measure"})).unwrap_err();
-    assert!(e.starts_with(crate::backend::NOT_RUNNING) && e.contains(&format!("solidcraft --control {port}")), "{e}");
+    assert!(e.starts_with(crate::backend::NOT_RUNNING) && e.contains(&format!("desurface --control {port}")), "{e}");
     let batch = crate::call_tool(&mut remote, "batch", &json!({"commands": [{"command": "solid.box"}]}));
     let text = batch["content"][0]["text"].as_str().unwrap_or_default();
     assert_eq!(batch["isError"], true);
@@ -2101,7 +2101,7 @@ fn describe_command_and_strict_parameter_checking() {
     assert!(d["output"]["properties"].get("created_bodies").is_some(), "{d}");
 
     let mut headless = Headless::default();
-    headless.session.param_check = solidcraft_engine::schema::ParamCheck::Strict;
+    headless.session.param_check = desurface_engine::schema::ParamCheck::Strict;
     let mut s = Server::new(Box::new(headless));
     call(&mut s, 1, "initialize", json!({"protocolVersion": PROTOCOL_VERSION, "capabilities": {}, "clientInfo": {"name": "t", "version": "1"}}));
     let r = raw_tool(&mut s, "execute", json!({"command": "solid.box", "params": {"length": 5, "width": 5, "height": 5, "operaton": "cut"}}));

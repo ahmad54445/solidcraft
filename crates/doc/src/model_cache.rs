@@ -2,7 +2,7 @@
 //! opens without evaluating its timeline again (docs/design-container.md, "Model cache").
 //!
 //! The records are JSON; the kernel bodies they hold are a separate list ([`SavedModel::bodies`]),
-//! which the file stores in SolidCraft's exact native B-rep encoding. A body that several states
+//! which the file stores in DeSurface's exact native B-rep encoding. A body that several states
 //! hold (one that later features pass through unchanged) is recorded once, as are its face names
 //! and the solved sketches the states share. Face names are kept as worked out, not as the
 //! history they were worked out from: a model taken from a file names every face as the model
@@ -250,14 +250,14 @@ impl SavedModel {
         }
         let mut sketches = Vec::new();
         for s in list("sketches")? {
-            let sketch: solidcraft_sketch::Sketch = serde_json::from_value(parse(s.get("sketch"))?).map_err(|_| bad("saved model: sketch"))?;
+            let sketch: desurface_sketch::Sketch = serde_json::from_value(parse(s.get("sketch"))?).map_err(|_| bad("saved model: sketch"))?;
             sketches.push(Arc::new(SolvedSketch {
                 feature: s.get("feature").and_then(Json::as_u64).ok_or_else(|| bad("saved model: sketch"))?,
                 name: text(s.get("name"))?,
                 plane: serde_json::from_value(parse(s.get("plane"))?).map_err(|_| bad("saved model: sketch"))?,
                 report: serde_json::from_value(parse(s.get("report"))?).map_err(|_| bad("saved model: sketch"))?,
                 profiles: find_profiles(&sketch),
-                ends: solidcraft_sketch::loose_ends(&sketch),
+                ends: desurface_sketch::loose_ends(&sketch),
                 sketch,
             }));
         }

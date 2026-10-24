@@ -10,7 +10,7 @@ Each item in [mechanism-acceptance.json](mechanism-acceptance.json) separates:
 
 1. **Documentation evidence:** a published project description or author demonstration, linked through the source lock's references.
 2. **Native evidence:** exact identities, geometry, parentage, limits and mechanism relationships inspected in the admitted file.
-3. **Runtime evidence:** results produced by a recorded SolidCraft revision from explicit inputs and an approved starting pose.
+3. **Runtime evidence:** results produced by a recorded DeSurface revision from explicit inputs and an approved starting pose.
 
 Native evidence is `inspected_container_only`; source runtime evidence remains `not_executed` in this checklist. The bindings are tied to source SHA-256 `1b0df486f30da157db27a33e0b5ed67f13d527d4dfdc6c334717a1df4e5b8677`. Reading the native container confirms records, references and stored values. It does not evaluate geometry, solve a joint, drive a study or certify a derivative.
 
@@ -104,7 +104,7 @@ A full turn yields **1.5 mm** axial travel. Source joint `49` is cylindrical abo
 
 ## Runtime evidence to record
 
-Each executed acceptance case should retain the native-file SHA-256, SolidCraft code revision, exact command inputs, initial pose, selected joint IDs and axes, effective link values, solver tolerances, resolved poses and any stop or collision reports. The functional validator writes actual MCP request/response JSONL, hashes its inputs before and after, resets primary drivers before each case, and records numeric comparisons without saving its in-memory test poses to the master.
+Each executed acceptance case should retain the native-file SHA-256, DeSurface code revision, exact command inputs, initial pose, selected joint IDs and axes, effective link values, solver tolerances, resolved poses and any stop or collision reports. The functional validator writes actual MCP request/response JSONL, hashes its inputs before and after, resets primary drivers before each case, and records numeric comparisons without saving its in-memory test poses to the master.
 
 A published numerical residual is evidence of that demonstration only. The author's reported arm residual is not a guaranteed precision threshold for arbitrary poses. Select a useful tolerance for the actual model and solver, and report it with the result.
 

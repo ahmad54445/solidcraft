@@ -1,4 +1,4 @@
-//! SolidCraft native, versioned binary geometry. No STEP conversion or display meshes.
+//! DeSurface native, versioned binary geometry. No STEP conversion or display meshes.
 //! Exact: a decoded body is the encoded one, number for number, for the same producer.
 use crate::{Body, KernelError, Result, guard};
 use serde::{Deserialize, Serialize};
@@ -23,8 +23,8 @@ const MAX_VALUES: usize = 20_000_000;
 #[derive(Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct SavedBody {
-    solid: solidcraft_geom::brep::Brep,
-    metadata: solidcraft_geom::brep::envelope::Metadata,
+    solid: desurface_geom::brep::Brep,
+    metadata: desurface_geom::brep::envelope::Metadata,
     runtime: Runtime,
 }
 
@@ -137,7 +137,7 @@ fn validate_topology(saved: &SavedBody) -> Result<()> {
     let faces: usize = saved.solid.shells.iter().map(|s| s.faces.len()).sum();
     let edges: usize = saved.solid.shells.iter().map(|s| s.edges.len()).sum();
     let saved = &saved.metadata;
-    if saved.version != solidcraft_geom::brep::envelope::VERSION {
+    if saved.version != desurface_geom::brep::envelope::VERSION {
         return Err(invalid("metadata version"));
     }
     if saved.face_sources.as_ref().is_some_and(|s| s.len() != faces) {
@@ -206,7 +206,7 @@ fn value_nodes(v: &Value) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solidcraft_geom::Vec3;
+    use desurface_geom::Vec3;
     fn equal(a: &Body, b: &Body) {
         assert_eq!(a.face_count(), b.face_count());
         assert_eq!(a.face_sources, b.face_sources);

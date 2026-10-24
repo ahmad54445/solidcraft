@@ -4,7 +4,7 @@
 use crate::ui_kit::{Container, Surface};
 use egui::{Pos2, Rect, pos2, vec2};
 use serde_json::{Value, json};
-use solidcraft_engine::command_specs;
+use desurface_engine::command_specs;
 
 use crate::theme::Tokens;
 use crate::{SolveApp, ui_kit};
@@ -50,7 +50,7 @@ impl ShortcutBox {
     }
     /// A command was run from the box: it goes to the front of the recent list.
     pub fn used(&mut self, id: &str) {
-        if solidcraft_engine::find_command(id).is_none() {
+        if desurface_engine::find_command(id).is_none() {
             return;
         }
         self.recent.retain(|r| r != id);
@@ -197,7 +197,7 @@ fn design_rows(app: &mut SolveApp, query: &str) -> Vec<DesignRow> {
                 target: DesignTarget::Feature(feature.id),
             });
         }
-        let icon = solidcraft_engine::find_command("parameters.change").map_or("", |c| c.icon);
+        let icon = desurface_engine::find_command("parameters.change").map_or("", |c| c.icon);
         for p in params.iter().filter(|p| p.source == "user").take(10_000) {
             let value = p.value.filter(|v| v.is_finite()).map_or_else(|| bounded(&p.expression), |v| format!("{v} {}", p.unit));
             rows.push(DesignRow {
@@ -234,7 +234,7 @@ fn typed(line: &str) -> Option<(&str, Result<Value, String>)> {
     let split = line.find(|c: char| c.is_whitespace() || c == '{').unwrap_or(line.len());
     let id = line.get(..split).unwrap_or_default();
     let rest = line.get(split..).unwrap_or_default().trim();
-    let result = if solidcraft_engine::find_command(id).is_none() {
+    let result = if desurface_engine::find_command(id).is_none() {
         Err(crate::i18n::format("shortcut.no_command", &[("id", id)]))
     } else {
         serde_json::from_str::<Value>(rest).map_err(|e| crate::i18n::format("shortcut.json_error", &[("error", &e.to_string())]))
@@ -416,7 +416,7 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
                     let enabled: Vec<_> = rows
                         .iter()
                         .map(|r| {
-                            solidcraft_engine::find_command(r.0).is_some_and(|c| crate::render_workspace::interactive_command_info(app, c).enabled)
+                            desurface_engine::find_command(r.0).is_some_and(|c| crate::render_workspace::interactive_command_info(app, c).enabled)
                         })
                         .chain(design.iter().map(|_| true))
                         .take(MAX_RESULTS)
@@ -442,7 +442,7 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
                                     let mut row = ui_kit::MenuItem::new(
                                         "search:run",
                                         crate::i18n::tr("search.run"),
-                                        solidcraft_engine::find_command(id).map_or("", |c| c.icon),
+                                        desurface_engine::find_command(id).map_or("", |c| c.icon),
                                     );
                                     row.enabled = result.is_ok();
                                     row.highlighted = true;
@@ -584,7 +584,7 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
             let index = picked.unwrap_or(app.sbox.index);
             if let Some((id, ..)) = rows
                 .get(index)
-                .filter(|r| solidcraft_engine::find_command(r.0).is_some_and(|c| crate::render_workspace::interactive_command_info(app, c).enabled))
+                .filter(|r| desurface_engine::find_command(r.0).is_some_and(|c| crate::render_workspace::interactive_command_info(app, c).enabled))
             {
                 app.sbox.used(id);
                 close(app);
@@ -635,7 +635,7 @@ mod tests {
     /// every frame restarts the text edit's held key, which kept a Wayland key repeat running (#724).
     #[test]
     fn the_search_field_asks_for_focus_once_per_opening() {
-        let mut app = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
+        let mut app = SolveApp::new(desurface_engine::Session::default(), Default::default());
         let ctx = crate::fonts::test_context();
         let field = egui::Id::new("sc_sbox_text");
         open(&mut app, None);
@@ -656,7 +656,7 @@ mod tests {
 
     #[test]
     fn search_finds_by_name_id_and_panel_and_puts_recent_first() {
-        let mut app = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
+        let mut app = SolveApp::new(desurface_engine::Session::default(), Default::default());
         assert_eq!(search(&app, "extr").first().map(|x| x.0), Some("solid.extrude"));
         assert_eq!(search(&app, "solid.fil").first().map(|x| x.0), Some("solid.fillet"));
         assert!(search(&app, "constrain").iter().any(|x| x.0 == "sketch.constraint.parallel"), "by panel");
@@ -665,25 +665,25 @@ mod tests {
         let all = search(&app, "");
         assert_eq!((all[0].0, all[1].0), ("solid.revolve", "solid.shell"));
         app.sbox.toggle_pin("solid.extrude");
-        let mut other = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
+        let mut other = SolveApp::new(desurface_engine::Session::default(), Default::default());
         other.sbox.load(&app.sbox.prefs());
         assert_eq!((other.sbox.pinned.clone(), other.sbox.recent.len()), (vec!["solid.extrude".to_string()], 2));
     }
 
     #[test]
     fn solve_sketch_is_not_offered_but_the_command_remains() {
-        let app = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
+        let app = SolveApp::new(desurface_engine::Session::default(), Default::default());
         for q in ["solve", "sketch.solve", ""] {
             assert!(!search(&app, q).iter().any(|x| x.0 == "sketch.solve"), "{q:?}");
         }
-        assert!(solidcraft_engine::find_command("sketch.solve").is_some(), "agents and MCP keep it");
+        assert!(desurface_engine::find_command("sketch.solve").is_some(), "agents and MCP keep it");
     }
 
     /// The box shows each command's label and place in the current language, and finds a name
     /// typed in that language, in English, or an id (#2544).
     #[test]
     fn search_shows_and_matches_the_current_language() {
-        let app = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
+        let app = SolveApp::new(desurface_engine::Session::default(), Default::default());
         let _ja = crate::i18n::scope("ja");
         let ja = crate::i18n::Locale::for_language("ja");
         let name = ja.text("cmd.sketch_rectangle_center");
@@ -699,7 +699,7 @@ mod tests {
         for (id, tab, panel) in
             [("solid.extrude", "MODEL", "CREATE"), ("inspect.draft", "INSPECT", "CHECK"), ("sketch.constraint.parallel", "SKETCH", "CONSTRAIN")]
         {
-            let c = solidcraft_engine::find_command(id).unwrap();
+            let c = desurface_engine::find_command(id).unwrap();
             let label = ja.label(c.label);
             let place = Some((ja.label(tab), ja.label(panel)));
             for query in [label, c.label, id, ja.label(tab), tab, ja.label(panel), panel] {
@@ -716,7 +716,7 @@ mod tests {
 
     #[test]
     fn a_line_typed_with_json_parameters_runs_the_command() {
-        let mut app = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
+        let mut app = SolveApp::new(desurface_engine::Session::default(), Default::default());
         let before = app.session.doc.features.len();
         app.ui.palette_open = true;
         app.sbox.text = r#"solid.box {"length": 10, "width": 10, "height": 10}"#.into();

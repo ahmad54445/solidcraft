@@ -187,9 +187,9 @@ fn shrink(panels: &[PanelSize], room: f32) -> Option<Vec<Plan>> {
 /// The commands a panel's drop-down (or its » submenu) lists: its own, then any button moved
 /// into it from another panel.
 fn menu_commands(
-    cmds: &[&'static solidcraft_engine::CommandSpec],
-    shown: &[&'static solidcraft_engine::CommandSpec],
-) -> Vec<&'static solidcraft_engine::CommandSpec> {
+    cmds: &[&'static desurface_engine::CommandSpec],
+    shown: &[&'static desurface_engine::CommandSpec],
+) -> Vec<&'static desurface_engine::CommandSpec> {
     let mut out = cmds.to_vec();
     for c in shown {
         if !out.iter().any(|o| o.id == c.id) {
@@ -290,7 +290,7 @@ pub fn app_bar(app: &mut SolveApp, ui: &mut egui::Ui) {
         let left = r.left() + if app.integrated_titlebar { crate::titlebar::TRAFFIC_LIGHTS } else { 0.0 };
         // Keep the current header controls and product name when merging the new mark.
         let compact_actions = r.right() - left < 640.0;
-        // Brand mark: the SolidCraft logo, drawn in code from the SVG's own coordinates
+        // Brand mark: the DeSurface logo, drawn in code from the SVG's own coordinates
         // (viewBox 357 x 412). Same 20 px height and centre as the old block.
         {
             let c = pos2(left + 20.0, r.center().y);
@@ -300,7 +300,7 @@ pub fn app_bar(app: &mut SolveApp, ui: &mut egui::Ui) {
             ui.painter().text(
                 pos2(left + 36.0, r.center().y),
                 Align2::LEFT_CENTER,
-                "SolidCraft",
+                "DeSurface",
                 crate::fonts::semibold(t.font_heading),
                 t.app_bar_text,
             );
@@ -702,7 +702,7 @@ fn file_menu(app: &mut SolveApp, ctx: &egui::Context) {
                     close = true;
                 }
                 ui.separator();
-                // The browser can install SolidCraft as an app (`install`): only while it offers to.
+                // The browser can install DeSurface as an app (`install`): only while it offers to.
                 if let Some(offer) = crate::install::offered(app)
                     && crate::context_menu::button(ui, crate::i18n::tr("install.menu"), "new")
                         .on_hover_text(crate::i18n::tr("install.button_tip"))
@@ -750,12 +750,12 @@ pub fn save(app: &mut SolveApp) {
 }
 
 pub(crate) fn save_as(app: &mut SolveApp) {
-    save_as_with_extension(app, solidcraft_engine::io::DESIGN_EXT);
+    save_as_with_extension(app, desurface_engine::io::DESIGN_EXT);
 }
 
 fn save_as_with_extension(app: &mut SolveApp, extension: &str) {
     let name = format!("{}.{extension}", app.session.doc.name);
-    app.pick_save(&name, &[solidcraft_engine::io::DESIGN_EXT, "json"], |app, path| {
+    app.pick_save(&name, &[desurface_engine::io::DESIGN_EXT, "json"], |app, path| {
         // A save under way answers a closing tab when it ends.
         if let Some(path) = path
             && crate::save_job::start(app, "file.save_as", json!({"path": path}))
@@ -768,10 +768,10 @@ fn save_as_with_extension(app: &mut SolveApp, extension: &str) {
 
 /// File > Download design (browser build): the open design as a `.solidcraft` file download.
 fn download_design(app: &mut SolveApp) {
-    let name = format!("{}.{}", app.session.doc.name, solidcraft_engine::io::DESIGN_EXT);
+    let name = format!("{}.{}", app.session.doc.name, desurface_engine::io::DESIGN_EXT);
     let result = app
         .session
-        .design_container(solidcraft_engine::io::DesignCompression::Fast, false, false)
+        .design_container(desurface_engine::io::DesignCompression::Fast, false, false)
         .map_err(|e| e.to_string())
         .and_then(|bytes| app.services.download_design.as_ref().map_or(Ok(()), |download| download(&name, &bytes)));
     match result {
@@ -1312,7 +1312,7 @@ pub fn toolbar(app: &mut SolveApp, ui: &mut egui::Ui) {
                     }
                     arrow.widget_info(|| egui::WidgetInfo::labeled(egui::WidgetType::Button, true, app.tr_label(f.label)));
                     Container::new(ui.ctx(), Surface::Popup).menu(&arrow).show(|ui| {
-                        let variants: Vec<_> = f.commands.iter().filter_map(|id| solidcraft_engine::find_command(id)).collect();
+                        let variants: Vec<_> = f.commands.iter().filter_map(|id| desurface_engine::find_command(id)).collect();
                         dropdown_keys(app, ui, &variants);
                         sketch_menu_rows(app, ui, &variants, &mut menu, &mut toggle);
                     });
@@ -1643,7 +1643,7 @@ const CONSTRAINT_GRID_WIDTH: f32 = 82.0;
 
 /// Registry parameter syntax is not a user-facing description. Reuse existing catalog prose
 /// where present; other commands intentionally show only their name and registered shortcut.
-fn ribbon_tooltip(app: &SolveApp, response: egui::Response, command: &solidcraft_engine::CommandSpec, disabled: Option<&str>) -> egui::Response {
+fn ribbon_tooltip(app: &SolveApp, response: egui::Response, command: &desurface_engine::CommandSpec, disabled: Option<&str>) -> egui::Response {
     response.on_hover_ui(|ui| {
         let t = Tokens::get();
         let name = app.tr_label(command.label);
@@ -1725,7 +1725,7 @@ fn dropdown_row_id(id: &str) -> egui::Id {
 }
 
 /// How wide a panel drop-down's rows are: the widest label and shortcut, at least 200.
-fn dropdown_width(app: &SolveApp, ui: &egui::Ui, cmds: &[&'static solidcraft_engine::CommandSpec]) -> f32 {
+fn dropdown_width(app: &SolveApp, ui: &egui::Ui, cmds: &[&'static desurface_engine::CommandSpec]) -> f32 {
     let t = Tokens::get();
     let font = FontId::proportional(t.font_button);
     cmds.iter()
@@ -1741,7 +1741,7 @@ fn dropdown_width(app: &SolveApp, ui: &egui::Ui, cmds: &[&'static solidcraft_eng
 
 /// One command row of a panel drop-down: icon, label and shortcut, with the hover background
 /// under the pointer or keyboard focus (like every menu).
-fn dropdown_row(app: &SolveApp, ui: &mut egui::Ui, c: &'static solidcraft_engine::CommandSpec, width: f32, pinned: bool) -> RowAction {
+fn dropdown_row(app: &SolveApp, ui: &mut egui::Ui, c: &'static desurface_engine::CommandSpec, width: f32, pinned: bool) -> RowAction {
     let t = Tokens::get();
     let info = crate::render_workspace::interactive_command_info(app, c);
     let (rect, _) = ui.allocate_exact_size(vec2(width, ROW_H), Sense::hover());
@@ -1805,7 +1805,7 @@ fn dropdown_row(app: &SolveApp, ui: &mut egui::Ui, c: &'static solidcraft_engine
 fn sketch_create_menu(
     app: &mut SolveApp,
     ui: &mut egui::Ui,
-    cmds: &[&'static solidcraft_engine::CommandSpec],
+    cmds: &[&'static desurface_engine::CommandSpec],
     menu: &mut Option<(egui::Pos2, &'static str)>,
     toggle: &mut Option<&'static str>,
 ) {
@@ -1829,7 +1829,7 @@ fn sketch_create_menu(
 }
 
 /// Family popups use the same ordered arrow-key navigation as a panel's command list.
-fn dropdown_keys(app: &SolveApp, ui: &egui::Ui, cmds: &[&'static solidcraft_engine::CommandSpec]) {
+fn dropdown_keys(app: &SolveApp, ui: &egui::Ui, cmds: &[&'static desurface_engine::CommandSpec]) {
     let (down, up) = ui.input(|i| (i.key_pressed(egui::Key::ArrowDown), i.key_pressed(egui::Key::ArrowUp)));
     if !down && !up {
         return;
@@ -1866,7 +1866,7 @@ fn dropdown_keys(app: &SolveApp, ui: &egui::Ui, cmds: &[&'static solidcraft_engi
 fn sketch_menu_rows(
     app: &mut SolveApp,
     ui: &mut egui::Ui,
-    cmds: &[&'static solidcraft_engine::CommandSpec],
+    cmds: &[&'static desurface_engine::CommandSpec],
     menu: &mut Option<(egui::Pos2, &'static str)>,
     toggle: &mut Option<&'static str>,
 ) {
@@ -1896,7 +1896,7 @@ struct ToolbarDrag {
 /// The dragged command's icon under the pointer, crossed out when releasing removes it.
 fn drag_ghost(ctx: &egui::Context, id: &str, at: egui::Pos2, removing: bool) {
     let t = Tokens::get();
-    let Some(c) = solidcraft_engine::find_command(id) else { return };
+    let Some(c) = desurface_engine::find_command(id) else { return };
     let p = ctx.layer_painter(egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("sc_toolbar_drag")));
     let r = Rect::from_center_size(at + vec2(14.0, 16.0), vec2(30.0, 30.0));
     p.rect(r, t.radius_sm, t.toolbar.gamma_multiply(0.92), Stroke::new(1.0, if removing { t.error } else { t.accent }), egui::StrokeKind::Inside);
@@ -2185,8 +2185,8 @@ mod header_report_tests {
         h.settle();
         let saved = h.app.session.path.clone().unwrap();
         let bytes = std::fs::read(&saved).unwrap();
-        assert!(!solidcraft_engine::io::is_design_container(&bytes));
-        assert_eq!(solidcraft_engine::io::read_design(&bytes).unwrap(), *h.app.session.doc);
+        assert!(!desurface_engine::io::is_design_container(&bytes));
+        assert_eq!(desurface_engine::io::read_design(&bytes).unwrap(), *h.app.session.doc);
         h.app.session.doc_mut().name = "Exported copy".into();
         h.frames(3);
         h.step(&json!({"click":{"handle":"appbar:folder"}})).unwrap();
@@ -2194,7 +2194,7 @@ mod header_report_tests {
         assert_eq!(h.app.session.path.as_deref(), Some(saved.as_str()));
         assert!(h.dir.join("Exported copy.json").is_file());
         h.app.run("file.save", json!({})).unwrap();
-        assert!(!solidcraft_engine::io::is_design_container(&std::fs::read(saved).unwrap()), "subsequent Save keeps a .json choice");
+        assert!(!desurface_engine::io::is_design_container(&std::fs::read(saved).unwrap()), "subsequent Save keeps a .json choice");
     }
 
     /// File › Export STL… and Export 3MF… both open the Save as mesh dialog with their format
@@ -2237,7 +2237,7 @@ mod header_report_tests {
         let got = got.borrow();
         assert_eq!(got.len(), 1);
         assert_eq!(got[0].0, "Plate.solidcraft");
-        assert!(solidcraft_engine::io::is_design_container(&got[0].1));
+        assert!(desurface_engine::io::is_design_container(&got[0].1));
         assert!(h.app.session.path.is_none(), "a download is no save: the design keeps no file");
     }
 
@@ -2530,7 +2530,7 @@ mod header_report_tests {
         h.app.run("sketch.line", json!({"points":[[0,0],[20,0]]})).unwrap();
         h.call("ui.view", json!({"view":"top"}));
         h.app.cam.distance = 80.0;
-        h.app.cam.target = solidcraft_engine::geom::Vec3::new(10.0, 0.0, 0.0);
+        h.app.cam.target = desurface_engine::geom::Vec3::new(10.0, 0.0, 0.0);
         h.settle();
         h.step(&json!({"start":"sketch.dimension"})).unwrap();
         for point in [[0, 0, 0], [20, 0, 0], [10, 5, 0]] {
@@ -2573,7 +2573,7 @@ mod home_tests {
             h.app.run("solid.box", json!({"length": 10, "width": 10, "height": 10, "body_name": "Main"})).unwrap();
             h.app.run("solid.box", json!({"length": 5, "width": 5, "height": 5, "corner": [20, 0, 0]})).unwrap();
             h.app.run("edit.undo", json!({})).unwrap();
-            h.app.session.selection = vec![solidcraft_engine::Sel::Body { name: "Main".into() }];
+            h.app.session.selection = vec![desurface_engine::Sel::Body { name: "Main".into() }];
             let rev = h.app.session.revision;
             h.app.home.show(rev);
             h.frames(2);
@@ -2864,7 +2864,7 @@ mod app_bar_tests {
         h.step(&json!({"click":{"handle":"titlebar:save"}})).unwrap();
         wait_for_save(&mut h);
         assert_eq!(h.app.session.path.as_deref(), Some(path.as_str()));
-        let saved = solidcraft_engine::io::read_design(&std::fs::read(path).unwrap()).unwrap();
+        let saved = desurface_engine::io::read_design(&std::fs::read(path).unwrap()).unwrap();
         assert_eq!(saved, *h.app.session.doc);
     }
 }
@@ -2905,7 +2905,7 @@ mod ribbon_label_tests {
         let ctx = crate::fonts::test_context();
         let mut output = ctx.run_ui(egui::RawInput::default(), |ui| {
             let painter = ui.painter().clone();
-            let specs = solidcraft_engine::command_specs();
+            let specs = desurface_engine::command_specs();
             for section in crate::workspace::SECTIONS {
                 let (commands, count) = crate::workspace::layout(section.tab, section.panel, &specs).unwrap();
                 for command in commands.iter().take(count) {
@@ -2943,7 +2943,7 @@ mod ribbon_label_tests {
                 assert_eq!(ribbon_button_lines(&painter, label, width - BUTTON_LABEL_PADDING), vec![label]);
                 assert!((BUTTON_MIN_WIDTH..=BUTTON_MAX_WIDTH).contains(&width));
             }
-            let finish = solidcraft_engine::find_command("sketch.finish").unwrap();
+            let finish = desurface_engine::find_command("sketch.finish").unwrap();
             let label = crate::workspace::ribbon_button_label(finish);
             let width = ribbon_button_width(&painter, label);
             assert_eq!(ribbon_button_lines(&painter, label, width - BUTTON_LABEL_PADDING), vec!["Finish", "Sketch"]);

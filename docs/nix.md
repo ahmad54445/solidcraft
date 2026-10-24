@@ -1,4 +1,4 @@
-# SolidCraft with Nix
+# DeSurface with Nix
 
 The flake supports `x86_64-linux`, `aarch64-linux` and `aarch64-darwin`. Enable Nix's `nix-command`
 and `flakes` experimental features. The committed `flake.lock` pins nixpkgs and
@@ -10,34 +10,34 @@ floor in `Cargo.toml`.
 Run the current app without installing it:
 
 ```sh
-nix run github:bherbruck/solidcraft#solidcraft -- --sample
+nix run github:bherbruck/solidcraft#desurface -- --sample
 ```
 
-Inside a checkout, `nix run .` and `nix run .#solidcraft` launch the desktop app.
-`nix run .#cli -- --version` launches the CLI. The legacy `.#solidcraft` app name
+Inside a checkout, `nix run .` and `nix run .#desurface` launch the desktop app.
+`nix run .#cli -- --version` launches the CLI. The legacy `.#desurface` app name
 also works. These commands use the flake's exact wrapped binary, rather than an
 older executable already on your shell's `PATH`.
 
 Build without installing:
 
 ```sh
-nix build github:bherbruck/solidcraft#solidcraft
-./result/bin/solidcraft --version
-./result/bin/solidcraft --sample
+nix build github:bherbruck/solidcraft#desurface
+./result/bin/desurface --version
+./result/bin/desurface --sample
 ```
 
-The result contains `solidcraft`, `solidcraft-cli` and the deprecated old-name CLI alias
+The result contains `desurface`, `desurface-cli` and the deprecated old-name CLI alias
 (see [compatibility.md](compatibility.md)). **Building does not install a desktop-menu entry.** For a user
 profile installation, run:
 
 ```sh
-nix profile install github:bherbruck/solidcraft#solidcraft
-solidcraft --sample
+nix profile install github:bherbruck/solidcraft#desurface
+desurface --sample
 ```
 
-On Linux, this installs the SolidCraft desktop entry, MIME definition and generated icon
+On Linux, this installs the DeSurface desktop entry, MIME definition and generated icon
 sizes alongside the commands. On macOS the package contains the binaries only; for a bundled
-`SolidCraft.app`, use the release `.dmg`. NixOS/Home Manager can instead put the flake's
+`DeSurface.app`, use the release `.dmg`. NixOS/Home Manager can instead put the flake's
 `packages.${system}.solidcraft` in `environment.systemPackages`/`home.packages`.
 If a non-NixOS desktop does not discover profile-installed launchers, ensure that
 its session includes `~/.nix-profile/share` in `XDG_DATA_DIRS`, then log out and
@@ -47,14 +47,14 @@ back in. The desktop/application ID is unchanged (see
 Check which executable a plain terminal command would run:
 
 ```sh
-type -a solidcraft
-readlink -f "$(command -v solidcraft)"
-solidcraft --version
-nix run github:bherbruck/solidcraft#solidcraft -- --version
+type -a desurface
+readlink -f "$(command -v desurface)"
+desurface --version
+nix run github:bherbruck/solidcraft#desurface -- --version
 ```
 
 An unrelated old executable on `PATH` is not updated by `nix build`.
-Use the flake app or `./result/bin/solidcraft` to verify the package you just built.
+Use the flake app or `./result/bin/desurface` to verify the package you just built.
 
 ## Graphics and file dialogs
 
@@ -75,7 +75,7 @@ GPU-specific instructions; a wrapper for a different driver is not a substitute.
 For Intel/Mesa, after building:
 
 ```sh
-nix run github:nix-community/nixGL#nixGLIntel -- ./result/bin/solidcraft --sample
+nix run github:nix-community/nixGL#nixGLIntel -- ./result/bin/desurface --sample
 ```
 
 If a window is black, first verify that you launched the newly wrapped package
@@ -85,7 +85,7 @@ OpenGL rendering uses 1x anti-aliasing to avoid the multisampled black-frame fai
 Vulkan and other backends keep the requested sample count; saved preferences are preserved.
 For older builds, including 0.3.0, set Anti-aliasing to 1x and restart when using OpenGL.
 If that window cannot show the settings dialog, edit only the `msaa` field to `1` in
-`~/.local/share/solidcraft/graphics.json`; preserve any other settings.
+`~/.local/share/desurface/graphics.json`; preserve any other settings.
 
 ## Wayland, XWayland and niri
 
@@ -103,12 +103,12 @@ winit's issue about dropping files there. Native Wayland is the better choice wi
 **fractional scaling** (a monitor at 125 % or 140 %): XWayland windows are drawn at 100 % and
 stretched by the compositor, so the interface looks soft and small.
 
-The environment overrides the preference: `SOLIDCRAFT_WAYLAND=1` (always native Wayland) or
-`SOLIDCRAFT_WAYLAND=0` (XWayland whenever an X display is available).
+The environment overrides the preference: `DESURFACE_WAYLAND=1` (always native Wayland) or
+`DESURFACE_WAYLAND=0` (XWayland whenever an X display is available).
 
 ## Development shells
 
 `nix develop` supplies runtime libraries and uses the Rust/C toolchain already on
 your `PATH`. `nix develop .#rust` supplies the pinned toolchain, C linker and
 `target/nix` build directory. Both retain the GUI and CLI's existing Cargo package
-names (`solidcraft`, `solidcraft-cli`).
+names (`desurface`, `desurface-cli`).

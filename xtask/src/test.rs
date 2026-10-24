@@ -1,6 +1,6 @@
 //! `cargo xtask test`: build the workspace's tests once, then run every test binary.
 //! By default they all run at once, with sequential doc/wasm `side` jobs alongside.
-//! SOLIDCRAFT_TEST_JOBS opts into a shared bound for test binaries and those side jobs.
+//! DESURFACE_TEST_JOBS opts into a shared bound for test binaries and those side jobs.
 
 use std::ffi::OsStr;
 use std::process::{Command, Stdio};
@@ -20,7 +20,7 @@ struct TestBin {
 /// the `side` jobs in order. A configured job bound includes the sequential side-job worker.
 /// Each prints a line when it ends; a failure prints its whole output and does not cancel work.
 pub fn run(cargo_args: &[&str], test_args: &[&str], side: Vec<(String, Command)>) -> Result<(), String> {
-    let limit = job_limit(std::env::var_os("SOLIDCRAFT_TEST_JOBS").as_deref())?;
+    let limit = job_limit(std::env::var_os("DESURFACE_TEST_JOBS").as_deref())?;
     let bins = build(cargo_args)?;
     let start = Instant::now();
     let side_count = side.len();
@@ -65,7 +65,7 @@ fn job_limit(value: Option<&OsStr>) -> Result<Option<usize>, String> {
         .and_then(|v| v.parse::<usize>().ok())
         .filter(|n| *n > 0)
         .map(Some)
-        .ok_or_else(|| "SOLIDCRAFT_TEST_JOBS must be a positive integer".into())
+        .ok_or_else(|| "DESURFACE_TEST_JOBS must be a positive integer".into())
 }
 
 /// Workers only hold the queue lock while taking a job. Reporting remains live, and neither

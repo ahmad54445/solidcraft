@@ -35,8 +35,8 @@ pub const RELEASES_PAGE: &str = "https://github.com/bherbruck/solidcraft/release
 /// on the old name, which GitHub redirects after a transfer).
 const RELEASE_PREFIXES: [&str; 2] = ["https://github.com/bherbruck/solidcraft/releases/", "https://github.com/tangency-labs/solidcraft/releases/"];
 
-/// A release page or asset URL: github.com, one of the two owners, exactly `solidcraft`, then
-/// `/releases/` (the trailing slash rules out look-alike names such as `solidcraft-evil`).
+/// A release page or asset URL: github.com, one of the two owners, exactly `desurface`, then
+/// `/releases/` (the trailing slash rules out look-alike names such as `desurface-evil`).
 fn is_release_url(url: &str) -> bool {
     RELEASE_PREFIXES.iter().any(|p| url.starts_with(p))
 }
@@ -83,7 +83,7 @@ pub type HttpGet = Arc<dyn Fn(&str) -> Result<Vec<u8>, FetchError> + Send + Sync
 
 // ---- versions ---------------------------------------------------------------------------------
 
-/// A version as SolidCraft's tags and builds spell it: `0.10.0`, `v0.11.0-rc.1`,
+/// A version as DeSurface's tags and builds spell it: `0.10.0`, `v0.11.0-rc.1`,
 /// `0.9.0-nightly.20261014.36.1`.
 pub fn parse_version(v: &str) -> Option<semver::Version> {
     let v = v.trim();
@@ -108,21 +108,21 @@ pub fn is_newer(latest: &str, current: &str) -> bool {
     latest.pre.is_empty() && latest > comparable(&current)
 }
 
-/// This build's version: the release workflow's `SOLIDCRAFT_VERSION` (with any nightly suffix)
+/// This build's version: the release workflow's `DESURFACE_VERSION` (with any nightly suffix)
 /// when it built this binary, else the crate version.
 pub fn current_version() -> &'static str {
-    option_env!("SOLIDCRAFT_VERSION").filter(|v| !v.is_empty()).unwrap_or(env!("CARGO_PKG_VERSION"))
+    option_env!("DESURFACE_VERSION").filter(|v| !v.is_empty()).unwrap_or(env!("CARGO_PKG_VERSION"))
 }
 
-/// The release workflow built this binary (`SOLIDCRAFT_VERSION` is set there). Anything else is a
+/// The release workflow built this binary (`DESURFACE_VERSION` is set there). Anything else is a
 /// development build, which never checks for updates.
 pub fn release_build() -> bool {
-    option_env!("SOLIDCRAFT_VERSION").is_some_and(|v| !v.is_empty()) && !cfg!(debug_assertions)
+    option_env!("DESURFACE_VERSION").is_some_and(|v| !v.is_empty()) && !cfg!(debug_assertions)
 }
 
 // ---- installations ----------------------------------------------------------------------------
 
-/// How this copy of SolidCraft was installed: decides which file Download fetches and whether
+/// How this copy of DeSurface was installed: decides which file Download fetches and whether
 /// the system's package manager is the way to update.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InstallKind {
@@ -146,9 +146,9 @@ pub enum InstallKind {
     WindowsMsi,
     /// The portable `.zip`, unpacked somewhere.
     WindowsPortable,
-    /// The lone `SolidCraft-<version>-windows-x64.exe`.
+    /// The lone `DeSurface-<version>-windows-x64.exe`.
     WindowsExe,
-    /// `SolidCraft.app`, at this path (the bundle).
+    /// `DeSurface.app`, at this path (the bundle).
     MacApp(PathBuf),
     /// A release build in a place none of the above explains (FreeBSD, a copied binary).
     Other,
@@ -163,7 +163,7 @@ pub struct Probe<'a> {
     /// The running executable.
     pub exe: Option<PathBuf>,
     pub exists: &'a dyn Fn(&Path) -> bool,
-    /// Where the Windows installer put SolidCraft (`HKLM\Software\SolidCraft`, `InstallDir`): a
+    /// Where the Windows installer put DeSurface (`HKLM\Software\DeSurface`, `InstallDir`): a
     /// folder chosen in its wizard can be anywhere, not only under Program Files (#1870).
     pub msi_dir: Option<PathBuf>,
 }
@@ -182,7 +182,7 @@ pub fn detect(p: &Probe) -> InstallKind {
             if let Some(id) = env("FLATPAK_ID") {
                 return InstallKind::Flatpak(id);
             }
-            if env("SNAP").is_some() && env("SNAP_NAME").is_none_or(|n| n.starts_with("solidcraft")) {
+            if env("SNAP").is_some() && env("SNAP_NAME").is_none_or(|n| n.starts_with("desurface")) {
                 // Locally installed (unasserted) snaps have revisions x1, x2, …
                 return InstallKind::Snap { store: !env("SNAP_REVISION").is_some_and(|r| r.starts_with('x')) };
             }
@@ -191,7 +191,7 @@ pub fn detect(p: &Probe) -> InstallKind {
             }
             if exe.starts_with("/usr") {
                 // nfpm installs both packages under /usr; dpkg keeps a file list per package.
-                if (p.exists)(Path::new("/var/lib/dpkg/info/solidcraft.list")) {
+                if (p.exists)(Path::new("/var/lib/dpkg/info/desurface.list")) {
                     return InstallKind::Deb;
                 }
                 if (p.exists)(Path::new("/var/lib/rpm")) || (p.exists)(Path::new("/usr/lib/sysimage/rpm")) {
@@ -207,7 +207,7 @@ pub fn detect(p: &Probe) -> InstallKind {
             if installed || under("ProgramFiles") || under("ProgramW6432") || under("ProgramFiles(x86)") {
                 return InstallKind::WindowsMsi;
             }
-            if exe.parent().is_some_and(|d| (p.exists)(&d.join("solidcraft-cli.exe"))) {
+            if exe.parent().is_some_and(|d| (p.exists)(&d.join("desurface-cli.exe"))) {
                 return InstallKind::WindowsPortable;
             }
             InstallKind::WindowsExe
@@ -254,10 +254,10 @@ pub fn this_install() -> InstallKind {
     }
 }
 
-/// The folder the Windows installer recorded (solidcraft.wxs writes it for upgrades), if any.
+/// The folder the Windows installer recorded (desurface.wxs writes it for upgrades), if any.
 #[cfg(windows)]
 fn msi_install_dir() -> Option<PathBuf> {
-    let key = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE).open_subkey(r"Software\SolidCraft").ok()?;
+    let key = winreg::RegKey::predef(winreg::enums::HKEY_LOCAL_MACHINE).open_subkey(r"Software\DeSurface").ok()?;
     key.get_value::<String, _>("InstallDir").ok().map(PathBuf::from)
 }
 
@@ -302,19 +302,19 @@ impl InstallKind {
     pub fn update_command(&self, asset: Option<&str>) -> Option<String> {
         match self {
             InstallKind::Flatpak(id) => Some(format!("flatpak update {id}")),
-            InstallKind::Snap { store: true } => Some("sudo snap refresh solidcraft".into()),
+            InstallKind::Snap { store: true } => Some("sudo snap refresh desurface".into()),
             InstallKind::Snap { store: false } => {
-                Some(format!("sudo snap install --dangerous ./{}", asset.unwrap_or("solidcraft-linux-x86_64.snap")))
+                Some(format!("sudo snap install --dangerous ./{}", asset.unwrap_or("desurface-linux-x86_64.snap")))
             }
-            InstallKind::Deb => Some(format!("sudo apt install ./{}", asset.unwrap_or("solidcraft-linux-x86_64.deb"))),
-            InstallKind::Rpm => Some(format!("sudo dnf install ./{}", asset.unwrap_or("solidcraft-linux-x86_64.rpm"))),
+            InstallKind::Deb => Some(format!("sudo apt install ./{}", asset.unwrap_or("desurface-linux-x86_64.deb"))),
+            InstallKind::Rpm => Some(format!("sudo dnf install ./{}", asset.unwrap_or("desurface-linux-x86_64.rpm"))),
             _ => None,
         }
     }
 }
 
 /// The release asset that installs or replaces this installation, by its fixed name
-/// (docs/releasing.md: `solidcraft-windows-x64.msi`, `solidcraft-linux-x86_64.AppImage`, …), or
+/// (docs/releasing.md: `desurface-windows-x64.msi`, `desurface-linux-x86_64.AppImage`, …), or
 /// the versioned name for the packages without one. `arch` is `std::env::consts::ARCH`.
 pub fn asset_name(kind: &InstallKind, arch: &str, version: &str) -> Option<String> {
     let linux = match arch {
@@ -329,18 +329,18 @@ pub fn asset_name(kind: &InstallKind, arch: &str, version: &str) -> Option<Strin
     };
     let version = version.trim_start_matches('v');
     Some(match kind {
-        InstallKind::AppImage(_) => format!("solidcraft-linux-{}.AppImage", linux?),
-        InstallKind::Flatpak(_) => format!("solidcraft-linux-{}.flatpak", linux?),
-        InstallKind::Snap { .. } => format!("solidcraft-linux-{}.snap", linux?),
-        InstallKind::Deb => format!("solidcraft-linux-{}.deb", linux?),
-        InstallKind::Rpm => format!("solidcraft-linux-{}.rpm", linux?),
-        InstallKind::LinuxTarball => format!("solidcraft-{version}-linux-{}.tar.gz", linux?),
-        InstallKind::WindowsMsi => format!("solidcraft-windows-{}.msi", windows?),
-        InstallKind::WindowsPortable => format!("solidcraft-windows-{}-portable.zip", windows?),
+        InstallKind::AppImage(_) => format!("desurface-linux-{}.AppImage", linux?),
+        InstallKind::Flatpak(_) => format!("desurface-linux-{}.flatpak", linux?),
+        InstallKind::Snap { .. } => format!("desurface-linux-{}.snap", linux?),
+        InstallKind::Deb => format!("desurface-linux-{}.deb", linux?),
+        InstallKind::Rpm => format!("desurface-linux-{}.rpm", linux?),
+        InstallKind::LinuxTarball => format!("desurface-{version}-linux-{}.tar.gz", linux?),
+        InstallKind::WindowsMsi => format!("desurface-windows-{}.msi", windows?),
+        InstallKind::WindowsPortable => format!("desurface-windows-{}-portable.zip", windows?),
         // Only x64 has the lone .exe; elsewhere the portable zip is the same thing.
-        InstallKind::WindowsExe if windows == Some("x64") => format!("SolidCraft-{version}-windows-x64.exe"),
-        InstallKind::WindowsExe => format!("solidcraft-windows-{}-portable.zip", windows?),
-        InstallKind::MacApp(_) => "solidcraft-macos-universal.dmg".into(),
+        InstallKind::WindowsExe if windows == Some("x64") => format!("DeSurface-{version}-windows-x64.exe"),
+        InstallKind::WindowsExe => format!("desurface-windows-{}-portable.zip", windows?),
+        InstallKind::MacApp(_) => "desurface-macos-universal.dmg".into(),
         InstallKind::Dev | InstallKind::Web | InstallKind::Other => return None,
     })
 }
@@ -402,7 +402,7 @@ impl Release {
             })
             .collect();
         Ok(Release {
-            name: Some(s("name")).filter(|n| !n.trim().is_empty()).unwrap_or_else(|| format!("SolidCraft {tag}")),
+            name: Some(s("name")).filter(|n| !n.trim().is_empty()).unwrap_or_else(|| format!("DeSurface {tag}")),
             tag,
             notes,
             page,
@@ -451,7 +451,7 @@ pub struct Memo {
 }
 
 impl Memo {
-    /// An automatic check is due. `launch`: no automatic check has run since SolidCraft started,
+    /// An automatic check is due. `launch`: no automatic check has run since DeSurface started,
     /// so one is due whatever the daily schedule says (someone who started yesterday's version
     /// this morning hears about today's release at the next start). GitHub's rate limit always
     /// holds. A clock set back by more than a day counts as due.
@@ -523,17 +523,17 @@ pub struct Updater {
     started: bool,
     /// An automatic check has started since launch (until then one is due at once).
     launch_checked: bool,
-    /// `SOLIDCRAFT_UPDATE_CHECK=0`: no checks at all.
+    /// `DESURFACE_UPDATE_CHECK=0`: no checks at all.
     off: bool,
     /// When Check now was last pressed (Unix seconds).
     last_manual: f64,
-    /// A release given by `SOLIDCRAFT_UPDATE_FEED` (a file), for tests and screenshots.
+    /// A release given by `DESURFACE_UPDATE_FEED` (a file), for tests and screenshots.
     feed: Option<PathBuf>,
     /// The one-click update in progress (`install`).
     job: Option<(Receiver<Result<install::Outcome, String>>, Arc<install::Progress>)>,
     /// The last one-click update's result.
     pub installed: Option<Result<install::Outcome, String>>,
-    /// A program for the host to start as SolidCraft exits (restart, installer).
+    /// A program for the host to start as DeSurface exits (restart, installer).
     launch: Option<(PathBuf, Vec<String>)>,
 }
 
@@ -568,11 +568,11 @@ pub fn tick(app: &mut SolveApp, ctx: &egui::Context) {
         #[cfg(not(target_arch = "wasm32"))]
         {
             install::clean_up_after_update(std::env::current_exe().ok().as_deref());
-            if std::env::var("SOLIDCRAFT_UPDATE_CHECK").is_ok_and(|v| v == "0") {
+            if std::env::var("DESURFACE_UPDATE_CHECK").is_ok_and(|v| v == "0") {
                 app.updater.off = true;
                 return;
             }
-            app.updater.feed = std::env::var_os("SOLIDCRAFT_UPDATE_FEED").map(PathBuf::from);
+            app.updater.feed = std::env::var_os("DESURFACE_UPDATE_FEED").map(PathBuf::from);
         }
     }
     poll(app);
@@ -698,7 +698,7 @@ pub fn start_install(app: &mut SolveApp, ctx: &egui::Context) {
     #[cfg(not(target_arch = "wasm32"))]
     {
         let ctx = ctx.clone();
-        let staging = std::env::temp_dir().join("solidcraft-update");
+        let staging = std::env::temp_dir().join("desurface-update");
         let net = install::Net { get, download };
         let spawned = std::thread::Builder::new().name("update-install".into()).spawn(move || {
             let result = install::run(&release, &kind, &method, std::env::consts::ARCH, &net, &staging, &progress);
@@ -727,7 +727,7 @@ fn poll_install(app: &mut SolveApp) {
     app.updater.job = None;
     match &result {
         Ok(install::Outcome::Installer(program, args)) => {
-            // The installer replaces this program: start it once SolidCraft has closed. On
+            // The installer replaces this program: start it once DeSurface has closed. On
             // Windows the installer is followed by the new version (see install::relaunch_after).
             app.updater.launch = Some(match std::env::current_exe() {
                 #[cfg(windows)]
@@ -757,7 +757,7 @@ pub fn restart(app: &mut SolveApp) {
     }
 }
 
-/// For the host, as SolidCraft exits: the program to start (the new version, an installer).
+/// For the host, as DeSurface exits: the program to start (the new version, an installer).
 pub fn take_launch(app: &mut SolveApp) -> Option<(PathBuf, Vec<String>)> {
     app.updater.launch.take()
 }

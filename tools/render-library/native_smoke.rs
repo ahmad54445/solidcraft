@@ -1,12 +1,12 @@
 //! Native acceptance probe linked only to geom/render/gpu, not the CAD kernel or UI.
 //! The Python runner verifies original source hashes and PNG output receipts.
 #![forbid(unsafe_code)]
-use solidcraft_geom::{Mesh, Vec3};
-use solidcraft_render::job::textures::{BaseColorMode, PlanarFrame, RuntimeTextures, TextureBinding, TextureMap};
-use solidcraft_render::job::{ImageHost, ImageRequest, Integrator, JobId, JobOptions, Phase, ToneMap};
-use solidcraft_render::lighting::{HdrSource, environment::EnvironmentSource};
-use solidcraft_render::texture_input::MapRole;
-use solidcraft_render::{Camera, ProductMesh, ProductScene, surface::OpaqueSurface};
+use desurface_geom::{Mesh, Vec3};
+use desurface_render::job::textures::{BaseColorMode, PlanarFrame, RuntimeTextures, TextureBinding, TextureMap};
+use desurface_render::job::{ImageHost, ImageRequest, Integrator, JobId, JobOptions, Phase, ToneMap};
+use desurface_render::lighting::{HdrSource, environment::EnvironmentSource};
+use desurface_render::texture_input::MapRole;
+use desurface_render::{Camera, ProductMesh, ProductScene, surface::OpaqueSurface};
 use std::{
     error::Error,
     fs,
@@ -125,7 +125,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut args = std::env::args_os().skip(1);
     let root = args.next().map(PathBuf::from).ok_or("repository path required")?;
     let out = args.next().map(PathBuf::from).ok_or("new output path required")?;
-    let host = solidcraft_gpu::path::host()?;
+    let host = desurface_gpu::path::host()?;
     let full = render(&host, &root, &out, "authored-four-maps", 1, BaseColorMode::Replace, true)?;
     let legacy = render(&host, &root, &out, "legacy-color-modulation", 2, BaseColorMode::Modulate, true)?;
     let scalar_control = render(&host, &root, &out, "captured-scalar-control", 3, BaseColorMode::Replace, false)?;

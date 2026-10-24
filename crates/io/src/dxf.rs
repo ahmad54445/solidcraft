@@ -7,7 +7,7 @@
 
 use std::collections::HashMap;
 
-use solidcraft_geom::{MAX_BEZIER_DEGREE, Vec2};
+use desurface_geom::{MAX_BEZIER_DEGREE, Vec2};
 
 use crate::sketch2d::{Geom2, MAX_DRAWING_BYTES, MAX_ENTITIES, bulge_arc};
 use crate::{IoError, Result};
@@ -458,7 +458,7 @@ mod tests {
     use super::*;
 
     /// A DXF is group codes and values the user did not write, and blocks recurse. None of these
-    /// may panic (solidcraft#469).
+    /// may panic (desurface#469).
     #[test]
     fn hostile_dxf_never_panics() {
         let good = write_dxf(&[Geom2::Line(Vec2::ZERO, Vec2::new(10.0, 0.0)), Geom2::Circle(Vec2::new(5.0, 5.0), 2.0)]);
@@ -494,7 +494,7 @@ mod tests {
         }
     }
 
-    /// A SPLINE keeps its degree up to the 9 a sketch spline (a G4 blend) has (solidcraft#5269); a
+    /// A SPLINE keeps its degree up to the 9 a sketch spline (a G4 blend) has (desurface#5269); a
     /// degree past that is held to 9, and one that isn't a finite number (which the reader drops)
     /// reads as a missing one, 3.
     #[test]

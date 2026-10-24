@@ -22,7 +22,7 @@ enum Pending {
 
 /// Variables the agent doesn't inherit: a control token set for the app's own `--control` port
 /// would otherwise reach the agent and outrank the chat endpoint's own token file.
-const ENV_REMOVE: &[&str] = &["SOLIDCRAFT_CONTROL_TOKEN"];
+const ENV_REMOVE: &[&str] = &["DESURFACE_CONTROL_TOKEN"];
 
 pub struct AcpBackend {
     proc: AgentProcess,
@@ -138,7 +138,7 @@ impl AcpBackend {
             Incoming::ModeChanged(m) => out.push(Event::Modes { current: m, available: Vec::new() }),
             Incoming::ModelChanged(m) => out.push(Event::Models { current: m, available: Vec::new() }),
             Incoming::Unsupported { rpc, method } => {
-                self.proc.send(&acp::reply_error(rpc, acp::METHOD_NOT_FOUND, &format!("SolidCraft does not serve `{method}`")));
+                self.proc.send(&acp::reply_error(rpc, acp::METHOD_NOT_FOUND, &format!("DeSurface does not serve `{method}`")));
             }
             Incoming::Ignored => {}
         }

@@ -16,10 +16,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use solidcraft_engine::doc::ModelBody;
-use solidcraft_engine::doc::display_quality::{DisplayQuality, MAX_REFINE, refinement_for};
-use solidcraft_engine::geom::tess::TessPlan;
-use solidcraft_engine::geom::{Aabb3, Mesh, Vec3};
+use desurface_engine::doc::ModelBody;
+use desurface_engine::doc::display_quality::{DisplayQuality, MAX_REFINE, refinement_for};
+use desurface_engine::geom::tess::TessPlan;
+use desurface_engine::geom::{Aabb3, Mesh, Vec3};
 
 /// Most triangles all refined bodies may draw together (on top of the rest of the model).
 pub(crate) const TRIANGLE_BUDGET: usize = 6_000_000;
@@ -34,11 +34,11 @@ const MAX_JOBS: usize = 2;
 /// A refined plan and its CPU mesh (none: the body has no plan at that step).
 pub(crate) type Refined = Option<(Arc<TessPlan>, Arc<Mesh>)>;
 
-/// Whether the viewport refines at all: `SOLIDCRAFT_DISPLAY_REFINE=0` turns it off (to compare
+/// Whether the viewport refines at all: `DESURFACE_DISPLAY_REFINE=0` turns it off (to compare
 /// pictures and frame times with and without it).
 pub(crate) fn enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
-    *ON.get_or_init(|| std::env::var("SOLIDCRAFT_DISPLAY_REFINE").map_or(true, |v| v != "0"))
+    *ON.get_or_init(|| std::env::var("DESURFACE_DISPLAY_REFINE").map_or(true, |v| v != "0"))
 }
 
 /// What keeps a body's identity ([`body_id`]) its own while the cache holds it.
@@ -69,7 +69,7 @@ pub(crate) struct Lens {
 
 impl Lens {
     /// The view of `cam` in a viewport `height_px` physical pixels high.
-    pub fn new(cam: &solidcraft_engine::render::Camera, height_px: f64) -> Lens {
+    pub fn new(cam: &desurface_engine::render::Camera, height_px: f64) -> Lens {
         let perspective = cam.fov > 0.0;
         let scale = if perspective { height_px / (2.0 * (cam.fov * 0.5).tan()) } else { height_px / (2.0 * cam.half_height()) };
         Lens { eye: cam.eye(), back: cam.back(), scale, perspective, near: (cam.distance * 1e-2).max(1e-3) }
@@ -408,10 +408,10 @@ fn mesh_bytes(m: &Mesh) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solidcraft_engine::render::Camera;
+    use desurface_engine::render::Camera;
 
     fn cylinder() -> ModelBody {
-        let body = solidcraft_engine::kernel::cylinder(Vec3::ZERO, Vec3::Z, 10.0, 20.0).unwrap();
+        let body = desurface_engine::kernel::cylinder(Vec3::ZERO, Vec3::Z, 10.0, 20.0).unwrap();
         ModelBody::new("Body1".into(), body, 1)
     }
 

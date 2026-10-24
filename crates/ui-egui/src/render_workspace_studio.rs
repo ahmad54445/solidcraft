@@ -1,7 +1,7 @@
 //! GPU studio editors. Numeric intent is portable; HDR resources cross the engine capture boundary.
 use serde_json::{Value, json};
-use solidcraft_engine::render::job::{AreaLight, AreaLights, StudioLighting, Sun, ThinLens, ToneMap};
-use solidcraft_engine::render::lighting::environment::SkyGradient;
+use desurface_engine::render::job::{AreaLight, AreaLights, StudioLighting, Sun, ThinLens, ToneMap};
+use desurface_engine::render::lighting::environment::SkyGradient;
 
 use super::hdr;
 use crate::{SolveApp, ui_kit};
@@ -16,14 +16,14 @@ pub(super) enum Environment {
 
 #[derive(Clone, Debug)]
 pub(super) struct View {
-    pub aging: solidcraft_engine::doc::render_aging::SavedAgingStack,
+    pub aging: desurface_engine::doc::render_aging::SavedAgingStack,
     pub nested_media: bool,
-    pub volume: Option<solidcraft_engine::render::job::volume::HomogeneousVolume>,
-    pub adaptive: Option<solidcraft_engine::render::job::adaptive::AdaptiveSampling>,
+    pub volume: Option<desurface_engine::render::job::volume::HomogeneousVolume>,
+    pub adaptive: Option<desurface_engine::render::job::adaptive::AdaptiveSampling>,
     pub transmission_samples: u32,
-    pub finishing: solidcraft_engine::render::job::finishing::Finishing,
+    pub finishing: desurface_engine::render::job::finishing::Finishing,
     pub backdrop_enabled: bool,
-    pub backdrop: solidcraft_engine::render::job::finishing::Backdrop,
+    pub backdrop: desurface_engine::render::job::finishing::Backdrop,
     pub linear_exr: bool,
     pub export_exr: bool,
     pub tone_map: ToneMap,
@@ -333,7 +333,7 @@ pub(super) fn post_controls(app: &mut SolveApp, ui: &mut egui::Ui) {
         crate::scenario::publish_target("render:bloom-enable", toggle.rect);
         if toggle.changed() {
             app.render_workspace.view.studio.finishing.bloom =
-                enabled.then_some(solidcraft_engine::render::job::bloom::Bloom { strength: 0.15, ..Default::default() });
+                enabled.then_some(desurface_engine::render::job::bloom::Bloom { strength: 0.15, ..Default::default() });
         }
         if enabled {
             for key in ["render.bloom_strength", "render.bloom_threshold", "render.bloom_radius"] {
@@ -384,7 +384,7 @@ pub(super) fn post_controls(app: &mut SolveApp, ui: &mut egui::Ui) {
 }
 
 pub(super) fn backdrop_controls(app: &mut SolveApp, ui: &mut egui::Ui) {
-    use solidcraft_engine::render::job::finishing::BackdropMode;
+    use desurface_engine::render::job::finishing::BackdropMode;
     let label = app.tr("render.backdrop_enable").to_string();
     let r = ui_kit::checkbox(ui, &label, &mut app.render_workspace.view.studio.backdrop_enabled);
     crate::scenario::publish_target("render:backdrop-enabled", r.rect);

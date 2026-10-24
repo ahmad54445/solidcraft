@@ -2,7 +2,7 @@
 //! world-space millimetres; radiance is linear RGB. Saved setups reuse these bounds.
 use super::{ErrorCode, JobError, Result};
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 pub const MAX_AREA_LIGHTS: usize = 4;
 

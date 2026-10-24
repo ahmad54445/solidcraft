@@ -256,7 +256,7 @@ pub struct Renderer {
 
     /// The last `update_buffers` could not upload this frame's meshes (the GPU refused a
     /// staging buffer: device lost or out of memory), so `render` draws nothing this frame
-    /// instead of panicking (SolidCraft #1469).
+    /// instead of panicking (DeSurface #1469).
     skip_frame: bool,
 
     /// Storage for resources shared with all invocations of [`CallbackTrait`]'s methods.

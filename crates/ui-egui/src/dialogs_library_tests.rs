@@ -1,6 +1,6 @@
 use super::*;
 use crate::{dialogs::Kind, scenario::Harness};
-use solidcraft_engine::{Sel, Session};
+use desurface_engine::{Sel, Session};
 
 #[test]
 fn copied_catalog_id_labels_survive_clicked_editor_reopen_and_retargeting() {
@@ -39,26 +39,26 @@ fn copied_catalog_id_labels_survive_clicked_editor_reopen_and_retargeting() {
         h.frames(3);
         h.step(&json!({"widget":"OK"})).unwrap();
         assert_eq!(h.app.session.doc.appearances.bodies["Body2"], expected);
-        assert!(solidcraft_engine::product_scene::extract(&h.app.session).unwrap().meshes.iter().all(|mesh| mesh.surface.is_none()));
+        assert!(desurface_engine::product_scene::extract(&h.app.session).unwrap().meshes.iter().all(|mesh| mesh.surface.is_none()));
     }
 }
 
 #[test]
 fn catalog_clicked_load_apply_export_and_ok_keep_one_design_undo_step() {
-    clicked_catalog(None, "solidcraft-library/1").unwrap();
+    clicked_catalog(None, "desurface-library/1").unwrap();
 }
 
 #[test]
 fn catalog_clicked_pbr_load_apply_export_and_ok_retains_the_optical_response() {
-    clicked_catalog(Some(solidcraft_engine::doc::pbr_appearance::PbrParameters::new(1., 0.3, 1.5).unwrap()), "solidcraft-library/2").unwrap();
+    clicked_catalog(Some(desurface_engine::doc::pbr_appearance::PbrParameters::new(1., 0.3, 1.5).unwrap()), "desurface-library/2").unwrap();
 }
 
 #[test]
 fn catalog_clicked_rich_entry_without_pbr_clears_the_old_optical_response() {
-    clicked_catalog(None, "solidcraft-library/2").unwrap();
+    clicked_catalog(None, "desurface-library/2").unwrap();
 }
 
-fn clicked_catalog(pbr: Option<solidcraft_engine::doc::pbr_appearance::PbrParameters>, format: &str) -> Result<(), Box<dyn std::error::Error>> {
+fn clicked_catalog(pbr: Option<desurface_engine::doc::pbr_appearance::PbrParameters>, format: &str) -> Result<(), Box<dyn std::error::Error>> {
     let mut h = Harness::new();
     h.call("ui.resize", json!({"width":1600,"height":1400}));
     let path = h.dir.join("source-library.json").to_string_lossy().into_owned();
@@ -307,12 +307,12 @@ fn catalog_clicked_material_import_renames_conflicts_and_closing_never_assigns_b
         assert_eq!(h.app.session.undo.len(), history.0 + 1);
         assert_eq!(h.app.session.doc.appearances, before.appearances);
         assert_eq!(h.app.session.doc.materials, before.materials);
-        let saved = solidcraft_engine::io::write_design_container(&h.app.session.doc).unwrap();
+        let saved = desurface_engine::io::write_design_container(&h.app.session.doc).unwrap();
         std::fs::remove_file(path).unwrap();
         h.app.run("edit.undo", json!({})).unwrap();
         assert!(h.app.session.doc.user_material("Copied substrate").is_none());
         h.app.run("edit.redo", json!({})).unwrap();
-        let reopened = solidcraft_engine::io::read_design(&saved).unwrap();
+        let reopened = desurface_engine::io::read_design(&saved).unwrap();
         assert_eq!(reopened.user_material("Copied substrate"), Some(&expected));
         assert_eq!(reopened.user_materials, h.app.session.doc.user_materials);
     }

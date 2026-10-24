@@ -10,7 +10,7 @@ use crate::SolveApp;
 pub(crate) fn start_selected(app: &mut SolveApp) {
     let mut components = app.tree.picked_components.clone();
     for selection in &app.session.selection {
-        if let solidcraft_engine::Sel::Occurrence { path } = selection
+        if let desurface_engine::Sel::Occurrence { path } = selection
             && let Ok(placement) = app.session.occurrence_placement(path)
         {
             components.push(placement.component);
@@ -36,7 +36,7 @@ pub(crate) fn start(app: &mut SolveApp, component: u64) {
         return;
     }
     let document = app.session.doc.clone();
-    app.pick_open_for(&["solidcraft"], move |app, path| {
+    app.pick_open_for(&["desurface"], move |app, path| {
         let Some(path) = path else { return };
         // A host or programmatic caller can replace/edit a design while a native picker is
         // pending. Never apply that old component id to a different design or newer revision.
@@ -64,7 +64,7 @@ pub(crate) fn extract(app: &mut SolveApp, component: u64) {
     }
     let Some(name) = app.session.doc.components.iter().find(|c| c.id == component).map(|c| c.name.clone()) else { return };
     let document = app.session.doc.clone();
-    app.pick_save(&format!("{name}.solidcraft"), &["solidcraft"], move |app, path| {
+    app.pick_save(&format!("{name}.solidcraft"), &["desurface"], move |app, path| {
         let Some(mut path) = path else { return };
         if !Arc::ptr_eq(&document, &app.session.doc) {
             app.set_status(app.tr_label("ui.extract_design_changed").to_string(), true);
@@ -105,7 +105,7 @@ fn report(app: &mut SolveApp, result: &serde_json::Value, done: &str) {
 #[derive(Clone, Debug)]
 pub struct Copies {
     linked: u64,
-    document: Arc<solidcraft_engine::doc::Document>,
+    document: Arc<desurface_engine::doc::Document>,
     copies: Vec<(u64, String)>,
 }
 
@@ -148,11 +148,11 @@ pub fn show_copies(app: &mut SolveApp, ctx: &egui::Context) {
 mod tests {
     use super::*;
     use crate::context_menu::{self, Target};
-    use solidcraft_engine::Session;
+    use desurface_engine::Session;
     use std::path::PathBuf;
 
     fn fixture(name: &str) -> (SolveApp, u64, u64, PathBuf, PathBuf) {
-        let folder = std::env::temp_dir().join(format!("solidcraft-relink-ui-{name}-{}", std::process::id()));
+        let folder = std::env::temp_dir().join(format!("desurface-relink-ui-{name}-{}", std::process::id()));
         std::fs::create_dir_all(&folder).unwrap();
         let source = folder.join("source.solidcraft");
         let moved = folder.join("moved.solidcraft");
@@ -173,7 +173,7 @@ mod tests {
 
     fn answer(app: &mut SolveApp, path: Option<String>) {
         app.services.pick_open = Some(Box::new(move |extensions| {
-            assert_eq!(extensions, &["solidcraft"]);
+            assert_eq!(extensions, &["desurface"]);
             let result = path.clone();
             Box::pin(async move { result })
         }));
@@ -238,7 +238,7 @@ mod tests {
         app.start("component.relink");
         assert!(!app.file_picker_busy());
         assert!(app.status.as_ref().is_some_and(|(s, _, error)| s.contains("Select one linked") && *error));
-        app.session.selection = vec![solidcraft_engine::Sel::Occurrence { path: vec![occurrence] }];
+        app.session.selection = vec![desurface_engine::Sel::Occurrence { path: vec![occurrence] }];
         app.start("component.relink");
         assert!(app.file_picker_busy());
         crate::file_picker::tick(&mut app, &egui::Context::default());
@@ -248,7 +248,7 @@ mod tests {
 
     #[test]
     fn extract_menu_asks_where_to_save_and_links_the_component_there() {
-        let folder = std::env::temp_dir().join(format!("solidcraft-extract-ui-{}", std::process::id()));
+        let folder = std::env::temp_dir().join(format!("desurface-extract-ui-{}", std::process::id()));
         std::fs::create_dir_all(&folder).unwrap();
         let mut app = SolveApp::new(Session::default(), Default::default());
         let made = app.run("component.create", json!({"name": "Bracket", "grounded": false})).unwrap();
@@ -267,7 +267,7 @@ mod tests {
         let item = find(&app, component).unwrap();
         let chosen = folder.join("bracket").to_string_lossy().into_owned();
         app.services.pick_save = Some(Box::new(move |name, extensions| {
-            assert_eq!((name, extensions), ("Bracket.solidcraft", &["solidcraft"][..]));
+            assert_eq!((name, extensions), ("Bracket.solidcraft", &["desurface"][..]));
             let result = Some(chosen.clone());
             Box::pin(async move { result })
         }));
@@ -284,7 +284,7 @@ mod tests {
 
     #[test]
     fn extract_offers_to_link_identical_copies() {
-        let folder = std::env::temp_dir().join(format!("solidcraft-extract-copies-ui-{}", std::process::id()));
+        let folder = std::env::temp_dir().join(format!("desurface-extract-copies-ui-{}", std::process::id()));
         std::fs::create_dir_all(&folder).unwrap();
         let mut app = SolveApp::new(Session::default(), Default::default());
         let made = app.run("component.create", json!({"name": "Bracket"})).unwrap();

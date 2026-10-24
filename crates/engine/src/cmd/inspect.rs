@@ -1,7 +1,7 @@
 //! Inspection: measure bodies, describe the document, sketches and model topology.
 
 use serde_json::{Value, json};
-use solidcraft_sketch::CurveKind;
+use desurface_sketch::CurveKind;
 
 use super::CommandSpec;
 use crate::params::{bad, bool_, str_, string_list};
@@ -53,8 +53,8 @@ pub static COMMANDS: &[CommandSpec] = &[
         .params("command: a command id. Returns {id, label, params, input, output} (and param_warnings in the warn parameter-check mode): the command's parameter documentation and, once the command has a typed contract, the JSON Schemas (2020-12) of its parameters and of a successful result (null otherwise). Read-only."),
 ];
 
-pub fn measure_json(b: &solidcraft_doc::ModelBody) -> Value {
-    match solidcraft_kernel::measure(&b.body) {
+pub fn measure_json(b: &desurface_doc::ModelBody) -> Value {
+    match desurface_kernel::measure(&b.body) {
         Ok(m) => json!({
             "name": b.name,
             "volume_mm3": m.volume,
@@ -79,7 +79,7 @@ fn measure(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.world_state();
     let selected: Vec<_> = st.bodies.iter().filter(|b| want.is_empty() || want.contains(&b.name)).collect();
     // Each body is measured on its own: on all cores, in body order.
-    let mut bodies: Vec<Value> = solidcraft_kernel::map_on_threads(&selected, 16, |b| measure_json(b))
+    let mut bodies: Vec<Value> = desurface_kernel::map_on_threads(&selected, 16, |b| measure_json(b))
         .into_iter()
         .zip(&selected)
         .map(|(m, b)| m.unwrap_or_else(|| json!({"name": b.name, "error": "measuring this body failed"})))
@@ -276,7 +276,7 @@ fn inspect(s: &mut Session, p: &Value) -> Result<Value> {
     }))
 }
 
-fn body_of<'a>(st: &'a solidcraft_doc::ModelState, p: &Value, cmd: &str) -> Result<&'a solidcraft_doc::ModelBody> {
+fn body_of<'a>(st: &'a desurface_doc::ModelState, p: &Value, cmd: &str) -> Result<&'a desurface_doc::ModelBody> {
     let n = str_(p, "body").ok_or_else(|| bad(cmd, "`body` is required"))?;
     st.body(n).ok_or_else(|| bad(cmd, format!("no body `{n}`")))
 }
@@ -285,7 +285,7 @@ fn model_edges(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.world_state();
     let b = body_of(&st, p, "model.edges")?;
     let tol = (b.body.size() * 2e-3).max(1e-3);
-    let names = solidcraft_doc::naming::edge_names(b);
+    let names = desurface_doc::naming::edge_names(b);
     let edges: Vec<Value> = b
         .body
         .edges(tol)?
@@ -298,25 +298,25 @@ fn model_edges(s: &mut Session, p: &Value) -> Result<Value> {
 fn model_faces(s: &mut Session, p: &Value) -> Result<Value> {
     let st = s.world_state();
     let b = body_of(&st, p, "model.faces")?;
-    let names = solidcraft_doc::naming::face_names(b);
+    let names = desurface_doc::naming::face_names(b);
     let tol = (b.body.size() * 2e-3).max(1e-3);
-    let spots = solidcraft_doc::naming::face_spots(b);
+    let spots = desurface_doc::naming::face_spots(b);
     // A folded sheet's faces also have the readable names its sheet gives them, worked out in
     // the body's own coordinates.
     let model = s.model.state();
-    let sheet_names = model.body(&b.name).map(|own| solidcraft_doc::sheet::body_sheet_face_names(&model, own)).unwrap_or_default();
+    let sheet_names = model.body(&b.name).map(|own| desurface_doc::sheet::body_sheet_face_names(&model, own)).unwrap_or_default();
     let faces: Vec<Value> = b
         .body
         .faces(tol)?
         .iter()
         .map(|f| {
             let spot = spots.get(f.index).copied().flatten();
-            let mut v = json!({"index": f.index, "name": names.get(f.index), "exact": solidcraft_doc::naming::face_name_exact(b, f.index),
+            let mut v = json!({"index": f.index, "name": names.get(f.index), "exact": desurface_doc::naming::face_name_exact(b, f.index),
                    "area": f.area, "centroid": f.centroid, "plane_normal": f.plane_normal, "point": spot.map(|x| x.point)});
             if let (Some(Some(name)), Some(o)) = (sheet_names.get(f.index), v.as_object_mut()) {
                 o.insert("sheet_face".into(), json!(name));
             }
-            if let (Some(solidcraft_kernel::FaceSurface::Cylinder { origin, axis, radius }), Some(o)) =
+            if let (Some(desurface_kernel::FaceSurface::Cylinder { origin, axis, radius }), Some(o)) =
                 (spot.and_then(|x| x.surface), v.as_object_mut())
             {
                 o.insert("cylinder".into(), json!({"origin": origin, "axis": axis, "radius": radius}));
@@ -363,7 +363,7 @@ fn physical_material(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(cmd, "`bodies` must list existing bodies"));
     }
     for b in &bodies {
-        if canonical == solidcraft_doc::DEFAULT_MATERIAL {
+        if canonical == desurface_doc::DEFAULT_MATERIAL {
             s.doc_mut().materials.remove(b);
         } else {
             s.doc_mut().materials.insert(b.clone(), canonical.clone());
@@ -388,7 +388,7 @@ pub(super) fn color_param(v: &Value) -> Option<[u8; 3]> {
 }
 
 pub(super) fn appearance(s: &mut Session, p: &Value) -> Result<Value> {
-    use solidcraft_doc::appearance::{FaceLook, Look, library};
+    use desurface_doc::appearance::{FaceLook, Look, library};
     let cmd = "appearance.assign";
     // A saved label is data, not a request to resolve a recipe. Keep the explicit
     // appearance selector separate so an owned look may have any recipe's ID as its name.
@@ -402,7 +402,7 @@ pub(super) fn appearance(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // Both the stable ID and a registered display name explicitly select a recipe.
     // Copied labels use `name`, so color overrides cannot bypass unsupported optics.
-    let preset = str_(p, "appearance").and_then(solidcraft_doc::appearance_pack::find);
+    let preset = str_(p, "appearance").and_then(desurface_doc::appearance_pack::find);
     let mut look: Option<Look> = if let Some(preset) = preset {
         // Refuse unsupported optics before any color/PBR/opacity override.
         let mut look = preset.opaque_look().map_err(|e| bad(cmd, e.to_string()))?;
@@ -424,7 +424,7 @@ pub(super) fn appearance(s: &mut Session, p: &Value) -> Result<Value> {
                 Some(l)
             }
             (Some(n), _) => {
-                let mut l = if let Some(preset) = solidcraft_doc::appearance_pack::find(n) {
+                let mut l = if let Some(preset) = desurface_doc::appearance_pack::find(n) {
                     preset.opaque_look().map_err(|e| bad(cmd, e.to_string()))?
                 } else {
                     library(n).ok_or_else(|| bad(cmd, format!("no appearance `{n}` in the library (appearance.library)")))?
@@ -459,14 +459,14 @@ pub(super) fn appearance(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(cmd, "`bodies` must list existing bodies"));
     }
     // Faces: a point on each, on the named body or the nearest one.
-    let mut faces: Vec<(String, solidcraft_geom::Vec3)> = Vec::new();
+    let mut faces: Vec<(String, desurface_geom::Vec3)> = Vec::new();
     if let Some(list) = p.get("faces") {
         let list = list.as_array().filter(|a| a.len() <= 10_000).ok_or_else(|| bad(cmd, "`faces` must list points [x, y, z]"))?;
         for v in list {
             let pt = crate::params::vec3(v)
                 .or_else(|| v.get("point").and_then(crate::params::vec3))
                 .ok_or_else(|| bad(cmd, "`faces` must list points [x, y, z]"))?;
-            let on = |b: &solidcraft_doc::ModelBody| solidcraft_doc::appearance::face_index_at(b, pt).is_some();
+            let on = |b: &desurface_doc::ModelBody| desurface_doc::appearance::face_index_at(b, pt).is_some();
             let body = match v.get("body").and_then(Value::as_str).or_else(|| str_(p, "body")) {
                 Some(n) => st.body(n).filter(|b| on(b)).map(|b| b.name.clone()),
                 None => st.bodies.iter().filter(|b| on(b)).min_by(|a, b| dist_to(a, pt).total_cmp(&dist_to(b, pt))).map(|b| b.name.clone()),
@@ -488,11 +488,11 @@ pub(super) fn appearance(s: &mut Session, p: &Value) -> Result<Value> {
         return Err(bad(cmd, "give `bodies`, `faces` or `components`"));
     }
     // Persistent names of the picked faces.
-    let st_names: Vec<(String, solidcraft_geom::Vec3, Option<String>)> = faces
+    let st_names: Vec<(String, desurface_geom::Vec3, Option<String>)> = faces
         .iter()
         .map(|(b, pt)| {
             let n = st.body(b).and_then(|mb| {
-                solidcraft_doc::appearance::face_index_at(mb, *pt).and_then(|i| solidcraft_doc::naming::face_names(mb).get(i).cloned())
+                desurface_doc::appearance::face_index_at(mb, *pt).and_then(|i| desurface_doc::naming::face_names(mb).get(i).cloned())
             });
             (b.clone(), *pt, n)
         })
@@ -530,20 +530,20 @@ pub(super) fn appearance(s: &mut Session, p: &Value) -> Result<Value> {
             .map(|(b, pt)| {
                 (
                     b.clone(),
-                    st.body(b).and_then(|mb| solidcraft_doc::appearance::face_index_at(mb, *pt)),
+                    st.body(b).and_then(|mb| desurface_doc::appearance::face_index_at(mb, *pt)),
                     st_names.iter().find(|(name, p, _)| name == b && p.dist(*pt) < 1e-12).and_then(|(_, _, name)| name.clone()),
                 )
             })
             .collect();
         doc.appearances.faces.retain(|f| {
-            let idx = st.body(&f.body).and_then(|mb| solidcraft_doc::appearance::face_index_at(mb, f.point));
+            let idx = st.body(&f.body).and_then(|mb| desurface_doc::appearance::face_index_at(mb, f.point));
             !picked.iter().any(|(b, i, name)| {
                 *b == f.body
                     && (f
                         .name
                         .as_ref()
                         .zip(name.as_ref())
-                        .is_some_and(|(a, b)| solidcraft_doc::naming::strip_piece(a) == solidcraft_doc::naming::strip_piece(b))
+                        .is_some_and(|(a, b)| desurface_doc::naming::strip_piece(a) == desurface_doc::naming::strip_piece(b))
                         || (!f.strict_name && i.is_some() && *i == idx))
             })
         });
@@ -556,13 +556,13 @@ pub(super) fn appearance(s: &mut Session, p: &Value) -> Result<Value> {
     }))
 }
 
-fn dist_to(b: &solidcraft_doc::ModelBody, p: solidcraft_geom::Vec3) -> f64 {
+fn dist_to(b: &desurface_doc::ModelBody, p: desurface_geom::Vec3) -> f64 {
     let bb = b.mesh().bounds();
-    let c = solidcraft_geom::Vec3::new(p.x.clamp(bb.min.x, bb.max.x), p.y.clamp(bb.min.y, bb.max.y), p.z.clamp(bb.min.z, bb.max.z));
+    let c = desurface_geom::Vec3::new(p.x.clamp(bb.min.x, bb.max.x), p.y.clamp(bb.min.y, bb.max.y), p.z.clamp(bb.min.z, bb.max.z));
     c.dist(p)
 }
 
-pub(super) fn look_json(l: &solidcraft_doc::appearance::Look) -> Value {
+pub(super) fn look_json(l: &desurface_doc::appearance::Look) -> Value {
     let mut value = json!({"name": l.name, "color": l.hex(), "opacity": l.opacity});
     if let Some(pbr) = l.pbr {
         value["pbr"] = json!(pbr);
@@ -574,7 +574,7 @@ pub(super) fn look_json(l: &solidcraft_doc::appearance::Look) -> Value {
 #[path = "pbr_appearance_tests.rs"]
 mod pbr_tests;
 
-pub(super) fn attach_pbr(cmd: &str, params: &Value, look: &mut solidcraft_doc::appearance::Look) -> Result<()> {
+pub(super) fn attach_pbr(cmd: &str, params: &Value, look: &mut desurface_doc::appearance::Look) -> Result<()> {
     if let Some(value) = params.get("pbr") {
         look.pbr = if value.is_null() {
             None
@@ -585,7 +585,7 @@ pub(super) fn attach_pbr(cmd: &str, params: &Value, look: &mut solidcraft_doc::a
                 .ok_or_else(|| bad(cmd, "`pbr` requires exactly metallic, roughness and dielectric_ior"))?;
             let number = |key: &str| object.get(key).and_then(Value::as_f64).ok_or_else(|| bad(cmd, format!("`pbr.{key}` must be a finite number")));
             Some(
-                solidcraft_doc::pbr_appearance::PbrParameters::new(number("metallic")?, number("roughness")?, number("dielectric_ior")?)
+                desurface_doc::pbr_appearance::PbrParameters::new(number("metallic")?, number("roughness")?, number("dielectric_ior")?)
                     .map_err(|e| bad(cmd, e.to_string()))?,
             )
         };
@@ -606,20 +606,20 @@ pub(super) fn attach_pbr(cmd: &str, params: &Value, look: &mut solidcraft_doc::a
 }
 
 fn appearance_library(_s: &mut Session, _p: &Value) -> Result<Value> {
-    let mut list: Vec<Value> = solidcraft_doc::appearance::LIBRARY
+    let mut list: Vec<Value> = desurface_doc::appearance::LIBRARY
         .iter()
         .map(|(n, c, o)| {
             let category = n.split(" - ").next().unwrap_or(n);
             json!({"name": n, "category": category, "color": format!("#{:02x}{:02x}{:02x}", c[0], c[1], c[2]), "opacity": o})
         })
         .collect();
-    list.extend(solidcraft_doc::appearance::OPAQUE_FINISHES.iter().filter_map(|(name, ..)| {
-        let look = solidcraft_doc::appearance::library(name)?;
+    list.extend(desurface_doc::appearance::OPAQUE_FINISHES.iter().filter_map(|(name, ..)| {
+        let look = desurface_doc::appearance::library(name)?;
         let mut value = look_json(&look);
         value["category"] = json!(name.split(" - ").next().unwrap_or(name));
         Some(value)
     }));
-    for preset in &solidcraft_doc::appearance_pack::STARTER_PACK {
+    for preset in &desurface_doc::appearance_pack::STARTER_PACK {
         let c = preset.preview_color();
         let pbr = preset.opaque_look().ok().and_then(|look| look.pbr);
         list.push(json!({"id":preset.id,"name":preset.name,"category":preset.category,"revision":preset.revision,
@@ -633,8 +633,8 @@ fn appearance_library(_s: &mut Session, _p: &Value) -> Result<Value> {
 fn appearance_list(s: &mut Session, p: &Value) -> Result<Value> {
     let a = &s.doc.appearances;
     // "In this design": each look used, with where.
-    let mut used: Vec<(solidcraft_doc::appearance::Look, Vec<Value>, Vec<Value>, Vec<Value>)> = Vec::new();
-    fn slot(used: &mut Vec<(solidcraft_doc::appearance::Look, Vec<Value>, Vec<Value>, Vec<Value>)>, l: &solidcraft_doc::appearance::Look) -> usize {
+    let mut used: Vec<(desurface_doc::appearance::Look, Vec<Value>, Vec<Value>, Vec<Value>)> = Vec::new();
+    fn slot(used: &mut Vec<(desurface_doc::appearance::Look, Vec<Value>, Vec<Value>, Vec<Value>)>, l: &desurface_doc::appearance::Look) -> usize {
         match used.iter().position(|(u, ..)| u == l) {
             Some(i) => i,
             None => {
@@ -691,7 +691,7 @@ fn appearance_list(s: &mut Session, p: &Value) -> Result<Value> {
 }
 
 fn material_list(s: &mut Session, _p: &Value) -> Result<Value> {
-    let built_in = solidcraft_doc::MATERIALS.iter().map(|(n, d)| json!({"name": n, "density_g_cm3": d}));
+    let built_in = desurface_doc::MATERIALS.iter().map(|(n, d)| json!({"name": n, "density_g_cm3": d}));
     let user = s
         .doc
         .user_materials

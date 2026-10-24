@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 use egui::{Color32, Sense, vec2};
 use serde_json::{Value, json};
-use solidcraft_engine::slicers::{self, Slicer};
+use desurface_engine::slicers::{self, Slicer};
 
 use crate::SolveApp;
 use crate::dialogs::{Kind, form_row};
@@ -331,7 +331,7 @@ pub fn run(app: &mut SolveApp, k: &SaveMesh, inputs: &[SelInput]) -> Result<(), 
         p.save_mesh_slicer = k.slicer.clone();
     }
     if k.send {
-        let dir = std::env::temp_dir().join("solidcraft-slicer");
+        let dir = std::env::temp_dir().join("desurface-slicer");
         std::fs::create_dir_all(&dir)
             .map_err(|e| crate::i18n::format("ui.save_mesh_temp_failed", &[("folder", &dir.display().to_string()), ("error", &e.to_string())]))?;
         let file: String = name.chars().map(|c| if c.is_alphanumeric() || "-_. ".contains(c) { c } else { '_' }).collect();

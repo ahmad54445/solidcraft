@@ -8,7 +8,7 @@
 //! `ui_kit::Window` cards.
 
 use serde_json::{Map, Value};
-use solidcraft_engine::doc::metadata::{DESCRIPTION, WELL_KNOWN};
+use desurface_engine::doc::metadata::{DESCRIPTION, WELL_KNOWN};
 
 use crate::SolveApp;
 use crate::ui_kit;

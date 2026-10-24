@@ -3,9 +3,9 @@
 use std::collections::HashMap;
 
 use serde_json::{Value, json};
-use solidcraft_geom::Vec2;
-use solidcraft_io::{Geom2, MAX_DRAWING_BYTES};
-use solidcraft_sketch::{CurveKind, LinkKind, LinkSource, Sketch};
+use desurface_geom::Vec2;
+use desurface_io::{Geom2, MAX_DRAWING_BYTES};
+use desurface_sketch::{CurveKind, LinkKind, LinkSource, Sketch};
 
 use super::CommandSpec;
 use super::sketch::{edit, ids_of};
@@ -34,7 +34,7 @@ fn source_text(p: &Value, cmd: &str) -> Result<String> {
         return Ok(t.to_string());
     }
     let path = str_(p, "path").filter(|x| !x.trim().is_empty() && x.len() < 4096).ok_or_else(|| bad(cmd, "give `path` or `text`"))?;
-    let bytes = solidcraft_io::vfs::read(path, MAX_DRAWING_BYTES).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    let bytes = desurface_io::vfs::read(path, MAX_DRAWING_BYTES).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
     Ok(String::from_utf8_lossy(&bytes).to_string())
 }
 
@@ -79,7 +79,7 @@ fn add_geometry(sk: &mut Sketch, geom: &[Geom2], f: &dyn Fn(Vec2) -> Vec2, k: f6
             Geom2::Ellipse { c, major, minor } => Some(CurveKind::Ellipse { c: pt(sk, *c)?, m: pt(sk, *major)?, r: minor * k }),
             Geom2::Spline { pts, control, degree } => {
                 let mut idx = Vec::new();
-                for p in pts.iter().take(solidcraft_sketch::MAX_SPLINE_POINTS) {
+                for p in pts.iter().take(desurface_sketch::MAX_SPLINE_POINTS) {
                     let i = pt(sk, *p)?;
                     if idx.last() != Some(&i) {
                         idx.push(i);
@@ -107,9 +107,9 @@ fn add_geometry(sk: &mut Sketch, geom: &[Geom2], f: &dyn Fn(Vec2) -> Vec2, k: f6
 
 fn insert(s: &mut Session, p: &Value, cmd: &str, svg: bool) -> Result<Value> {
     let text = source_text(p, cmd)?;
-    let geom = if svg { solidcraft_io::read_svg(&text) } else { solidcraft_io::read_dxf(&text) }.map_err(|e| bad(cmd, e.to_string()))?;
+    let geom = if svg { desurface_io::read_svg(&text) } else { desurface_io::read_dxf(&text) }.map_err(|e| bad(cmd, e.to_string()))?;
     if geom.is_empty() {
-        return Err(bad(cmd, "the drawing has no geometry SolidCraft reads"));
+        return Err(bad(cmd, "the drawing has no geometry DeSurface reads"));
     }
     let k = num(p, "scale").filter(|k| *k > 1e-9 && *k < 1e6).unwrap_or(1.0);
     let off = p.get("at").and_then(vec2).unwrap_or(Vec2::ZERO);
@@ -189,9 +189,9 @@ fn export_dxf(s: &mut Session, p: &Value) -> Result<Value> {
             }
         }
     }
-    let text = solidcraft_io::write_dxf(&geom);
+    let text = desurface_io::write_dxf(&geom);
     if let Some(path) = str_(p, "path").filter(|x| !x.trim().is_empty()) {
-        solidcraft_io::vfs::write(path, text.as_bytes()).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+        desurface_io::vfs::write(path, text.as_bytes()).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
         return Ok(json!({"path": path, "entities": geom.len()}));
     }
     Ok(json!({"dxf": text, "entities": geom.len()}))
@@ -240,7 +240,7 @@ mod tests {
         }
     }
 
-    /// A degree-9 SPLINE (solidcraft#5269) with fewer control points than its degree needs still
+    /// A degree-9 SPLINE (desurface#5269) with fewer control points than its degree needs still
     /// comes in as one spline over all its points, which the sketch draws at the degree they allow.
     #[test]
     fn a_degree_nine_spline_with_few_control_points_comes_in_whole() {

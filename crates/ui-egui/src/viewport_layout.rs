@@ -1,7 +1,7 @@
 //! Floating controls reserve drawing space without changing rendering or picking projection.
 use egui::{Rect, pos2, vec2};
-use solidcraft_engine::geom::{Aabb3, Vec3};
-use solidcraft_engine::render::Camera;
+use desurface_engine::geom::{Aabb3, Vec3};
+use desurface_engine::render::Camera;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Layout {

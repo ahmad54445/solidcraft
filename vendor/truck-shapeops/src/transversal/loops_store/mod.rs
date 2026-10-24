@@ -167,7 +167,7 @@ impl<P: Copy + Tolerance, C: Clone> Loops<P, C> {
             .find_map(|(i, j, edge)| {
                 let curve = edge.curve();
                 curve.search_parameter(pt, None, 1).and_then(|t| {
-                    // SolidCraft: a point at an end of the curve is that end, however far its
+                    // DeSurface: a point at an end of the curve is that end, however far its
                     // parameter is from the end's. The parameter alone is no distance: on a
                     // polyline it counts segments, and an intersection curve ending 2e-7 mm from
                     // another's end (two walls of a glyph meeting a face) read 1.4e-6 before it,
@@ -184,7 +184,7 @@ impl<P: Copy + Tolerance, C: Clone> Loops<P, C> {
             })
     }
 
-    // SolidCraft: `replaced(old, new)` is told of every edge rebuilt on the new vertex.
+    // DeSurface: `replaced(old, new)` is told of every edge rebuilt on the new vertex.
     fn change_vertex(
         &mut self,
         old_vertex: &Vertex<P>,
@@ -246,7 +246,7 @@ impl<P: Copy + Tolerance, C: Clone> Loops<P, C> {
         self.add_edge_choosing(edge0, status, &|_, _, _| None)
     }
 
-    // SolidCraft: the edge added at the visits `chosen` (found for the same edge in the mirror
+    // DeSurface: the edge added at the visits `chosen` (found for the same edge in the mirror
     // store, whose wires and edges lie in the same order); the default where they are no visits
     // of its ends.
     fn add_edge_at(&mut self, edge0: Edge<P, C>, status: ShapesOpStatus, chosen: [Option<(usize, usize)>; 2]) -> [Option<(usize, usize)>; 2] {
@@ -256,7 +256,7 @@ impl<P: Copy + Tolerance, C: Clone> Loops<P, C> {
         })
     }
 
-    // SolidCraft: `pick(loops, at_back, at_front)` may name the visits (wire, edge) the edge is
+    // DeSurface: `pick(loops, at_back, at_front)` may name the visits (wire, edge) the edge is
     // added at, from the visits of a wire to its back and front vertices; `None` leaves it to the
     // default below.
     #[allow(clippy::type_complexity)]
@@ -266,7 +266,7 @@ impl<P: Copy + Tolerance, C: Clone> Loops<P, C> {
         status: ShapesOpStatus,
         pick: &dyn Fn(&Self, &[(usize, usize)], &[(usize, usize)]) -> Option<[Option<(usize, usize)>; 2]>,
     ) -> [Option<(usize, usize)>; 2] {
-        // SolidCraft: a vertex several intersection curves end on (the tangent point of two equal
+        // DeSurface: a vertex several intersection curves end on (the tangent point of two equal
         // cylinders, say) is visited by more than one wire. The edge belongs where both of its
         // ends are: a wire holding the visit at each end. Taking the first visit of each end
         // joined wires that are different regions of the face, and the face came out with a wire
@@ -324,7 +324,7 @@ impl<P: Copy + Tolerance, C: Clone> Loops<P, C> {
     }
 }
 
-/// SolidCraft: where an edge leaves a vertex, as a unit vector: along the polyline from its
+/// DeSurface: where an edge leaves a vertex, as a unit vector: along the polyline from its
 /// front (or back) vertex to the first point a tenth of its length away, which is steadier
 /// than its first segment where the mesh it was traced on is noisy.
 fn leaving(edge: &Edge<Point3, PolylineCurve>, from_front: bool) -> Option<Vector3> {
@@ -346,7 +346,7 @@ fn leaving(edge: &Edge<Point3, PolylineCurve>, from_front: bool) -> Option<Vecto
     found.filter(|d| d.magnitude() > 1e-12 && d.magnitude().is_finite()).map(|d| d.normalize())
 }
 
-/// SolidCraft: the counterclockwise angle about `normal` from `from` to `to`, in `[0, 2π)`.
+/// DeSurface: the counterclockwise angle about `normal` from `from` to `to`, in `[0, 2π)`.
 fn sweep(from: Vector3, to: Vector3, normal: Vector3) -> Option<f64> {
     let e1 = from - normal * from.dot(normal);
     if e1.magnitude() < 1e-9 {
@@ -359,7 +359,7 @@ fn sweep(from: Vector3, to: Vector3, normal: Vector3) -> Option<f64> {
 }
 
 impl Loops<Point3, PolylineCurve> {
-    /// SolidCraft: the visit among `visits` (of the vertex `at`) whose corner holds the direction
+    /// DeSurface: the visit among `visits` (of the vertex `at`) whose corner holds the direction
     /// `d` the new edge leaves in: the wedge swept counterclockwise about `normal` from the
     /// wire's outgoing edge to the way back along its incoming one. `None` when no corner can be
     /// told (a single visit is returned as it is).
@@ -384,7 +384,7 @@ impl Loops<Point3, PolylineCurve> {
             .map(|(visit, _)| visit)
     }
 
-    /// SolidCraft: [`Loops::add_edge`], with the corner at each end of the edge told by its
+    /// DeSurface: [`Loops::add_edge`], with the corner at each end of the edge told by its
     /// direction there (`normals`: the face's normal at its back and front vertices) where a
     /// vertex is visited more than once.
     fn add_edge_by_angle(&mut self, edge0: Edge<Point3, PolylineCurve>, status: ShapesOpStatus, normals: [Option<Vector3>; 2]) -> [Option<(usize, usize)>; 2] {

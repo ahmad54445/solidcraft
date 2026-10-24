@@ -50,7 +50,7 @@ geometry checks. Normal loading and commands both bound user-defined materials
 to 1,000, in addition to the card limits below. Existing document metadata keeps
 its separate handling.
 
-The portable `solidcraft-library/2` catalog preserves physical cards, their sources
+The portable `desurface-library/2` catalog preserves physical cards, their sources
 and conditions, and independent PBR default appearances. The scalar v1 reader remains
 supported; explicit v1 export refuses any card or PBR loss before writing, including
 empty cards whose designation/source information matters. See [local material

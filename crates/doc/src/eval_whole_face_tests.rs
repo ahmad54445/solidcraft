@@ -4,9 +4,9 @@
 use std::cell::Cell;
 
 use serde_json::json;
-use solidcraft_geom::{Plane, Vec2, Vec3};
-use solidcraft_kernel as kernel;
-use solidcraft_sketch::{CurveKind, Sketch};
+use desurface_geom::{Plane, Vec2, Vec3};
+use desurface_kernel as kernel;
+use desurface_sketch::{CurveKind, Sketch};
 
 use crate::*;
 

@@ -26,7 +26,7 @@ impl<P, C, S> FacesClassification<P, C, S> {
     pub fn and_or_unknown(&self) -> [Shell<P, C, S>; 3] {
         let [mut and, mut or, mut unknown] = <[Shell<P, C, S>; 3]>::default();
         for face in &self.shell {
-            // SolidCraft: no panics (wasm can't catch them).
+            // DeSurface: no panics (wasm can't catch them).
             match self.status.get(&face.id()) {
                 Some(ShapesOpStatus::And) => and.push(face.clone()),
                 Some(ShapesOpStatus::Or) => or.push(face.clone()),
@@ -40,7 +40,7 @@ impl<P, C, S> FacesClassification<P, C, S> {
         let [and, or, unknown] = self.and_or_unknown();
         let and_boundary = and.extract_boundaries();
         let or_boundary = or.extract_boundaries();
-        // SolidCraft: `connected_components` walks a map keyed by face pointers, so each
+        // DeSurface: `connected_components` walks a map keyed by face pointers, so each
         // component's face order (and with it which boundary edge comes first) followed the
         // heap addresses: the same Boolean could classify a component differently from run to
         // run. Put each component's faces back in the shell's order first.

@@ -8,8 +8,8 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
-use solidcraft_geom::{Aabb2, Vec2};
-use solidcraft_sketch::{ConstraintKind, CurveKind, LinkKind, LinkSource, Sketch};
+use desurface_geom::{Aabb2, Vec2};
+use desurface_sketch::{ConstraintKind, CurveKind, LinkKind, LinkSource, Sketch};
 
 use super::sketch::{edit, target_sketch};
 use super::{CommandSpec, in_sketch};
@@ -262,8 +262,8 @@ fn paste(s: &mut Session, p: &Value) -> Result<Value> {
     let mut p = p.clone();
     p["sketch"] = json!(target);
     let ((curves, lone, constraints), info) = edit(s, &p, cmd, false, |sk, doc| {
-        if sk.curves.len().saturating_add(clip.curves.len()) > solidcraft_sketch::MAX_CURVES {
-            return Err(solidcraft_sketch::SketchError::TooLarge.into());
+        if sk.curves.len().saturating_add(clip.curves.len()) > desurface_sketch::MAX_CURVES {
+            return Err(desurface_sketch::SketchError::TooLarge.into());
         }
         let mut pts = Vec::with_capacity(clip.points.len());
         for q in &clip.points {

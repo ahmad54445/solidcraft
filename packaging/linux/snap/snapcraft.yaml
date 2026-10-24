@@ -1,4 +1,4 @@
-# Snap package (solidcraft-<version>-linux-<arch>.snap on every GitHub release, and the Snap
+# Snap package (desurface-<version>-linux-<arch>.snap on every GitHub release, and the Snap
 # Store when its credentials are configured). Build it with packaging/linux/snap-pack.sh.
 #
 # Like the Flatpak, it repackages the release's own Linux tarball (built on Ubuntu 22.04 by
@@ -7,11 +7,11 @@
 # The binaries need glibc >= 2.35 (core24 has 2.39) and load X11, Wayland, xkbcommon and Vulkan
 # at runtime: the gnome extension supplies the desktop libraries and the GPU userspace (mesa,
 # through the gpu-2404 content interface) for the wgpu viewport.
-name: solidcraft
-title: SolidCraft
+name: desurface
+title: DeSurface
 summary: Open-source parametric 3D CAD
 description: |
-  SolidCraft is an open-source parametric 3D CAD application written in Rust. Sketch on a
+  DeSurface is an open-source parametric 3D CAD application written in Rust. Sketch on a
   plane, constrain and dimension the sketch, turn profiles into solids on a feature timeline,
   and change a parameter to watch the timeline rebuild.
 
@@ -21,14 +21,14 @@ description: |
   - STEP and IGES import and export; 3MF, STL and OBJ
   - Every action is a command, scriptable from a CLI, a JSON control channel and an MCP server
 
-  The command-line tool is `solidcraft.cli` (for example `solidcraft.cli mcp`).
-adopt-info: solidcraft
+  The command-line tool is `desurface.cli` (for example `desurface.cli mcp`).
+adopt-info: desurface
 license: MIT OR Apache-2.0
 contact: https://github.com/bherbruck/solidcraft/issues
 website: https://docs.solidcraft.io/
 source-code: https://github.com/bherbruck/solidcraft
 issues: https://github.com/bherbruck/solidcraft/issues
-icon: stage/share/icons/hicolor/512x512/apps/ai.storyteller.solidcraft.png
+icon: stage/share/icons/hicolor/512x512/apps/ai.storyteller.desurface.png
 base: core24
 grade: stable
 confinement: strict
@@ -39,9 +39,9 @@ platforms:
   arm64:
 
 apps:
-  solidcraft:
-    command: usr/bin/solidcraft
-    desktop: usr/share/applications/ai.storyteller.solidcraft.desktop
+  desurface:
+    command: usr/bin/desurface
+    desktop: usr/share/applications/ai.storyteller.desurface.desktop
     # Ties the snap to the AppStream id (ai.storyteller.solidcraft, the same in every package) so
     # software centres treat it as the same app.
     common-id: ai.storyteller.solidcraft
@@ -61,11 +61,11 @@ apps:
       - network
       - network-bind
   cli:
-    command: usr/bin/solidcraft-cli
+    command: usr/bin/desurface-cli
     plugs: [home, removable-media, network, network-bind]
 
 parts:
-  solidcraft:
+  desurface:
     plugin: dump
     source: stage
     organize:
@@ -77,5 +77,5 @@ parts:
     override-prime: |
       craftctl default
       # Point the menu entry at the packaged icon (the hicolor name isn't on the host's path).
-      sed -i 's|^Icon=.*|Icon=${SNAP}/usr/share/icons/hicolor/256x256/apps/ai.storyteller.solidcraft.png|' \
-        usr/share/applications/ai.storyteller.solidcraft.desktop
+      sed -i 's|^Icon=.*|Icon=${SNAP}/usr/share/icons/hicolor/256x256/apps/ai.storyteller.desurface.png|' \
+        usr/share/applications/ai.storyteller.desurface.desktop

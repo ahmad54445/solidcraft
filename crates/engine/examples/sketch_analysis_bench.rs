@@ -3,9 +3,9 @@
 use std::{error::Error, io::Write, path::PathBuf, sync::Arc, time::Instant};
 
 use serde_json::{Value, json};
-use solidcraft_engine::Session;
-use solidcraft_geom::Vec2;
-use solidcraft_sketch::{ConstraintKind, Sketch, profiling::capture};
+use desurface_engine::Session;
+use desurface_geom::Vec2;
+use desurface_sketch::{ConstraintKind, Sketch, profiling::capture};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -108,7 +108,7 @@ fn main() -> Result<()> {
         samples.push(json!({"elapsed_ns": elapsed_ns, "response": response, "profile": profile, "published_report": published_report}));
     }
     let output = json!({
-        "schema": "solidcraft/sketch-analysis-bench/1", "command": "sketch.auto_constrain",
+        "schema": "desurface/sketch-analysis-bench/1", "command": "sketch.auto_constrain",
         "params": {"dimensions": false}, "size": size, "seed": 99, "repeats": repeats, "warmup": warmup,
         "median_ns": percentile(&times, 50), "p95_ns": percentile(&times, 95),
         "final_sketch": reference, "samples": samples,

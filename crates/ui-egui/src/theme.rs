@@ -433,7 +433,7 @@ pub fn srgb(c: [f32; 3]) -> Color32 {
 
 /// Surface analysis colours, straight sRGB 0..1 as the shader takes them (exact, so they read
 /// the same as when they were literals in the WGSL). The light theme's are the headless default.
-pub use solidcraft_engine::render::AnalysisColors;
+pub use desurface_engine::render::AnalysisColors;
 
 /// Colours for native viewport markers and the agent pointer. Command artwork uses the SVG palette.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -750,7 +750,7 @@ pub struct Tokens {
     pub icons: IconColors,
     /// Optional SVG display roles and semantic ramps from the active theme file.
     pub icon_palette: Option<crate::icon_svg::Palette>,
-    /// The SolidCraft mark on the application bar: light, mid and dark faces (the gaps between
+    /// The DeSurface mark on the application bar: light, mid and dark faces (the gaps between
     /// them show the bar).
     pub logo: [Color32; 3],
 }
@@ -806,7 +806,7 @@ impl Tokens {
 
 /// How a physical material looks (the default appearance follows the material).
 pub fn material_color(name: &str) -> Option<Color32> {
-    solidcraft_engine::doc::material_color(name).map(|[r, g, b]| Color32::from_rgb(r, g, b))
+    desurface_engine::doc::material_color(name).map(|[r, g, b]| Color32::from_rgb(r, g, b))
 }
 
 /// Switch themes (the visuals follow on the next [`apply`]).

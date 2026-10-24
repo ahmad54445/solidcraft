@@ -4,7 +4,7 @@ mod raster;
 
 use egui::{ColorImage, Rect, TextureId, pos2};
 use serde_json::json;
-use solidcraft_ui_egui::{
+use desurface_ui_egui::{
     scenario::{self, Harness},
     theme::Tokens,
 };
@@ -24,8 +24,8 @@ fn capture(h: &mut Harness, name: &str) -> (image::RgbaImage, egui::FullOutput) 
     // the initial font atlas and every icon texture, including the white fill texel.
     h.ctx = egui::Context::default();
     h.ctx.set_pixels_per_point(h.app.preferences.ui_scale);
-    solidcraft_ui_egui::fonts::setup_fonts(&h.ctx);
-    solidcraft_ui_egui::theme::apply(&h.ctx);
+    desurface_ui_egui::fonts::setup_fonts(&h.ctx);
+    desurface_ui_egui::theme::apply(&h.ctx);
     let mut textures: HashMap<TextureId, ColorImage> = HashMap::new();
     for _ in 0..8 {
         raster::paint(h, &mut textures, vec![]);
@@ -73,7 +73,7 @@ fn parameter_transfer_buttons_use_existing_distinct_tray_arrows_at_1x_and_2x() {
             for (label, id) in [("Import…", "import_tray"), ("Export CSV…", "export_tray"), ("Export JSON…", "export_tray")] {
                 let button = scenario::rect_of(&format!("dialog:button::{label}")).unwrap();
                 let expected = format!("icon:{id}:{}", (t.space_14 * ppp) as u32);
-                assert_ne!(solidcraft_ui_egui::icon_svg::resolve(id).master, "placeholder");
+                assert_ne!(desurface_ui_egui::icon_svg::resolve(id).master, "placeholder");
                 assert!(
                     meshes.iter().any(|clipped| match &clipped.primitive {
                         egui::epaint::Primitive::Mesh(mesh) =>
@@ -86,7 +86,7 @@ fn parameter_transfer_buttons_use_existing_distinct_tray_arrows_at_1x_and_2x() {
                 let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../target/popup-regressions");
                 crop(&image, button, ppp).save(dir.join(format!("{id}-{label}-{dark}-{ppp}x.png"))).unwrap();
             }
-            assert_ne!(solidcraft_ui_egui::icon_svg::resolve("import_tray").master, solidcraft_ui_egui::icon_svg::resolve("export_tray").master);
+            assert_ne!(desurface_ui_egui::icon_svg::resolve("import_tray").master, desurface_ui_egui::icon_svg::resolve("export_tray").master);
         }
     }
 }
@@ -108,7 +108,7 @@ fn crash_card_has_no_horizontal_bar_but_long_reports_still_scroll_vertically() {
                 .take(if long { 2 } else { 1 })
                 {
                     std::fs::create_dir_all(folder.join(id)).unwrap();
-                    std::fs::write(folder.join(id).join("report.json"), json!({"format":"solidcraft-crash/1", "id":id, "kind":"command_panic", "count":3,
+                    std::fs::write(folder.join(id).join("report.json"), json!({"format":"desurface-crash/1", "id":id, "kind":"command_panic", "count":3,
                         "first_seen":"2026-10-18T21:04:12Z", "message":message,"command":{"command":"solid.fillet","params":{"radius":2}}, "backtrace":[], "app":{"version":"0.16.1"}, "system":{}}).to_string()).unwrap();
                 }
                 h.app.crashes.folder = Some(folder);

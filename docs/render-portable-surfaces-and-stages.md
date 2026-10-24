@@ -77,7 +77,7 @@ After a coordinated source batch, build/run this original public-command workflo
 instead of repeatedly linking the full engine unit-test executable:
 
 ```sh
-cargo run --locked --profile ci -p solidcraft-engine --features raytrace-cpu \
+cargo run --locked --profile ci -p desurface-engine --features raytrace-cpu \
   --example render_resource_workflow -- target/render-workflow-new
 ```
 

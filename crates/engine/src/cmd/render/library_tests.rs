@@ -1,6 +1,6 @@
 use super::*;
 #[cfg(feature = "bundled-render-library")]
-use solidcraft_render::job::textures::{BaseColorMode, TextureMap};
+use desurface_render::job::textures::{BaseColorMode, TextureMap};
 
 #[test]
 fn authored_library_search_is_bounded_and_concepts_are_not_runtime_presets() {
@@ -80,7 +80,7 @@ fn builtin_hdr_capture_is_atomic_undoable_deduplicated_and_path_independent() {
     let id = options.hdr.unwrap().resource;
     assert_eq!(s.doc.render.resources.required(&id).unwrap().bytes(), super::super::library_data::asset("HDR-001").unwrap().0);
     let saved = s.doc.to_json();
-    let reopened = solidcraft_doc::Document::from_json(&saved).unwrap();
+    let reopened = desurface_doc::Document::from_json(&saved).unwrap();
     assert_eq!(reopened.render.resources.required(&id).unwrap().id(), id);
     let before = s.undo.len();
     assert!(s.execute("render.library.environment.apply", &request).is_err(), "replacement must be explicit");
@@ -199,7 +199,7 @@ fn saved_authored_maps_roundtrip_and_resolve_without_paths_or_captured_ordinals(
     assert_eq!(s.doc.appearances, before.appearances);
     assert_eq!(s.doc.features, before.features);
     let saved = s.doc.to_json();
-    let mut reopened = Session::new(solidcraft_doc::Document::from_json(&saved).unwrap());
+    let mut reopened = Session::new(desurface_doc::Document::from_json(&saved).unwrap());
     reopened.execute("render.scene", &json!({})).unwrap();
     let scene = crate::product_scene::extract(&reopened).unwrap();
     let bindings = &reopened.doc.render.setups["Portable"].surfaces;
@@ -311,7 +311,7 @@ fn saved_passive_ground_keeps_cad_unchanged_and_is_revalidated_after_product_mot
     super::super::staging::apply(&mut staged, &setup, "test").unwrap();
     assert_eq!(staged.meshes.len(), 2);
     assert!(Arc::ptr_eq(&staged.meshes[0].mesh, &original.meshes[0].mesh));
-    let reopened = solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap();
+    let reopened = desurface_doc::Document::from_json(&s.doc.to_json()).unwrap();
     assert_eq!(reopened.render.setups["Stage"], setup);
     assert!(s.execute("render.stage.ground", &request).is_err(), "never replace a stage silently");
     s.execute("render.stage.clear", &json!({"name":"Stage"})).unwrap();
@@ -321,7 +321,7 @@ fn saved_passive_ground_keeps_cad_unchanged_and_is_revalidated_after_product_mot
     let mut intersects = setup;
     let mut panel = intersects.stage.iter().next().unwrap().clone();
     panel.center_mm[2] = 0.0;
-    intersects.stage = solidcraft_render::stage::Stage::new(vec![panel]).unwrap();
+    intersects.stage = desurface_render::stage::Stage::new(vec![panel]).unwrap();
     assert!(super::super::staging::apply(&mut original.clone(), &intersects, "test").is_err());
 }
 
@@ -333,7 +333,7 @@ fn complete_authored_rig_keeps_passive_cards_nonemissive_and_scales_exactly_once
     assert_eq!(prepared["projection"]["passive_cards_omitted"], 0);
     assert_eq!(prepared["projection"]["passive_cards_included"], 1);
     assert_eq!(prepared["stage"][0]["center_mm"], json!([90.0, 10.0, 30.0]));
-    let stage: solidcraft_render::stage::Stage = serde_json::from_value(prepared["stage"].clone()).unwrap();
+    let stage: desurface_render::stage::Stage = serde_json::from_value(prepared["stage"].clone()).unwrap();
     assert_eq!(stage.iter().next().unwrap().reflectance_linear, [0.75; 3]);
     let input = json!({"name":"Rig","set":{"job":{"method":"gpu_path","options":{}}},"rig":rig,"replace_lighting_and_environment":true});
     s.execute("render.library.studio.apply", &input).unwrap();

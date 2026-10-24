@@ -4,8 +4,8 @@ use std::{collections::BTreeMap, fmt};
 
 use serde::{Deserialize, Serialize, de::DeserializeSeed, ser::SerializeStruct};
 use sha2::{Digest, Sha256};
-pub use solidcraft_render::lighting::MAX_HDR_BYTES;
-use solidcraft_render::lighting::{HdrInfo, HdrSource};
+pub use desurface_render::lighting::MAX_HDR_BYTES;
+use desurface_render::lighting::{HdrInfo, HdrSource};
 
 use crate::{DocError, Result};
 

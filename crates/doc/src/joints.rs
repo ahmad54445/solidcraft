@@ -17,9 +17,9 @@
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::{Aabb3, Vec3};
+use desurface_geom::{Aabb3, Vec3};
 
-use solidcraft_sketch::linalg;
+use desurface_sketch::linalg;
 
 use crate::{DocError, Document, IDENTITY, Mat, ModelState, Result, apply_point, apply_vector, mat_inverse, mat_mul};
 
@@ -811,11 +811,11 @@ fn round_of(doc: &Document, st: &ModelState, o: &JointOrigin) -> Result<face::Ro
     let cyl = component_bodies(doc, st, comp)
         .into_iter()
         .filter_map(|b| match doc.model_body_offset(b) {
-            Some(m) => solidcraft_kernel::cylinder_face_at(&b.body, apply_point(&mat_inverse(m)?, pick)).map(|c| face::placed(m, c)),
-            None => solidcraft_kernel::cylinder_face_at(&b.body, pick),
+            Some(m) => desurface_kernel::cylinder_face_at(&b.body, apply_point(&mat_inverse(m)?, pick)).map(|c| face::placed(m, c)),
+            None => desurface_kernel::cylinder_face_at(&b.body, pick),
         })
         .min_by(|a, b| {
-            let off = |c: &solidcraft_kernel::CylinderFace| {
+            let off = |c: &desurface_kernel::CylinderFace| {
                 let v = pick - c.axis_point;
                 ((v - c.axis * v.dot(c.axis)).len() - c.radius).abs()
             };
@@ -828,7 +828,7 @@ fn round_of(doc: &Document, st: &ModelState, o: &JointOrigin) -> Result<face::Ro
 }
 
 /// The cylindrical face of a circle-centre snap (component coordinates).
-fn circle_at(doc: &Document, st: &ModelState, o: &JointOrigin) -> Result<solidcraft_kernel::CylinderFace> {
+fn circle_at(doc: &Document, st: &ModelState, o: &JointOrigin) -> Result<desurface_kernel::CylinderFace> {
     round_of(doc, st, o).map(|r| r.cylinder)
 }
 

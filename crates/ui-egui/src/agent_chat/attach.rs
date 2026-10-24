@@ -74,7 +74,7 @@ pub fn kind(path: &Path) -> Kind {
         "pdf" => Kind::Pdf,
         _ => {
             let p = path.to_string_lossy();
-            if solidcraft_engine::io::is_step_path(&p) || solidcraft_engine::io::is_mesh_path(&p) { Kind::Cad } else { Kind::Other }
+            if desurface_engine::io::is_step_path(&p) || desurface_engine::io::is_mesh_path(&p) { Kind::Cad } else { Kind::Other }
         }
     }
 }
@@ -421,7 +421,7 @@ mod tests {
     use super::*;
 
     fn dir(tag: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("solidcraft-attach-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("desurface-attach-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d

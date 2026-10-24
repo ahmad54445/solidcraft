@@ -5,8 +5,8 @@
 //! changing anything, so the UI can ask first.
 
 use serde_json::{Value, json};
-use solidcraft_doc::FeatureKind;
-use solidcraft_geom::Vec3;
+use desurface_doc::FeatureKind;
+use desurface_geom::Vec3;
 
 use super::CommandSpec;
 use crate::params::{bad, bool_};

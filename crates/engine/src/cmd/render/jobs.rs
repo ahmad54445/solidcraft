@@ -1,9 +1,9 @@
 use crate::{Result, Session, params::bad, render_jobs::job_error};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::render_resources::{CpuHdrEnvironment, GpuHdrEnvironment};
-use solidcraft_doc::render_settings::{RenderJob, RenderSetup};
-use solidcraft_render::{
+use desurface_doc::render_resources::{CpuHdrEnvironment, GpuHdrEnvironment};
+use desurface_doc::render_settings::{RenderJob, RenderSetup};
+use desurface_render::{
     RenderOperation, RenderRequest,
     job::{ImageRequest, Integrator, JobId, RaytraceOptions},
 };
@@ -19,7 +19,7 @@ struct Start {
     integrator: Integrator,
     environment: Option<EnvironmentRequest>,
     raytrace: Option<RaytraceOptions>,
-    led_strip: Option<solidcraft_render::job::led_strip::LedStripOptions>,
+    led_strip: Option<desurface_render::job::led_strip::LedStripOptions>,
     led_samples: Option<u32>,
     setup: Option<String>,
     settings: Option<RenderSetup>,
@@ -31,8 +31,8 @@ struct Start {
 #[serde(default, deny_unknown_fields)]
 struct EnvironmentRequest {
     path: String,
-    resource: Option<solidcraft_doc::render_resources::HdrId>,
-    expected_sha256: Option<solidcraft_doc::render_resources::HdrId>,
+    resource: Option<desurface_doc::render_resources::HdrId>,
+    expected_sha256: Option<desurface_doc::render_resources::HdrId>,
     rotation_radians: f64,
     intensity: f64,
     samples: u32,
@@ -46,14 +46,14 @@ impl Default for EnvironmentRequest {
 #[derive(Default, Deserialize)]
 #[serde(default, deny_unknown_fields)]
 struct ProgressiveStart {
-    aging: solidcraft_doc::render_aging::SavedAgingStack,
+    aging: desurface_doc::render_aging::SavedAgingStack,
     #[serde(default)]
     nested_media: bool,
-    volume: Option<solidcraft_render::job::volume::HomogeneousVolume>,
-    adaptive: Option<solidcraft_render::job::adaptive::AdaptiveSampling>,
+    volume: Option<desurface_render::job::volume::HomogeneousVolume>,
+    adaptive: Option<desurface_render::job::adaptive::AdaptiveSampling>,
     transmission_samples: Option<u32>,
-    finishing: solidcraft_render::job::finishing::Finishing,
-    backdrop: Option<solidcraft_render::job::finishing::Backdrop>,
+    finishing: desurface_render::job::finishing::Finishing,
+    backdrop: Option<desurface_render::job::finishing::Backdrop>,
     linear_exr: bool,
     integrator: Integrator,
     setup: Option<String>,
@@ -65,21 +65,21 @@ struct ProgressiveStart {
     max_depth: Option<u32>,
     seed: Option<u32>,
     raytrace: super::transmission::Raytrace,
-    lens: Option<solidcraft_render::job::ThinLens>,
-    lighting: Option<solidcraft_render::job::StudioLighting>,
-    tone_map: Option<solidcraft_render::job::ToneMap>,
+    lens: Option<desurface_render::job::ThinLens>,
+    lighting: Option<desurface_render::job::StudioLighting>,
+    tone_map: Option<desurface_render::job::ToneMap>,
     environment: Option<super::environment::Input>,
     denoise: bool,
 }
 
 struct Prepared {
     replace: bool,
-    scene: solidcraft_render::ProductScene,
+    scene: desurface_render::ProductScene,
     request: ImageRequest,
     reply: Value,
-    executor: solidcraft_render::ExecutorId,
-    options: solidcraft_render::job::JobOptions,
-    environment: Option<solidcraft_render::lighting::environment_input::EnvironmentInput>,
+    executor: desurface_render::ExecutorId,
+    options: desurface_render::job::JobOptions,
+    environment: Option<desurface_render::lighting::environment_input::EnvironmentInput>,
 }
 
 fn lower_led(input: &mut Start, command: &str) -> Result<()> {
@@ -133,8 +133,8 @@ enum SavedHdr {
 struct Normalized {
     params: Value,
     hdr: Option<SavedHdr>,
-    surfaces: solidcraft_doc::render_surface::SurfaceBindings,
-    optics: solidcraft_doc::render_optics::OpticalBindings,
+    surfaces: desurface_doc::render_surface::SurfaceBindings,
+    optics: desurface_doc::render_optics::OpticalBindings,
 }
 
 fn normalize_saved_job(s: &Session, params: &Value, command: &str) -> Result<Option<Normalized>> {
@@ -287,7 +287,7 @@ fn prepare(s: &Session, params: &Value, command: &str) -> Result<Prepared> {
         }
         let resource = s.doc.render.resources.required(&hdr.resource).map_err(|e| bad(command, e.to_string()))?;
         Some(
-            solidcraft_render::lighting::environment_input::EnvironmentInput::new(resource.source(), hdr.rotation_rad, hdr.intensity, hdr.samples)
+            desurface_render::lighting::environment_input::EnvironmentInput::new(resource.source(), hdr.rotation_rad, hdr.intensity, hdr.samples)
                 .map_err(|e| bad(command, e.to_string()))?,
         )
     } else if let Some(environment) = &input.environment {
@@ -308,14 +308,14 @@ fn prepare(s: &Session, params: &Value, command: &str) -> Result<Prepared> {
                 return Err(bad(command, "environment requires a bounded HDR input path"));
             }
             let bytes =
-                solidcraft_io::vfs::read(&environment.path, solidcraft_render::lighting::MAX_HDR_BYTES).map_err(|e| bad(command, e.to_string()))?;
-            if environment.expected_sha256.is_some_and(|id| id != solidcraft_doc::render_resources::HdrId::of(&bytes)) {
+                desurface_io::vfs::read(&environment.path, desurface_render::lighting::MAX_HDR_BYTES).map_err(|e| bad(command, e.to_string()))?;
+            if environment.expected_sha256.is_some_and(|id| id != desurface_doc::render_resources::HdrId::of(&bytes)) {
                 return Err(bad(command, "HDR file changed since selection; inspect and select it again"));
             }
-            solidcraft_render::lighting::HdrSource::new(bytes).map_err(|e| bad(command, e.to_string()))?
+            desurface_render::lighting::HdrSource::new(bytes).map_err(|e| bad(command, e.to_string()))?
         };
         Some(
-            solidcraft_render::lighting::environment_input::EnvironmentInput::new(
+            desurface_render::lighting::environment_input::EnvironmentInput::new(
                 source,
                 environment.rotation_radians,
                 environment.intensity,
@@ -347,7 +347,7 @@ fn prepare(s: &Session, params: &Value, command: &str) -> Result<Prepared> {
         return Err(bad(command, "passive stages require a raytrace executor"));
     }
     super::staging::apply(&mut scene, &settings, command)?;
-    let budget = input.raytrace.as_ref().map_or(solidcraft_render::job::CpuBudget::Compact, |o| o.budget);
+    let budget = input.raytrace.as_ref().map_or(desurface_render::job::CpuBudget::Compact, |o| o.budget);
     if input.integrator == Integrator::Raytrace {
         settings.validate_for_cpu(budget).map_err(|e| bad(command, e.to_string()))?;
         budget.validate_execution().map_err(job_error)?;
@@ -367,14 +367,14 @@ fn prepare(s: &Session, params: &Value, command: &str) -> Result<Prepared> {
     backend.executors = vec![descriptor];
     let mut features = scene.required_features();
     if environment.is_some() {
-        features.push(solidcraft_render::RenderFeature::Hdri);
+        features.push(desurface_render::RenderFeature::Hdri);
     }
     let refraction = input.raytrace.as_ref().is_some_and(|options| !options.dielectrics.is_empty());
-    if refraction && !features.contains(&solidcraft_render::RenderFeature::Refraction) {
-        features.push(solidcraft_render::RenderFeature::Refraction);
+    if refraction && !features.contains(&desurface_render::RenderFeature::Refraction) {
+        features.push(desurface_render::RenderFeature::Refraction);
     }
     let environment_info = environment.as_ref().map(|e| e.metadata());
-    let resolved = solidcraft_render::resolve_request(
+    let resolved = desurface_render::resolve_request(
         &[backend],
         &RenderRequest {
             backend: Some(settings.backend.clone()),
@@ -402,11 +402,11 @@ fn prepare(s: &Session, params: &Value, command: &str) -> Result<Prepared> {
         background: settings.background,
         transparent_background: input.transparent_background,
     };
-    let mut admission = solidcraft_render::job::admit(&scene, &request).map_err(job_error)?;
+    let mut admission = desurface_render::job::admit(&scene, &request).map_err(job_error)?;
     let environment_bytes = environment.as_ref().map_or(Ok(0), |e| e.required_bytes()).map_err(|e| bad(command, e.to_string()))?;
     let retained_lights = request.raytrace.as_ref().map_or(Ok(0), |o| o.retained_bytes()).map_err(job_error)?;
     let retained_environment =
-        if environment_info.is_some() { std::mem::size_of::<solidcraft_render::lighting::environment_input::EnvironmentInfo>() as u64 } else { 0 };
+        if environment_info.is_some() { std::mem::size_of::<desurface_render::lighting::environment_input::EnvironmentInfo>() as u64 } else { 0 };
     let retained_request_bytes = retained_lights.checked_add(retained_environment).ok_or_else(|| bad(command, "request metadata overflow"))?;
 
     admission.estimated_total_bytes = admission
@@ -432,8 +432,8 @@ fn prepare_progressive(
     command: &str,
     require_gpu_path: bool,
     saved_hdr: Option<GpuHdrEnvironment>,
-    saved_surfaces: Option<&solidcraft_doc::render_surface::SurfaceBindings>,
-    saved_optics: Option<&solidcraft_doc::render_optics::OpticalBindings>,
+    saved_surfaces: Option<&desurface_doc::render_surface::SurfaceBindings>,
+    saved_optics: Option<&desurface_doc::render_optics::OpticalBindings>,
 ) -> Result<Prepared> {
     let cpu_raytrace = params
         .get("raytrace")
@@ -505,7 +505,7 @@ fn prepare_progressive(
         return Err(bad(command, "sampling and exposure controls require progressive rendering"));
     }
     super::staging::apply(&mut scene, &settings, command)?;
-    let mut options = solidcraft_render::job::JobOptions::default();
+    let mut options = desurface_render::job::JobOptions::default();
     if let Some(samples) = input.samples {
         options.samples = samples;
     }
@@ -541,7 +541,7 @@ fn prepare_progressive(
         }
         let resource = s.doc.render.resources.required(&hdr.resource).map_err(|e| bad(command, e.to_string()))?;
         Some(std::sync::Arc::new(
-            solidcraft_render::lighting::environment::EnvironmentSource::from_hdr(
+            desurface_render::lighting::environment::EnvironmentSource::from_hdr(
                 resource.source(),
                 hdr.rotation_rad,
                 hdr.intensity,
@@ -554,12 +554,12 @@ fn prepare_progressive(
     };
     let mut features = scene.required_features();
     if environment.is_some() {
-        features.push(solidcraft_render::RenderFeature::Hdri);
+        features.push(desurface_render::RenderFeature::Hdri);
     }
     if input.progressive {
-        features.push(solidcraft_render::RenderFeature::Progressive);
+        features.push(desurface_render::RenderFeature::Progressive);
         if scene.has_transmission() {
-            features.push(solidcraft_render::RenderFeature::Refraction);
+            features.push(desurface_render::RenderFeature::Refraction);
         }
     }
     let mut backend = s.render_backend();
@@ -569,7 +569,7 @@ fn prepare_progressive(
             return Err(bad(command, "saved gpu_path method requires an installed gpu-path executor"));
         }
     }
-    let resolved = solidcraft_render::resolve_request(
+    let resolved = desurface_render::resolve_request(
         &[backend],
         &RenderRequest {
             backend: Some(settings.backend.clone()),
@@ -648,7 +648,7 @@ pub(super) fn start(s: &mut Session, params: &Value) -> Result<Value> {
 #[serde(deny_unknown_fields)]
 struct Regrade {
     job: JobId,
-    presentation: solidcraft_render::job::presentation::Presentation,
+    presentation: desurface_render::job::presentation::Presentation,
 }
 pub(super) fn regrade(s: &mut Session, params: &Value) -> Result<Value> {
     let input: Regrade = serde_json::from_value(params.clone()).map_err(|e| bad("render.result.regrade", e.to_string()))?;
@@ -726,7 +726,7 @@ pub(super) fn export(s: &mut Session, params: &Value) -> Result<Value> {
     }
     // Atomic native writers are also used for the app's own files and do not
     // apply a request's path scope. Check the caller's destination explicitly.
-    solidcraft_io::vfs::check(&input.path).map_err(|e| bad("render.export", e.to_string()))?;
+    desurface_io::vfs::check(&input.path).map_err(|e| bad("render.export", e.to_string()))?;
     let frame = s.render_jobs.frame(input.job).map_err(job_error)?;
     let bytes = match input.format {
         ExportFormat::Png => frame.png(),
@@ -737,7 +737,7 @@ pub(super) fn export(s: &mut Session, params: &Value) -> Result<Value> {
     // Replace atomically without reading an arbitrarily large previous target into memory.
     // Design saves retain their independent backup policy.
     let result =
-        if input.overwrite { solidcraft_io::write_atomic(path, bytes, false) } else { solidcraft_io::safe_write::create_atomic(path, bytes) };
+        if input.overwrite { desurface_io::write_atomic(path, bytes, false) } else { desurface_io::safe_write::create_atomic(path, bytes) };
     result.map_err(|e| bad("render.export", format!("could not export completed {}: {e}", input.format.extension())))?;
     Ok(
         json!({"job":input.job,"path":input.path,"bytes":bytes.len(),"format":input.format.extension(),"encoding":if input.format==ExportFormat::Exr {"scene_linear_srgb_d65"} else {"srgb"},"alpha":if input.format==ExportFormat::Exr {"coverage_premultiplied"} else {"straight"},"frame":frame.info,"linear_master":frame.linear_master_info(),"presentation":frame.presentation()}),

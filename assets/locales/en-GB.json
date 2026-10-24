@@ -103,5 +103,5 @@
   "ui.ribbon_labels": "Show text under ribbon icons",
   "ui.workspace_layout": "Workspace layout",
   "ui.zoom_to_cursor_tip": "The wheel zooms towards the point under the cursor (off: towards the view's centre)",
-  "update.prefs_flatpak": "Flatpak updates this copy ({version}): run {command} or use your software centre. SolidCraft doesn't check."
+  "update.prefs_flatpak": "Flatpak updates this copy ({version}): run {command} or use your software centre. DeSurface doesn't check."
 }

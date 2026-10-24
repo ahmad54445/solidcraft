@@ -3,9 +3,9 @@
 use crate::dialogs_appearance::selected_params;
 use crate::{SolveApp, dialogs_appearance::Ap, selection::SelInput, ui_kit};
 use serde_json::json;
-use solidcraft_engine::io::catalog::Catalog;
+use desurface_engine::io::catalog::Catalog;
 #[cfg(not(target_arch = "wasm32"))]
-use solidcraft_engine::io::catalog::Definition;
+use desurface_engine::io::catalog::Definition;
 use std::sync::Arc;
 
 #[derive(Clone, Debug, Default)]

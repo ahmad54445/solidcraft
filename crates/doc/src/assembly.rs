@@ -9,7 +9,7 @@
 //! and the engine maps a new feature's geometry into the active component's frame.
 
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::{Plane, Vec3};
+use desurface_geom::{Plane, Vec3};
 
 use crate::{DocError, Document, FeatureKind, PlaneRef, Result};
 

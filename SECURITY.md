@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-SolidCraft is young and moves quickly, so only the latest release gets security fixes. Please
+DeSurface is young and moves quickly, so only the latest release gets security fixes. Please
 update to the [latest release](https://github.com/bherbruck/solidcraft/releases/latest) before
 reporting, and check whether the problem is still on `main`.
 

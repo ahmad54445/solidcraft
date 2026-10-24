@@ -1,6 +1,6 @@
 [package]
-name = "solidcraft-render"
-description = "SolidCraft view math (orbit camera, projection, picking rays), the description of headless pictures, and product render jobs"
+name = "desurface-render"
+description = "DeSurface view math (orbit camera, projection, picking rays), the description of headless pictures, and product render jobs"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,7 +13,7 @@ default = []
 raytrace-cpu = []
 
 [dependencies]
-solidcraft-geom = { workspace = true }
+desurface-geom = { workspace = true }
 serde = { workspace = true }
 image = { workspace = true, features = ["jpeg"] }
 moxcms = { workspace = true }

@@ -1,5 +1,5 @@
 {
-  description = "SolidCraft — native app development shell and package for Linux and macOS";
+  description = "DeSurface — native app development shell and package for Linux and macOS";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
 
@@ -25,8 +25,8 @@
       # that is the driver stack the compositor runs on. Verified on an Intel LNL iGPU under
       # Wayland: wgpu picks the GL backend through this loader and draws.
       # The X11 libraries are the ones the app actually uses on a Wayland desktop: with `DISPLAY`
-      # set and `SOLIDCRAFT_WAYLAND` unset, winit runs through XWayland (file drag and drop exists
-      # only there). The Wayland ones are for `SOLIDCRAFT_WAYLAND=1`, and both are needed under
+      # set and `DESURFACE_WAYLAND` unset, winit runs through XWayland (file drag and drop exists
+      # only there). The Wayland ones are for `DESURFACE_WAYLAND=1`, and both are needed under
       # `xvfb-run` on a machine with no display at all.
       runtimeLibs =
         pkgs:
@@ -60,11 +60,11 @@
       shellHook = pkgs: ''
         ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
           if [ ! -d ${driverLibDir pkgs} ]; then
-            echo "SolidCraft: ${driverLibDir pkgs} is missing — on NixOS enable hardware.graphics; on other distributions use a matching nixGL driver wrapper." >&2
+            echo "DeSurface: ${driverLibDir pkgs} is missing — on NixOS enable hardware.graphics; on other distributions use a matching nixGL driver wrapper." >&2
           fi
         ''}
-        command -v cc >/dev/null || echo "solidcraft: no C linker on PATH, cargo cannot link — use nix develop .#rust" >&2
-        echo "solidcraft: cargo run --release -p solidcraft -- --sample"
+        command -v cc >/dev/null || echo "desurface: no C linker on PATH, cargo cannot link — use nix develop .#rust" >&2
+        echo "desurface: cargo run --release -p desurface -- --sample"
         ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
           export XDG_DATA_DIRS="${driverShareDir pkgs}:''${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
         ''}
@@ -77,7 +77,7 @@
         # second rustc — or mkShell's second gcc, with another glibc behind it — would make every
         # `cargo build` produce binaries from somewhere else.
         default = pkgs.mkShellNoCC {
-          name = "solidcraft";
+          name = "desurface";
           LD_LIBRARY_PATH = libraryPath pkgs;
           shellHook = shellHook pkgs;
         };
@@ -85,7 +85,7 @@
         # For a machine with no Rust at all: `nix develop .#rust`. Its own target directory, so
         # switching between this toolchain and the system one does not thrash the cache.
         rust = pkgs.mkShell {
-          name = "solidcraft-rust";
+          name = "desurface-rust";
           packages = [
             pkgs.cargo
             pkgs.rustc
@@ -97,18 +97,18 @@
           CARGO_TARGET_DIR = "target/nix";
           shellHook = ''
             ${shellHook pkgs}
-            echo "solidcraft: $(rustc --version), building into target/nix"
+            echo "desurface: $(rustc --version), building into target/nix"
           '';
         };
       });
 
       packages = forAllSystems (pkgs: rec {
-        default = solidcraft;
-        solidcraft = assert pkgs.lib.assertMsg
+        default = desurface;
+        desurface = assert pkgs.lib.assertMsg
           (pkgs.lib.versionAtLeast pkgs.rustc.version (pkgs.lib.importTOML ./Cargo.toml).workspace.package.rust-version)
-          "SolidCraft requires the Rust version advertised in Cargo.toml; update the pinned nixpkgs input.";
+          "DeSurface requires the Rust version advertised in Cargo.toml; update the pinned nixpkgs input.";
           pkgs.rustPlatform.buildRustPackage {
-          pname = "solidcraft";
+          pname = "desurface";
           version = (pkgs.lib.importTOML ./Cargo.toml).workspace.package.version;
           src = self;
 
@@ -116,15 +116,15 @@
           # The CLI draws the same packaging icons as the other Linux distributions.
           cargoBuildFlags = [
             "-p"
-            "solidcraft"
+            "desurface"
             "-p"
-            "solidcraft-cli"
+            "desurface-cli"
           ];
           cargoInstallFlags = [
             "-p"
-            "solidcraft"
+            "desurface"
             "-p"
-            "solidcraft-cli"
+            "desurface-cli"
           ];
           # `cargo xtask ci` is the test gate (it wants a wasm target and a GPU); the sandbox has
           # neither.
@@ -135,14 +135,14 @@
 
           postInstall = ''
             ${pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-              install -Dm644 assets/platforms/linux/ai.storyteller.solidcraft.desktop \
-                $out/share/applications/ai.storyteller.solidcraft.desktop
-              install -Dm644 assets/platforms/linux/ai.storyteller.solidcraft.mime.xml \
-                $out/share/mime/packages/ai.storyteller.solidcraft.xml
+              install -Dm644 assets/platforms/linux/ai.storyteller.desurface.desktop \
+                $out/share/applications/ai.storyteller.desurface.desktop
+              install -Dm644 assets/platforms/linux/ai.storyteller.desurface.mime.xml \
+                $out/share/mime/packages/ai.storyteller.desurface.xml
               for size in 16 24 32 48 64 128 256 512; do
-                icon=$out/share/icons/hicolor/''${size}x''${size}/apps/ai.storyteller.solidcraft.png
+                icon=$out/share/icons/hicolor/''${size}x''${size}/apps/ai.storyteller.desurface.png
                 mkdir -p "$(dirname "$icon")"
-                cp assets/icons/app/linux/exports/hicolor/''${size}x''${size}/apps/ai.storyteller.solidcraft.png "$icon" >/dev/null
+                cp assets/icons/app/linux/exports/hicolor/''${size}x''${size}/apps/ai.storyteller.desurface.png "$icon" >/dev/null
               done
             ''}
           '';
@@ -150,7 +150,7 @@
           # Linux only: the app reaches the window through dlopen'd libraries, so the packaged
           # binary needs the same LD_LIBRARY_PATH the shell exports. macOS needs no wrapper.
           postFixup = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
-            wrapProgram $out/bin/solidcraft \
+            wrapProgram $out/bin/desurface \
               --prefix LD_LIBRARY_PATH : "${libraryPath pkgs}" \
               --set-default XDG_DATA_DIRS /usr/local/share:/usr/share \
               --prefix XDG_DATA_DIRS : "$out/share:${driverShareDir pkgs}"
@@ -163,18 +163,18 @@
               mit
               asl20
             ];
-            mainProgram = "solidcraft";
+            mainProgram = "desurface";
           };
         };
       });
 
       apps = forAllSystems (pkgs: let
         package = self.packages.${pkgs.stdenv.hostPlatform.system}.solidcraft;
-        desktop = { type = "app"; program = "${package}/bin/solidcraft"; };
+        desktop = { type = "app"; program = "${package}/bin/desurface"; };
       in {
         default = desktop;
-        solidcraft = desktop;
-        cli = { type = "app"; program = "${package}/bin/solidcraft-cli"; };
+        desurface = desktop;
+        cli = { type = "app"; program = "${package}/bin/desurface-cli"; };
       });
     };
 }

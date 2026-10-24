@@ -14,7 +14,7 @@ effective face responses. HDR plus anisotropy requires the supported rough
 reflection combination; direct anisotropic HDR and anisotropic delta mirrors
 refuse. Those additions do not imply MIS, GI or unrestricted material transport.
 
-The opt-in `solidcraft-engine/raytrace-cpu` feature forwards the render feature.
+The opt-in `desurface-engine/raytrace-cpu` feature forwards the render feature.
 The native host selects `cpu-raytrace` only for explicit
 `integrator: "raytrace"`; raster remains the default, and cooperative/browser
 hosts refuse ray tracing. Use the same preflight/start/status/cancel/export
@@ -47,7 +47,7 @@ cumulative work cap remains 1,000,000,000.
 
 ### Desktop CPU/AA controls
 
-The optional desktop feature `solidcraft/raytrace-cpu` forwards the engine feature
+The optional desktop feature `desurface/raytrace-cpu` forwards the engine feature
 and enables the Render image-method choice when the installed image host supports
 ray tracing. Raster remains the default. CPU **Edge samples** offers exactly
 1× (the original fixed centre), 4× or 16×. Preset lighting, cast shadows and
@@ -109,7 +109,7 @@ request. No cap, assertion, tolerance, ignore or golden-baseline change is impli
 
 The stage-specific descriptions below record the original direct-image scope,
 not a current pass/fail report. This opt-in slice of #1368 follows the phased
-render design in #620 and connects SolidCraft's original RT1 triangle/BVH core
+render design in #620 and connects DeSurface's original RT1 triangle/BVH core
 to immutable product captures and the existing image-job host. The
 `raytrace-cpu` Cargo feature stays off by default.
 

@@ -3,8 +3,8 @@
 use std::{error::Error, io::Write, path::PathBuf, time::Instant};
 
 use serde::Serialize;
-use solidcraft_geom::Vec2;
-use solidcraft_sketch::{
+use desurface_geom::Vec2;
+use desurface_sketch::{
     Analysis, ConstraintKind, DrivingValues, Hold, Sketch, SolveReport,
     profiling::{Counters, SolveProfile, Timings, capture},
     solve_after_value_edit, solve_with,
@@ -288,7 +288,7 @@ fn main() -> Result<()> {
         })
         .collect::<Result<_>>()?;
     let output = serde_json::json!({
-        "schema": "solidcraft/sketch-profile/1", "package_version": env!("CARGO_PKG_VERSION"),
+        "schema": "desurface/sketch-profile/1", "package_version": env!("CARGO_PKG_VERSION"),
         "os": std::env::consts::OS, "arch": std::env::consts::ARCH, "debug_assertions": cfg!(debug_assertions),
         "seed": opt.seed, "scale": opt.scale, "offset_mm": opt.offset, "size": opt.size,
         "repeats": opt.repeats, "warmup": opt.warmup, "analysis": match opt.analysis { Analysis::Full => "full", Analysis::Freedom => "freedom", Analysis::StatusOnly => "status" },

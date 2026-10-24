@@ -72,7 +72,7 @@ class Synthetic(unittest.TestCase):
             self.assertEqual(affected.select(SYNTH, [p]), (False, []), p)
 
     def test_windows_metadata_selects_packages_and_preserves_triggers(self):
-        for root in [r"C:\work space\solidcraft", r"\\server\shared work\solidcraft"]:
+        for root in [r"C:\work space\desurface", r"\\server\shared work\desurface"]:
             for trailing in ["", "\\", "/"]:
                 with self.subTest(root=root, trailing=trailing):
                     meta = windows_metadata(root + trailing)
@@ -83,7 +83,7 @@ class Synthetic(unittest.TestCase):
                         self.assertEqual(affected.select(meta, [path]), (True, []), path)
 
     def test_windows_metadata_rejects_a_manifest_in_a_sibling_workspace(self):
-        for root in [r"C:\work space\solidcraft", r"\\server\shared work\solidcraft"]:
+        for root in [r"C:\work space\desurface", r"\\server\shared work\desurface"]:
             with self.subTest(root=root):
                 meta = windows_metadata(root + "\\")
                 sibling = root.replace("\\", "/") + "-sibling/crates/base/Cargo.toml"
@@ -100,9 +100,9 @@ class RealWorkspace(unittest.TestCase):
     def test_render_change_selects_render_and_dependents_not_kernel(self):
         full, pk = affected.select(self.meta, ["crates/render/src/lib.rs"])
         self.assertFalse(full)
-        self.assertIn("solidcraft-render", pk)
+        self.assertIn("desurface-render", pk)
         self.assertGreater(len(pk), 1)
-        self.assertNotIn("solidcraft-kernel", pk)
+        self.assertNotIn("desurface-kernel", pk)
 
     def test_cargo_lock_selects_full(self):
         self.assertEqual(affected.select(self.meta, ["Cargo.lock"]), (True, []))
@@ -113,25 +113,25 @@ class RealWorkspace(unittest.TestCase):
     def test_goldens_select_the_engine_and_its_dependents_not_the_kernel(self):
         full, pk = affected.select(self.meta, ["tests/robustness/goldens.json"])
         self.assertFalse(full)
-        self.assertIn("solidcraft-engine", pk)
-        self.assertNotIn("solidcraft-kernel", pk)
-        self.assertNotIn("solidcraft-render", pk)
+        self.assertIn("desurface-engine", pk)
+        self.assertNotIn("desurface-kernel", pk)
+        self.assertNotIn("desurface-render", pk)
 
     def test_oracle_cases_select_the_cli_and_xtask_not_the_kernel(self):
         full, pk = affected.select(self.meta, ["tests/oracle/box/recipe.json"])
         self.assertFalse(full)
-        self.assertIn("solidcraft-cli", pk)
+        self.assertIn("desurface-cli", pk)
         self.assertIn("xtask", pk)
-        self.assertNotIn("solidcraft-kernel", pk)
+        self.assertNotIn("desurface-kernel", pk)
 
     def test_embedded_root_files_select_their_crate(self):
-        for path, pkg in [("ATTRIBUTION.md", "solidcraft-ui-egui"), ("LICENSE-MIT", "solidcraft-engine"),
-                          ("NOTICE", "solidcraft-engine"), ("THIRD-PARTY-LICENSES.txt", "solidcraft-engine"),
-                          ("skills/solidcraft-modeling/SKILL.md", "solidcraft-mcp")]:
+        for path, pkg in [("ATTRIBUTION.md", "desurface-ui-egui"), ("LICENSE-MIT", "desurface-engine"),
+                          ("NOTICE", "desurface-engine"), ("THIRD-PARTY-LICENSES.txt", "desurface-engine"),
+                          ("skills/desurface-modeling/SKILL.md", "desurface-mcp")]:
             full, pk = affected.select(self.meta, [path])
             self.assertFalse(full, path)
             self.assertIn(pkg, pk, path)
-            self.assertNotIn("solidcraft-kernel", pk, path)
+            self.assertNotIn("desurface-kernel", pk, path)
 
     def test_unmapped_test_data_selects_full(self):
         self.assertEqual(affected.select(self.meta, ["tests/tools/x.json"]), (True, []))
@@ -139,18 +139,18 @@ class RealWorkspace(unittest.TestCase):
     def test_vendored_truck_selects_the_kernel_and_up_not_render(self):
         full, pk = affected.select(self.meta, ["vendor/truck-shapeops/src/lib.rs"])
         self.assertFalse(full)
-        self.assertIn("solidcraft-kernel", pk)
-        self.assertIn("solidcraft-engine", pk)
-        self.assertNotIn("solidcraft-render", pk)
-        self.assertNotIn("solidcraft-geom", pk)
+        self.assertIn("desurface-kernel", pk)
+        self.assertIn("desurface-engine", pk)
+        self.assertNotIn("desurface-render", pk)
+        self.assertNotIn("desurface-geom", pk)
 
     def test_vendored_egui_wgpu_selects_the_ui_and_apps_not_the_kernel(self):
         full, pk = affected.select(self.meta, ["vendor/egui-wgpu/src/winit.rs"])
         self.assertFalse(full)
-        self.assertIn("solidcraft-ui-egui", pk)
-        self.assertIn("solidcraft", pk)
-        self.assertNotIn("solidcraft-kernel", pk)
-        self.assertNotIn("solidcraft-engine", pk)
+        self.assertIn("desurface-ui-egui", pk)
+        self.assertIn("desurface", pk)
+        self.assertNotIn("desurface-kernel", pk)
+        self.assertNotIn("desurface-engine", pk)
 
     def test_vendor_readme_alone_selects_nothing(self):
         self.assertEqual(affected.select(self.meta, ["vendor/README.md"]), (False, []))
@@ -158,10 +158,10 @@ class RealWorkspace(unittest.TestCase):
     def test_translation_selects_the_ui_and_xtask_not_the_kernel(self):
         full, pk = affected.select(self.meta, ["assets/locales/ja.json", "assets/locales/it.json"])
         self.assertFalse(full)
-        self.assertIn("solidcraft-ui-egui", pk)
+        self.assertIn("desurface-ui-egui", pk)
         self.assertIn("xtask", pk)
-        self.assertNotIn("solidcraft-kernel", pk)
-        self.assertNotIn("solidcraft-engine", pk)
+        self.assertNotIn("desurface-kernel", pk)
+        self.assertNotIn("desurface-engine", pk)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Build the enhanced native SELENE through reproducible SolidCraft commands.
+"""Build the enhanced native SELENE through reproducible DeSurface commands.
 
 Each stage runs in a fresh native process and is saved before the next stage.
 This bounds undo-history memory on the large source model. Successful resume
 requires unchanged input, executable, command recipe and checkpoint hashes.
-The source archive is inspected read-only; only SolidCraft writes CAD state.
+The source archive is inspected read-only; only DeSurface writes CAD state.
 """
 
 from __future__ import annotations
@@ -70,7 +70,7 @@ def health(inventory: dict) -> None:
 
 def execute(cli: Path, arguments: list[str], log: Path, timeout: float) -> None:
     env = os.environ.copy()
-    env.update(RAYON_NUM_THREADS="2", MALLOC_ARENA_MAX="1", SOLIDCRAFT_GPU="cpu",
+    env.update(RAYON_NUM_THREADS="2", MALLOC_ARENA_MAX="1", DESURFACE_GPU="cpu",
                MALLOC_MMAP_THRESHOLD_="65536", MALLOC_TRIM_THRESHOLD_="65536")
     started = time.monotonic()
     with log.open("wb") as stream:

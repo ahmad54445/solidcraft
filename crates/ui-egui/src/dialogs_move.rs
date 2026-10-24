@@ -5,9 +5,9 @@
 use crate::selection::SelectionExt as _;
 use crate::ui_kit::{choice_row, expr_row};
 use serde_json::{Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::expr::Kind as ValueKind;
-use solidcraft_engine::geom::Vec3;
+use desurface_engine::Sel;
+use desurface_engine::doc::expr::Kind as ValueKind;
+use desurface_engine::geom::Vec3;
 
 use crate::SolveApp;
 use crate::dialogs::{Dialog, Kind};
@@ -321,9 +321,9 @@ pub fn drag(app: &SolveApp, d: &mut Dialog, g: Drag) {
 pub fn for_feature(
     d: &mut Dialog,
     bodies: &[String],
-    translate: &[solidcraft_engine::doc::Expr; 3],
+    translate: &[desurface_engine::doc::Expr; 3],
     axis: Option<Vec3>,
-    angle: Option<&solidcraft_engine::doc::Expr>,
+    angle: Option<&desurface_engine::doc::Expr>,
     copy: bool,
 ) {
     let [x, y, z] = translate.clone().map(String::from);

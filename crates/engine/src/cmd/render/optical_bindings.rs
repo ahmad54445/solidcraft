@@ -3,12 +3,12 @@
 use crate::{Result, Session, params::bad};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::{
+use desurface_doc::{
     render_optics::{OpticalBindings, OpticalMaterial, SavedOptics},
     render_settings::RenderJob,
     render_surface::RenderBodyTarget,
 };
-use solidcraft_render::ProductScene;
+use desurface_render::ProductScene;
 use std::{collections::BTreeMap, sync::Arc};
 
 pub(super) fn resolve(s: &Session, scene: &ProductScene, bindings: &OpticalBindings, command: &str) -> Result<Vec<super::transmission::Override>> {
@@ -125,7 +125,7 @@ mod tests {
         let saved = s.doc.to_json();
         assert_eq!(s.doc.features, geometry);
         assert_eq!(s.doc.materials, physical);
-        let reopened = solidcraft_doc::Document::from_json(&saved).unwrap();
+        let reopened = desurface_doc::Document::from_json(&saved).unwrap();
         assert_eq!(reopened.render, s.doc.render);
         let scene = crate::product_scene::extract(&s).unwrap();
         assert_eq!(resolve(&s, &scene, &s.doc.render.setups["Studio"].optics, "check").unwrap().len(), 1);

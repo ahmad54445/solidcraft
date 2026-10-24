@@ -5,7 +5,7 @@
 use std::ops::{Deref, DerefMut};
 
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 macro_rules! point_type {
     ($(#[$doc:meta])* $name:ident) => {

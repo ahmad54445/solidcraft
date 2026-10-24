@@ -14,7 +14,7 @@
 
 use std::collections::{HashMap, HashSet};
 
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 use truck_modeling::{self as mt};
 
 use crate::blend::{edge_mid, too_large, unsupported, vtx};

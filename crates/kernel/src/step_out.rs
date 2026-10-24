@@ -11,7 +11,7 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
 
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 use crate::body::Body;
 use crate::step_in::p21::{self, Param};
@@ -41,7 +41,7 @@ pub struct StepHeader {
     pub time_stamp: String,
     pub author: String,
     pub organization: String,
-    /// FILE_DESCRIPTION text; `SolidCraft model` when empty.
+    /// FILE_DESCRIPTION text; `DeSurface model` when empty.
     pub description: String,
 }
 
@@ -1507,7 +1507,7 @@ fn trim_sheet(sheet: &truck_modeling::Surface, pts: &[V3]) -> Option<truck_model
 /// as cylinders and cones (see `analytic_sheets`) and those to write cut down to their faces
 /// (see `trimmed_sheets`). Without `merge` the file is truck's, as is.
 fn brep_exchange(b: &Body, merge: bool) -> Result<(p21::Exchange, HashMap<u64, V3>, HashMap<u64, truck_modeling::Surface>, HashMap<u64, FaceLook>)> {
-    let text = crate::step::truck_step(&[b], "SolidCraft")?;
+    let text = crate::step::truck_step(&[b], "DeSurface")?;
     let mut ex = p21::parse(&text).map_err(|e| KernelError::Failed(format!("STEP export: {e}")))?;
     collapse_short_edges(&mut ex);
     // Face colours by exchange face: truck writes each shell's faces in the body's face order.
@@ -1791,11 +1791,11 @@ fn products_text(products: &[ExportProduct], root: usize, header: &StepHeader, m
 
     let mut s = String::new();
     s.push_str("ISO-10303-21;\nHEADER;\n");
-    let description = if header.description.is_empty() { "SolidCraft model" } else { header.description.as_str() };
+    let description = if header.description.is_empty() { "DeSurface model" } else { header.description.as_str() };
     let _ = writeln!(s, "FILE_DESCRIPTION(({}),'2;1');", string(description));
     let _ = writeln!(
         s,
-        "FILE_NAME({},{},({}),({}),'SolidCraft','SolidCraft','');",
+        "FILE_NAME({},{},({}),({}),'DeSurface','DeSurface','');",
         string(&header.file_name),
         string(&header.time_stamp),
         string(&header.author),
@@ -1849,7 +1849,7 @@ mod tests {
 
     #[test]
     fn islands_are_solids_of_their_own_not_voids() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let square = |a: f64, b: f64| Loop2::polygon(&[Vec2::new(a, a), Vec2::new(b, a), Vec2::new(b, b), Vec2::new(a, b)]);
         // A plate with a square hole, and an island inside the hole (a letter's counter).
         let plate = Region2 { outer: square(0.0, 30.0), holes: vec![square(10.0, 20.0).reversed()] };
@@ -1883,7 +1883,7 @@ mod tests {
     /// sides.
     #[test]
     fn seam_loops_turn_the_way_the_angle_grows() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let plate = crate::box_solid(Vec3::new(-60.0, -40.0, 0.0), Vec3::new(60.0, 40.0, 10.0)).unwrap();
         let mut b = plate;
         for (x, y) in [(-45.0, -30.0), (45.0, -30.0), (45.0, 30.0), (-45.0, 30.0)] {
@@ -1954,8 +1954,8 @@ mod tests {
     #[test]
     fn assembly_names_colours_round_trip() {
         use crate::{box_solid, cylinder, measure, step_import, step_validate};
-        let bx = box_solid(solidcraft_geom::Vec3::ZERO, solidcraft_geom::Vec3::new(10.0, 20.0, 5.0)).unwrap();
-        let pin = cylinder(solidcraft_geom::Vec3::ZERO, solidcraft_geom::Vec3::Z, 2.0, 8.0).unwrap();
+        let bx = box_solid(desurface_geom::Vec3::ZERO, desurface_geom::Vec3::new(10.0, 20.0, 5.0)).unwrap();
+        let pin = cylinder(desurface_geom::Vec3::ZERO, desurface_geom::Vec3::Z, 2.0, 8.0).unwrap();
         let rot90 = [[0.0, 1.0, 0.0, 0.0], [-1.0, 0.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [50.0, 0.0, 0.0, 1.0]];
         let shift = [[1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0.0, 0.0, 5.0, 1.0]];
         let products = vec![
@@ -1983,7 +1983,7 @@ mod tests {
         let m: Vec<_> = imp.bodies.iter().map(|b| measure(&b.body).unwrap()).collect();
         assert!((m[1].bbox.min.z - 5.0).abs() < 1e-6 && (m[1].bbox.max.z - 13.0).abs() < 1e-6);
         // Rotated 90° about Z and moved 50 along X: centre at (50, 0).
-        assert!(m[2].centroid.dist(solidcraft_geom::Vec3::new(50.0, 0.0, 4.0)) < 1e-3, "{:?}", m[2].centroid);
+        assert!(m[2].centroid.dist(desurface_geom::Vec3::new(50.0, 0.0, 4.0)) < 1e-3, "{:?}", m[2].centroid);
         // Recursion and bad placements are errors.
         let cyc = vec![ExportProduct {
             name: "A".into(),

@@ -1,5 +1,5 @@
 {
-  "schema": "solidcraft.render-environment-manifest/1",
+  "schema": "desurface.render-environment-manifest/1",
   "version": "1.0.0",
   "status": "authored_unbound",
   "runtime_ready": false,

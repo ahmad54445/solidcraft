@@ -4,9 +4,9 @@ use std::io::{BufRead, Write};
 
 use serde_json::{Value, json};
 /// Longest accepted request line, shared with the control server.
-use solidcraft_engine::MAX_LINE;
+use desurface_engine::MAX_LINE;
 
-use solidcraft_engine::io::vfs::{self, PathScope};
+use desurface_engine::io::vfs::{self, PathScope};
 
 use crate::backend::Backend;
 use crate::tools::{call_tool, check_arguments, tool_definitions};
@@ -25,7 +25,7 @@ const RESOURCE_NOT_FOUND: i64 = -32002;
 /// Most messages in one JSON-RPC batch.
 const MAX_BATCH: usize = 1000;
 
-const INSTRUCTIONS: &str = "SolidCraft is an independent parametric 3D CAD app. Units are millimetres \
+const INSTRUCTIONS: &str = "DeSurface is an independent parametric 3D CAD app. Units are millimetres \
 and degrees in expressions (internally radians), Z is up. Model like this: `sketch.create {plane: XY}`, draw \
 (`sketch.rectangle.two_point {p0, p1}`, `sketch.circle.center {center, radius}`, `sketch.line {points, closed}`), constrain \
 and dimension (`sketch.dimension {entities, value}`; values may name parameters), `sketch.finish`, then features \
@@ -52,7 +52,7 @@ impl Server {
     pub fn new(backend: Box<dyn Backend>) -> Self {
         Self { backend, initialized: false, scope: None }
     }
-    /// Confine the files tool calls may reach to `scope` (`None`: anywhere). `solidcraft-cli mcp`
+    /// Confine the files tool calls may reach to `scope` (`None`: anywhere). `desurface-cli mcp`
     /// always sets one unless started with `--allow-any-path` (docs/mcp.md).
     pub fn with_path_scope(mut self, scope: Option<PathScope>) -> Self {
         self.scope = scope;
@@ -170,7 +170,7 @@ impl Server {
                 Ok(json!({
                     "protocolVersion": version,
                     "capabilities": {"tools": {"listChanged": false}, "resources": {"listChanged": false}},
-                    "serverInfo": {"name": "solidcraft", "title": "SolidCraft", "version": env!("CARGO_PKG_VERSION")},
+                    "serverInfo": {"name": "desurface", "title": "DeSurface", "version": env!("CARGO_PKG_VERSION")},
                     "instructions": format!("{INSTRUCTIONS} Backend: {}.", self.backend.describe()),
                 }))
             }
@@ -189,8 +189,8 @@ impl Server {
                 Ok(vfs::scoped(scope, || call_tool(backend, name, &args)))
             }
             "resources/list" => Ok(json!({"resources": [
-                {"uri": "solidcraft://design", "name": "Active design", "description": "document.inspect with measurements", "mimeType": "application/json"},
-                {"uri": "solidcraft://commands", "name": "Command catalog", "description": "every command with its parameter docs", "mimeType": "application/json"},
+                {"uri": "desurface://design", "name": "Active design", "description": "document.inspect with measurements", "mimeType": "application/json"},
+                {"uri": "desurface://commands", "name": "Command catalog", "description": "every command with its parameter docs", "mimeType": "application/json"},
             ]})),
             "resources/templates/list" => Ok(json!({"resourceTemplates": []})),
             "prompts/list" => Ok(json!({"prompts": []})),
@@ -199,8 +199,8 @@ impl Server {
                 let v = match uri {
                     // The solvecraft:// URIs are what earlier releases listed (compatibility shim,
                     // docs/compatibility.md); clients that saved them still read the resource.
-                    "solidcraft://design" | "solvecraft://design" => self.backend.call("document.inspect", json!({"measure": true})),
-                    "solidcraft://commands" | "solvecraft://commands" => self.backend.call("engine.commands", json!({})),
+                    "desurface://design" | "solvecraft://design" => self.backend.call("document.inspect", json!({"measure": true})),
+                    "desurface://commands" | "solvecraft://commands" => self.backend.call("engine.commands", json!({})),
                     _ => return Err((RESOURCE_NOT_FOUND, format!("unknown resource `{uri}`"))),
                 }
                 .map_err(|e| (INTERNAL_ERROR, e))?;

@@ -8,24 +8,24 @@ until you review and submit it, and the design is not part of the draft.
 
 To send a report:
 
-1. Review the title, report text and screenshot in SolidCraft, then click **Open GitHub draft**.
-   For long reports, SolidCraft copies the text to your clipboard; paste it into the GitHub draft.
+1. Review the title, report text and screenshot in DeSurface, then click **Open GitHub draft**.
+   For long reports, DeSurface copies the text to your clipboard; paste it into the GitHub draft.
 2. Attach the screenshot if you want to share it: use **Copy screenshot** and paste it into
    GitHub, or use **Save screenshot…** and upload the PNG. Screenshots are not attached automatically.
 3. Click **Submit new issue** on GitHub to publish the report. Opening the draft alone does not send it.
 
 ## Where they are
 
-`<data dir>/solidcraft/crashes/`, next to the recovery folder:
+`<data dir>/desurface/crashes/`, next to the recovery folder:
 
 | System | Folder |
 |---|---|
-| Linux | `~/.local/share/solidcraft/crashes` (or `$XDG_DATA_HOME/solidcraft/crashes`) |
-| Windows | `%LOCALAPPDATA%\SolidCraft\crashes` |
-| macOS | `~/Library/Application Support/SolidCraft/crashes` |
+| Linux | `~/.local/share/desurface/crashes` (or `$XDG_DATA_HOME/desurface/crashes`) |
+| Windows | `%LOCALAPPDATA%\DeSurface\crashes` |
+| macOS | `~/Library/Application Support/DeSurface/crashes` |
 
-`SOLIDCRAFT_CRASH_DIR` overrides the folder. `solidcraft --crash-log` and
-`solidcraft-cli crashes dir` print it.
+`DESURFACE_CRASH_DIR` overrides the folder. `desurface --crash-log` and
+`desurface-cli crashes dir` print it.
 
 ## For agents
 
@@ -35,15 +35,15 @@ All of these read the same folder:
 |---|---|---|---|
 | Engine command (MCP `execute`, control channel, scripts) | `diagnostics.crash_reports {limit?}` | `diagnostics.crash_report {id}` | `diagnostics.crash_reports.clear {id?}` |
 | MCP tool | `crash_reports {limit?}` | `crash_reports {id}` | — |
-| CLI | `solidcraft-cli crashes [--json]` | `solidcraft-cli crashes show <id>` | `solidcraft-cli crashes clear [<id>]` |
+| CLI | `desurface-cli crashes [--json]` | `desurface-cli crashes show <id>` | `desurface-cli crashes clear [<id>]` |
 | Control channel (UI) | `ui.help {"item": "crashes"}` opens the window | | |
 
-**Reproduce:** `solidcraft-cli crashes replay <id>` opens the report's design, runs its
+**Reproduce:** `desurface-cli crashes replay <id>` opens the report's design, runs its
 commands, and reports whether the same internal error happens again (same place and message).
-Without the CLI, run `solidcraft-cli run <report>/replay.json --in <report>/design.solidcraft`.
+Without the CLI, run `desurface-cli run <report>/replay.json --in <report>/design.solidcraft`.
 A fixed crash turns into a regression test with the same two files.
 
-**Check that reporting works:** with `SOLIDCRAFT_CRASH_TEST=1` set for the app, the command
+**Check that reporting works:** with `DESURFACE_CRASH_TEST=1` set for the app, the command
 `diagnostics.crash_test` has three modes:
 - `panic`: an internal error in a command
 - `kernel`: an internal error inside the geometry kernel
@@ -53,7 +53,7 @@ A fixed crash turns into a regression test with the same two files.
 
 A folder `crashes/<YYYYMMDD-HHMMSS>-<signature>/`:
 
-- `report.json` (`"format": "solidcraft-crash/1"`):
+- `report.json` (`"format": "desurface-crash/1"`):
   - `kind`: one of
     - `command_panic`: a command hit an internal error; it was caught and the design was left unchanged
     - `kernel_panic_recovered`: the third-party geometry kernel panicked and was caught. This is harmless on the desktop, but it would crash the web build.

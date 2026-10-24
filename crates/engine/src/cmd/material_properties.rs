@@ -26,7 +26,7 @@ fn directional(_: &mut Session, params: &Value) -> Result<Value> {
         .ok_or_else(|| bad(cmd, "direction: expected exactly three numeric components"))?;
     let component = |i| direction.get(i).and_then(Value::as_f64).ok_or_else(|| bad(cmd, "direction: expected numeric components"));
     let direction = [component(0)?, component(1)?, component(2)?];
-    let card = solidcraft_doc::physical_material::admit_card(value).map_err(|e| bad(cmd, e.to_string()))?;
+    let card = desurface_doc::physical_material::admit_card(value).map_err(|e| bad(cmd, e.to_string()))?;
     let response = card.directional_modulus(direction).map_err(|e| bad(cmd, e.to_string()))?;
     serde_json::to_value(response).map_err(|e| bad(cmd, e.to_string()))
 }
@@ -37,7 +37,7 @@ fn validate(_: &mut Session, params: &Value) -> Result<Value> {
         .filter(|o| o.len() == 1 && o.contains_key("card"))
         .ok_or_else(|| bad("material.properties.validate", "expected {card: ...}"))?;
     let card = object.get("card").ok_or_else(|| bad("material.properties.validate", "missing card"))?;
-    let result = solidcraft_doc::physical_material::validate_card(card).map_err(|e| bad("material.properties.validate", e.to_string()))?;
+    let result = desurface_doc::physical_material::validate_card(card).map_err(|e| bad("material.properties.validate", e.to_string()))?;
     Ok(json!({"valid":true,"validation":result}))
 }
 
@@ -121,8 +121,8 @@ mod tests {
         assert_eq!(loaded.format, crate::doc::format::format_string(crate::doc::format::FORMAT));
         assert!(loaded.format_pending.iter().any(|name| name == "material-engineering-cards"));
         assert!(!loaded.format_pending.iter().any(|name| name == "physical-material-cards"));
-        let bytes = solidcraft_io::write_design_container(&loaded).unwrap();
-        let reopened = solidcraft_io::read_design(&bytes).unwrap();
+        let bytes = desurface_io::write_design_container(&loaded).unwrap();
+        let reopened = desurface_io::read_design(&bytes).unwrap();
         assert_eq!(reopened, loaded);
         let mut session = Session::new(reopened);
         assert_eq!(session.execute("component.properties", &json!({})).unwrap(), mass);
@@ -139,7 +139,7 @@ mod tests {
             s.execute("material.edit", &p).unwrap();
             assert_eq!(s.doc.user_materials[1].physical_card, original);
         }
-        let copy = solidcraft_io::catalog::LibraryMaterial::from_material(&s.doc.user_materials[1]).unwrap();
+        let copy = desurface_io::catalog::LibraryMaterial::from_material(&s.doc.user_materials[1]).unwrap();
         assert_eq!(copy.physical_card, original);
         s.execute("material.edit", &json!({"material":"Renamed","physical_card":null})).unwrap();
         assert!(s.doc.user_materials[1].physical_card.is_none());
@@ -222,7 +222,7 @@ mod tests {
             }
         }
         let unique = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-        let file = ProbeFile(std::env::temp_dir().join(format!("solidcraft-card-refusal-{}-{unique}.json", std::process::id())));
+        let file = ProbeFile(std::env::temp_dir().join(format!("desurface-card-refusal-{}-{unique}.json", std::process::id())));
         let mut s = Session::default();
         s.execute("material.create", &json!({"name":"Card only","density_g_cm3":0.8,"physical_card":card()})).unwrap();
         s.mark_saved();
@@ -234,7 +234,7 @@ mod tests {
             }
             for overwrite in [false, true] {
                 let error = s
-                    .execute("library.export", &json!({"path":file.0,"format":solidcraft_io::catalog::V1_FORMAT,"overwrite":overwrite}))
+                    .execute("library.export", &json!({"path":file.0,"format":desurface_io::catalog::V1_FORMAT,"overwrite":overwrite}))
                     .unwrap_err();
                 assert!(error.to_string().contains("cannot preserve PBR or engineering cards"));
                 if existing {
@@ -255,9 +255,9 @@ mod tests {
         s.execute("material.edit", &json!({"material":"Synthetic","physical_card":card()})).unwrap();
         let before = s.execute("component.properties", &json!({})).unwrap();
         let scene = product_scene::extract(&s).unwrap();
-        let native = solidcraft_io::write_design_container(&s.doc).unwrap();
-        assert!(solidcraft_io::is_design_container(&native));
-        let loaded = solidcraft_io::read_design(&native).unwrap();
+        let native = desurface_io::write_design_container(&s.doc).unwrap();
+        assert!(desurface_io::is_design_container(&native));
+        let loaded = desurface_io::read_design(&native).unwrap();
         assert_eq!(loaded.format, crate::doc::format::format_string(crate::doc::format::FORMAT));
         assert_eq!(loaded.user_materials, s.doc.user_materials);
         let mut reopened = Session::new(loaded);
@@ -291,7 +291,7 @@ mod tests {
         let metadata = json!({"org.example.measurement":{"value":12.25e9,"physical_card":{"untyped":12.25e9}}});
         saved["metadata"] = metadata.clone();
         let loaded = Document::from_json(&saved.to_string()).unwrap();
-        let reopened = solidcraft_io::read_design(&solidcraft_io::write_design_container(&loaded).unwrap()).unwrap();
+        let reopened = desurface_io::read_design(&desurface_io::write_design_container(&loaded).unwrap()).unwrap();
         assert_eq!(serde_json::to_value(&reopened.metadata).unwrap(), metadata);
         assert_eq!(reopened.user_materials, loaded.user_materials);
 
@@ -310,7 +310,7 @@ mod tests {
     fn material_inspection_preserves_legacy_entries_and_reports_unknowns_and_density_separately() {
         let mut s = fixture();
         let built_in = s.execute("material.list", &json!({})).unwrap();
-        for (name, density) in solidcraft_doc::MATERIALS {
+        for (name, density) in desurface_doc::MATERIALS {
             let row = built_in["materials"].as_array().unwrap().iter().find(|m| m["name"] == name).unwrap();
             assert_eq!(*row, json!({"name":name,"density_g_cm3":density}));
             let inspected = s.execute("material.inspect", &json!({"material":name.to_lowercase()})).unwrap();

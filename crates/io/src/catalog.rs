@@ -2,11 +2,11 @@
 use crate::{IoError, Result};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use solidcraft_doc::{Document, UserMaterial, appearance::Look, valid_density};
+use desurface_doc::{Document, UserMaterial, appearance::Look, valid_density};
 use std::collections::BTreeMap;
 
-pub const FORMAT: &str = "solidcraft-library/2";
-pub const V1_FORMAT: &str = "solidcraft-library/1";
+pub const FORMAT: &str = "desurface-library/2";
+pub const V1_FORMAT: &str = "desurface-library/1";
 pub const MAX_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_ENTRIES: usize = 1024;
 /// Bound source inspection even when many assignments reuse the same definition.
@@ -57,7 +57,7 @@ pub struct LibraryLook {
     pub color: [u8; 3],
     pub opacity: f64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pbr: Option<solidcraft_doc::pbr_appearance::PbrParameters>,
+    pub pbr: Option<desurface_doc::pbr_appearance::PbrParameters>,
 }
 impl LibraryLook {
     pub fn from_look(look: &Look) -> Result<Self> {
@@ -85,7 +85,7 @@ pub struct LibraryMaterial {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub appearance: Option<LibraryLook>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub physical_card: Option<solidcraft_doc::physical_material::ValidatedCard>,
+    pub physical_card: Option<desurface_doc::physical_material::ValidatedCard>,
 }
 impl LibraryMaterial {
     pub fn from_material(material: &UserMaterial) -> Result<Self> {

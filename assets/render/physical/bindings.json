@@ -1,5 +1,5 @@
 {
-  "schema": "solidcraft-physical-bindings/1",
+  "schema": "desurface-physical-bindings/1",
   "version": "1.0.0",
   "inputs": {
     "catalog": {

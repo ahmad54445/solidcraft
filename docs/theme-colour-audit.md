@@ -32,7 +32,7 @@ This work stacks on the theme radii and border changes (#4923, #4954).
 | Graphite, Platinum 9 | Muted, distinct workspace colours over neutral chrome |
 | Solarized Light | Solarized workspace hues and warm neutral icon faces |
 | High Contrast | Strong outlines and readable saturated workspace colours |
-| SolidCraft 95 | Classic grey icon geometry; navy, brown, olive, purple, teal, burgundy and green workspace accents |
+| DeSurface 95 | Classic grey icon geometry; navy, brown, olive, purple, teal, burgundy and green workspace accents |
 | Amber/Green Phosphor | Deliberately single-hue palettes, with different intensities for workspace groups |
 
 Shared utility tabs (Assemble, Insert, Inspect, Manage, View) retain the Model
@@ -41,7 +41,7 @@ Render and Sketch. Their labels remain the primary identifier; colour supplement
 
 ## Theme file contract
 
-`solidcraft-theme/1` accepts an optional `icon_palette` object. Single opaque hex
+`desurface-theme/1` accepts an optional `icon_palette` object. Single opaque hex
 colours override `ink`, `line`, `guide`, `passive-1/2/3` and `active-1/2/3`.
 Three-colour arrays, ordered pale face / medium face / strong stroke, override
 `solid`, `surface`, `mesh`, `form`, `sketch`, `constraint` and `construction` ramps.

@@ -1,6 +1,6 @@
 [package]
-name = "solidcraft-doc"
-description = "SolidCraft document model: parameters and expressions, sketches and features on a parametric timeline, incremental evaluation"
+name = "desurface-doc"
+description = "DeSurface document model: parameters and expressions, sketches and features on a parametric timeline, incremental evaluation"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,11 +9,11 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-solidcraft-geom = { workspace = true }
-solidcraft-sketch = { workspace = true }
-solidcraft-kernel = { workspace = true }
-solidcraft-render = { workspace = true }
-solidcraft-derive = { workspace = true }
+desurface-geom = { workspace = true }
+desurface-sketch = { workspace = true }
+desurface-kernel = { workspace = true }
+desurface-render = { workspace = true }
+desurface-derive = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["raw_value"] }
 thiserror = { workspace = true }

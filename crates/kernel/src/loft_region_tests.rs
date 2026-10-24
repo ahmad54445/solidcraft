@@ -2,7 +2,7 @@
 
 use std::f64::consts::PI;
 
-use solidcraft_geom::{Loop2, Plane, Region2, Vec2, Vec3};
+use desurface_geom::{Loop2, Plane, Region2, Vec2, Vec3};
 
 use crate::{Body, loft_regions, measure, step_export, step_import};
 
@@ -26,7 +26,7 @@ fn loft_regions_preserve_a_tapered_round_passage_and_step() {
         let body = loft_regions(&secs).unwrap();
         check(&body, want, 1e-3);
         assert!(!body.tessellate(0.001).unwrap().contains(Vec3::new(0.0, 0.0, 10.0)), "passage was filled");
-        let imported = step_import(&step_export(&[&body], "SolidCraft").unwrap()).unwrap();
+        let imported = step_import(&step_export(&[&body], "DeSurface").unwrap()).unwrap();
         assert_eq!(imported.bodies.len(), 1);
         check(&imported.bodies[0].body, want, 1e-3);
     }
@@ -90,7 +90,7 @@ fn loft_regions_bound_segments_after_matching() {
     // would exceed it in every section. Refuse before allocating the topology.
     let circle = |x, n| Loop2 {
         segs: (0..n)
-            .map(|i| solidcraft_geom::Seg2::Arc {
+            .map(|i| desurface_geom::Seg2::Arc {
                 center: Vec2::new(x, 0.0),
                 radius: 1.0,
                 start: i as f64 * std::f64::consts::TAU / n as f64,

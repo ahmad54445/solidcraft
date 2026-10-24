@@ -2,7 +2,7 @@
 
 ## Scope and status
 
-This is original concept-authoring work for the personal SolidCraft fork. It contains no competitor assets or source code, downloaded space imagery, proprietary facility scans, or copied shader implementations. The catalog has 280 entries in 28 families. `ENV-001` through `ENV-200` retain the meaning and order of the earlier proposals; `ENV-201` through `ENV-280` add automotive facilities, electronics and DIY benches, LED laboratories, aerospace integration contexts, orbital settings and lunar/SELENE work stages.
+This is original concept-authoring work for the personal DeSurface fork. It contains no competitor assets or source code, downloaded space imagery, proprietary facility scans, or copied shader implementations. The catalog has 280 entries in 28 families. `ENV-001` through `ENV-200` retain the meaning and order of the earlier proposals; `ENV-201` through `ENV-280` add automotive facilities, electronics and DIY benches, LED laboratories, aerospace integration contexts, orbital settings and lunar/SELENE work stages.
 
 `environments.json` is a `concept_catalog`. Each `concept` item describes a desired environment; it is not an implemented renderer asset. `environment-presets.json` contains 24 numeric `specified_unbound` drafts. Their dimensions, relative light scales, angles, seeds and layout values are authored starting points. They are not measurements. Calibration, material-role resolution, geometry generation, renderer binding and visual validation remain pending.
 
@@ -26,7 +26,7 @@ Stage fitting occurs only on an explicit request and uses an explicitly selected
 
 ## Capability dependencies
 
-Catalog `capability_requirements` and preset `required_capabilities` reference the existing `CAP-001` through `CAP-104` planning registry. These references are requirements, not a statement that SolidCraft currently supports them. A preset stays unavailable until every required capability and symbolic binding is satisfied. Optional refinements, such as substituting a captured HDRI for a procedural sky, must not silently turn into mandatory requirements for the simpler path.
+Catalog `capability_requirements` and preset `required_capabilities` reference the existing `CAP-001` through `CAP-104` planning registry. These references are requirements, not a statement that DeSurface currently supports them. A preset stays unavailable until every required capability and symbolic binding is satisfied. Optional refinements, such as substituting a captured HDRI for a procedural sky, must not silently turn into mandatory requirements for the simpler path.
 
 Typical foundations are light transport, Fresnel and surface roughness, physical texture scale, geometric stages, ground contact, color management and reproducible seeds. A procedural sky needs its declared sky capability. Terrain displacement, detailed vegetation and granular topography need their own geometry and memory paths. A volumetric terrestrial fog entry requires participating-media support. A vacuum scene must never activate atmospheric features merely because the engine offers them.
 

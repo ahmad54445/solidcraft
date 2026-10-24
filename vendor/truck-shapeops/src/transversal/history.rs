@@ -1,4 +1,4 @@
-//! SolidCraft: where each face and edge of a boolean's result came from, recorded by the code
+//! DeSurface: where each face and edge of a boolean's result came from, recorded by the code
 //! that builds them (never reconstructed from geometry).
 //!
 //! Topology ids are addresses of shared data, so they identify a face or an edge only while it

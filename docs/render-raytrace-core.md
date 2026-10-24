@@ -8,7 +8,7 @@ See the RT2 page's current integration limits before treating historical source
 checks as validation of the combined revision.
 
 
-`solidcraft-render` exposes `raytrace` only with the explicit `raytrace-cpu`
+`desurface-render` exposes `raytrace` only with the explicit `raytrace-cpu`
 feature. The feature is **off by default** and adds no dependencies. This page
 describes the core alone. The separate [RT2 consumer](render-raytrace-image.md)
 connects it to the existing image executor; neither unit adds a worker pool or

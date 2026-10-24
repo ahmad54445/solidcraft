@@ -1,4 +1,4 @@
-# Original SolidCraft studio scenes
+# Original DeSurface studio scenes
 
 These are editable command recipes, not imported models or triangle meshes.
 Every part is authored here from sketches, extrusions, primitive solids, boolean
@@ -93,8 +93,8 @@ opposite edges, one connected triangle shell and positive signed volume.
 Example replay (outputs belong outside the repository):
 
 ```text
-solidcraft-cli run examples/studio/coffee-exploded.json --save coffee.solidcraft
-solidcraft-cli eval coffee.solidcraft --json-out coffee-measurements.json
+desurface-cli run examples/studio/coffee-exploded.json --save coffee.solidcraft
+desurface-cli eval coffee.solidcraft --json-out coffee-measurements.json
 ```
 
 Use the evidence runner with the paired render-request JSON to capture runtime

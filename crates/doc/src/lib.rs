@@ -1,4 +1,4 @@
-//! The SolidCraft document: user and model parameters, and a parametric timeline of features
+//! The DeSurface document: user and model parameters, and a parametric timeline of features
 //! (sketches, extrudes, revolves, fillets, primitives, combines…). Evaluating the timeline with
 //! the kernel produces the model (bodies and solved sketches). Evaluation is incremental: a
 //! feature is recomputed only when it, a parameter it uses, or an earlier feature changed.
@@ -81,8 +81,8 @@ pub use expr::Expr;
 pub use names::{BodyName, FeatureName, SketchId};
 pub use params::{ParamRow, ParamUser, cycles};
 pub use points::{Dir, FacePick, Position, plain};
-pub use solidcraft_kernel as kernel;
-pub use solidcraft_sketch as sketch;
+pub use desurface_kernel as kernel;
+pub use desurface_sketch as sketch;
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum DocError {
@@ -93,9 +93,9 @@ pub enum DocError {
     #[error("unknown {0}")]
     Unknown(String),
     #[error(transparent)]
-    Sketch(#[from] solidcraft_sketch::SketchError),
+    Sketch(#[from] desurface_sketch::SketchError),
     #[error(transparent)]
-    Kernel(#[from] solidcraft_kernel::KernelError),
+    Kernel(#[from] desurface_kernel::KernelError),
 }
 
 pub type Result<T> = std::result::Result<T, DocError>;

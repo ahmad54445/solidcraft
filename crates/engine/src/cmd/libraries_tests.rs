@@ -1,5 +1,5 @@
 use super::*;
-use solidcraft_io::catalog::{Definition, Entry, FORMAT, LibraryLook, LibraryMaterial};
+use desurface_io::catalog::{Definition, Entry, FORMAT, LibraryLook, LibraryMaterial};
 use std::sync::{
     Arc,
     atomic::{AtomicU64, Ordering},
@@ -10,8 +10,8 @@ impl File {
     fn new() -> Self {
         static NEXT: AtomicU64 = AtomicU64::new(0);
         Self(
-            solidcraft_io::vfs::temp_dir()
-                .join(format!("solidcraft-catalog-{}-{}.json", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)))
+            desurface_io::vfs::temp_dir()
+                .join(format!("desurface-catalog-{}-{}.json", std::process::id(), NEXT.fetch_add(1, Ordering::Relaxed)))
                 .to_string_lossy()
                 .into_owned(),
         )
@@ -87,7 +87,7 @@ fn catalog_world_instance_targets_map_once_and_invalid_targets_are_atomic() {
     assert_eq!(s.doc.appearances.bodies[&source], look.to_look());
     let face = &s.doc.appearances.faces[0];
     assert_eq!(face.body, source);
-    assert!(face.point.dist(solidcraft_geom::Vec3::new(1., 1., 2.)) < 1e-9);
+    assert!(face.point.dist(desurface_geom::Vec3::new(1., 1., 2.)) < 1e-9);
     assert_eq!(face.look, look.to_look());
     assert_eq!(s.undo.len(), history.0 + 1);
     let world = s.world_state();
@@ -116,7 +116,7 @@ fn catalog_export_obeys_file_scope_in_new_file_and_overwrite_modes() {
     let mut s = session();
     let before = s.doc.clone();
     let undo = s.undo.len();
-    solidcraft_io::vfs::scoped(Some(solidcraft_io::vfs::PathScope::new([root.clone()])), || {
+    desurface_io::vfs::scoped(Some(desurface_io::vfs::PathScope::new([root.clone()])), || {
         for path in [outside.join("new.json"), root.join("../outside/traversal.json"), sentinel.clone()] {
             for overwrite in [false, true] {
                 let error = s.execute("library.export", &json!({"path":path,"overwrite":overwrite})).unwrap_err();
@@ -149,12 +149,12 @@ fn catalog_appearance_copy_keeps_mass_and_survives_undo_and_cold_reopen_without_
     assert_eq!(s.undo.len(), undo + 1);
     assert_eq!(s.doc.appearances.bodies["Body1"].name, "Warm oak colour");
     assert_eq!(s.execute("component.properties", &json!({})).unwrap()["total"]["mass_g"].as_f64().unwrap(), before);
-    let saved = solidcraft_io::write_design(&s.doc);
+    let saved = desurface_io::write_design(&s.doc);
     std::fs::remove_file(&file.0).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(s.doc.appearances.bodies.is_empty());
     s.execute("edit.redo", &json!({})).unwrap();
-    let reopened = Session::new(solidcraft_io::read_design(&saved).unwrap());
+    let reopened = Session::new(desurface_io::read_design(&saved).unwrap());
     assert_eq!(reopened.doc.appearances, s.doc.appearances);
     assert_eq!(reopened.doc.format, original_format, "scalar library adds no document schema");
 }
@@ -171,9 +171,9 @@ fn catalog_physical_copy_preserves_exact_look_label_and_is_one_transaction() {
     assert_eq!(s.doc.user_materials[0].appearance.as_ref().unwrap().name, "Timber tint");
     let mass = s.execute("component.properties", &json!({})).unwrap()["total"]["mass_g"].as_f64().unwrap();
     assert!((mass - 0.7).abs() < 1e-8);
-    let saved = solidcraft_io::write_design(&s.doc);
+    let saved = desurface_io::write_design(&s.doc);
     std::fs::remove_file(&file.0).unwrap();
-    let mut reopened = Session::new(solidcraft_io::read_design(&saved).unwrap());
+    let mut reopened = Session::new(desurface_io::read_design(&saved).unwrap());
     let actual = reopened.execute("component.properties", &json!({})).unwrap()["total"]["mass_g"].as_f64().unwrap();
     assert!((actual - 0.7).abs() < 1e-8);
     s.execute("edit.undo", &json!({})).unwrap();
@@ -280,7 +280,7 @@ fn lossy_scalar_export_never_creates_or_replaces_a_file_or_changes_history() {
         }
         for overwrite in [false, true] {
             let error =
-                s.execute("library.export", &json!({"path":file.0,"overwrite":overwrite,"format":solidcraft_io::catalog::V1_FORMAT})).unwrap_err();
+                s.execute("library.export", &json!({"path":file.0,"overwrite":overwrite,"format":desurface_io::catalog::V1_FORMAT})).unwrap_err();
             assert!(error.to_string().contains("cannot preserve PBR"));
             if existing {
                 assert_eq!(std::fs::read(&file.0).unwrap(), b"preserve existing library");
@@ -295,7 +295,7 @@ fn lossy_scalar_export_never_creates_or_replaces_a_file_or_changes_history() {
 }
 
 fn rich_catalog() -> Catalog {
-    use solidcraft_doc::{pbr_appearance::PbrParameters, physical_material::ValidatedCard};
+    use desurface_doc::{pbr_appearance::PbrParameters, physical_material::ValidatedCard};
     let mut c = catalog();
     if let Definition::Appearance(l) = &mut c.entries[0].definition {
         l.opacity = 1.0;
@@ -334,12 +334,12 @@ fn rich_appearance_copy_preserves_product_response_and_mass_without_source_file(
     assert!(Arc::ptr_eq(&scene.meshes[0].mesh, &after.meshes[0].mesh));
     assert_eq!(after.meshes[0].surface.unwrap().metallic(), 1.0);
     assert_eq!(s.execute("component.properties", &json!({})).unwrap(), mass);
-    let saved = solidcraft_io::write_design(&s.doc);
+    let saved = desurface_io::write_design(&s.doc);
     std::fs::remove_file(&file.0).unwrap();
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(s.doc.appearances.bodies.is_empty());
     s.execute("edit.redo", &json!({})).unwrap();
-    let mut reopened = Session::new(solidcraft_io::read_design(&saved).unwrap());
+    let mut reopened = Session::new(desurface_io::read_design(&saved).unwrap());
     assert_eq!(reopened.doc.appearances, s.doc.appearances);
     assert_eq!(reopened.execute("component.properties", &json!({})).unwrap(), mass);
 }
@@ -362,9 +362,9 @@ fn rich_material_copy_retains_engineering_card_label_optics_and_explicit_mass_de
     assert_eq!(material.density, 0.8);
     let mass = s.execute("component.properties", &json!({})).unwrap()["total"]["mass_g"].as_f64().unwrap();
     assert!((mass - 0.8).abs() < 1e-8);
-    let saved = solidcraft_io::write_design(&s.doc);
+    let saved = desurface_io::write_design(&s.doc);
     std::fs::remove_file(&file.0).unwrap();
-    let reopened = Session::new(solidcraft_io::read_design(&saved).unwrap());
+    let reopened = Session::new(desurface_io::read_design(&saved).unwrap());
     assert_eq!(reopened.doc.user_materials, s.doc.user_materials);
     s.execute("edit.undo", &json!({})).unwrap();
     assert!(s.doc.user_materials.is_empty());
@@ -386,15 +386,15 @@ fn explicit_v1_export_refuses_richer_data_before_overwriting_and_scalar_v1_still
     .unwrap();
     let before = s.doc.clone();
     let history = (s.undo.len(), s.redo.len(), s.revision);
-    assert!(s.execute("library.export", &json!({"path":file.0,"format":solidcraft_io::catalog::V1_FORMAT,"overwrite":true})).is_err());
+    assert!(s.execute("library.export", &json!({"path":file.0,"format":desurface_io::catalog::V1_FORMAT,"overwrite":true})).is_err());
     assert_eq!(std::fs::read(&file.0).unwrap(), sentinel);
     assert!(Arc::ptr_eq(&before, &s.doc));
     assert_eq!(history, (s.undo.len(), s.redo.len(), s.revision));
     s.execute("library.export", &json!({"path":file.0,"overwrite":true})).unwrap();
     assert_eq!(Catalog::read(&file.0).unwrap().format, FORMAT);
     s.execute("appearance.assign", &json!({"bodies":["Body1"],"color":"#b47846"})).unwrap();
-    s.execute("library.export", &json!({"path":file.0,"format":solidcraft_io::catalog::V1_FORMAT,"overwrite":true})).unwrap();
-    assert_eq!(Catalog::read(&file.0).unwrap().format, solidcraft_io::catalog::V1_FORMAT);
+    s.execute("library.export", &json!({"path":file.0,"format":desurface_io::catalog::V1_FORMAT,"overwrite":true})).unwrap();
+    assert_eq!(Catalog::read(&file.0).unwrap().format, desurface_io::catalog::V1_FORMAT);
     let rich = rich_catalog();
     file.write(&rich);
     s.execute("material.create", &json!({"name":"Timber density","density_g_cm3":0.8,"color":"#b47846"})).unwrap();
@@ -407,7 +407,7 @@ fn explicit_v1_export_refuses_richer_data_before_overwriting_and_scalar_v1_still
 
 #[test]
 fn catalog_labels_matching_starter_ids_are_inert_and_scalar_copies_clear_pbr_on_all_targets() {
-    for format in [solidcraft_io::catalog::V1_FORMAT, FORMAT] {
+    for format in [desurface_io::catalog::V1_FORMAT, FORMAT] {
         let mut s = Session::default();
         let component = s.execute("component.create", &json!({"name":"Part"})).unwrap()["component"].as_u64().unwrap();
         s.execute("solid.box", &json!({"body_name":"Specimen","length":10,"width":10,"height":10})).unwrap();
@@ -448,8 +448,8 @@ fn physical_catalog_import_respects_design_cap_and_builtin_names_without_partial
     let c = rich_catalog();
     file.write(&c);
     let mut s = session();
-    for i in 0..solidcraft_doc::MAX_USER_MATERIALS {
-        s.doc_mut().user_materials.push(solidcraft_doc::UserMaterial {
+    for i in 0..desurface_doc::MAX_USER_MATERIALS {
+        s.doc_mut().user_materials.push(desurface_doc::UserMaterial {
             name: format!("Existing {i}"),
             density: 1.0,
             appearance: None,

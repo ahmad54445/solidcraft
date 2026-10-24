@@ -1,8 +1,8 @@
 # Vendored third-party crates
 
-Copies of third-party crates that SolidCraft builds with local fixes, wired in with
+Copies of third-party crates that DeSurface builds with local fixes, wired in with
 `[patch.crates-io]` in the workspace `Cargo.toml`. They keep their own licence; changed lines
-are marked `SolidCraft:` in the source.
+are marked `DeSurface:` in the source.
 
 ## truck-shapeops 0.4.0 (Apache-2.0, © RICOS Co. Ltd., https://github.com/ricosjp/truck)
 
@@ -85,7 +85,7 @@ Changes:
 
 ## truck-stepio 0.3.0 (Apache-2.0, © RICOS Co. Ltd., https://github.com/ricosjp/truck)
 
-Only the writer (`out`) is used; SolidCraft reads STEP with its own reader.
+Only the writer (`out`) is used; DeSurface reads STEP with its own reader.
 
 Changes:
 - `out/geometry.rs`: an `INTERSECTION_CURVE`'s second surface was written at the first
@@ -98,7 +98,7 @@ Changes:
   its axis (a scale across the axis that differs from the scale along it, as a shell or offset
   makes of a revolved face) is written as the transformed profile revolved about the
   transformed axis. Only uniform scales were taken. Other transforms are still refused: the
-  writer stops with a formatting error, which SolidCraft's `step.rs` now reports as an export
+  writer stops with a formatting error, which DeSurface's `step.rs` now reports as an export
   error (`to_string` panicked on it).
 - `lib.rs`: compiler warnings no longer fail the build. Example and test targets are dropped
   (their sources are not vendored).
@@ -182,12 +182,12 @@ Changes:
   both boxes for every pair), and runs the exact triangle tests on the rayon pool, in order
   (sequential on wasm). Same collisions in the same order. The old search is kept as
   `analyzers::collision_test_hooks`, behind a `test-hooks` feature that only
-  `solidcraft-kernel`'s tests turn on, and `crates/kernel/tests/mesh_collision_equivalence.rs`
+  `desurface-kernel`'s tests turn on, and `crates/kernel/tests/mesh_collision_equivalence.rs`
   compares the two.
 - `tessellation/triangulation.rs`: the inside test of a face's boundary also skips runs of 32
   segments whose box, grown by the tolerance, the test's ray cannot meet. Same answers. The
   old test is kept as `tessellation::include_test_hooks`, behind a `test-hooks` feature that
-  only `solidcraft-kernel`'s tests turn on, and `crates/kernel/tests/tess_include_equivalence.rs`
+  only `desurface-kernel`'s tests turn on, and `crates/kernel/tests/tess_include_equivalence.rs`
   compares the two.
 - `tessellation/triangulation.rs`: the constrained Delaunay triangulation of a trimmed face
   works in (u, v) scaled by the surface's mean speed along each (a power of two, so exact both
@@ -260,7 +260,7 @@ Changes:
 Original package sources from https://github.com/emilk/egui/tree/0.36.2/crates/egui-wgpu,
 with both original licence texts retained. No images or bundled documentation are copied.
 
-SolidCraft changes:
+DeSurface changes:
 - `src/lib.rs`: use 1x MSAA on the selected OpenGL adapter before creating pipelines,
   exposing the effective sample count so host paint callbacks can match it.
 - `src/winit.rs`: use that same effective count for depth and resolve attachments.

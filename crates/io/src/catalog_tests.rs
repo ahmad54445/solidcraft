@@ -1,6 +1,6 @@
 use super::*;
 use serde_json::{Value, json};
-use solidcraft_doc::{pbr_appearance::PbrParameters, physical_material::ValidatedCard};
+use desurface_doc::{pbr_appearance::PbrParameters, physical_material::ValidatedCard};
 
 fn catalog() -> Catalog {
     let entry = Entry::new(
@@ -35,7 +35,7 @@ fn strict_schema_rejects_unknown_kinds_fields_versions_and_bad_identity() {
     for changed in [
         {
             let mut v = value.clone();
-            v["format"] = json!("solidcraft-library/99");
+            v["format"] = json!("desurface-library/99");
             v
         },
         {
@@ -130,7 +130,7 @@ fn design_export_deduplicates_exact_looks_and_keeps_physical_properties_distinct
 
 #[test]
 fn scalar_export_refuses_pbr_in_every_design_owned_appearance_location() {
-    use solidcraft_doc::{appearance::FaceLook, pbr_appearance::PbrParameters};
+    use desurface_doc::{appearance::FaceLook, pbr_appearance::PbrParameters};
     let mut look = LibraryLook { name: "Original PBR specimen".into(), color: [180, 120, 70], opacity: 1.0, pbr: None }.to_look();
     look.pbr = Some(PbrParameters::new(1.0, 0.3, 1.5).unwrap());
     for location in 0..4 {
@@ -168,7 +168,7 @@ fn scalar_export_refuses_pbr_in_every_design_owned_appearance_location() {
 
 // Exact bytes and revisions captured from the pre-v2 writer at 75e66eea.
 const V1: &str = r#"{
-  "format": "solidcraft-library/1",
+  "format": "desurface-library/1",
   "id": "user.test",
   "name": "Original v1 fixture",
   "entries": [

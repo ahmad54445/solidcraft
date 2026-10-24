@@ -1,7 +1,7 @@
-//! The API backend (desktop only): a model behind an endpoint SolidCraft talks to itself, either
+//! The API backend (desktop only): a model behind an endpoint DeSurface talks to itself, either
 //! OpenAI-compatible (Ollama, LM Studio, OpenAI, any URL the user gives) or Anthropic-compatible
-//! (the Anthropic Messages API, or an endpoint that speaks it). SolidCraft runs the tool loop
-//! itself, with the same tools the ACP agents get: it starts the same MCP server (`solidcraft-cli
+//! (the Anthropic Messages API, or an endpoint that speaks it). DeSurface runs the tool loop
+//! itself, with the same tools the ACP agents get: it starts the same MCP server (`desurface-cli
 //! mcp --connect` to the chat's own endpoint) and is its client, so every tool call passes the
 //! same gate, limits and folder checks. The key, when there is one, comes from the system keychain
 //! for this connection only.
@@ -75,7 +75,7 @@ impl ApiBackend {
         let mcp = match &ctx.bridge {
             Some(b) => {
                 let argv = vec![b.cli.to_string_lossy().into_owned(), "mcp".into(), "--connect".into(), format!("127.0.0.1:{}", b.port)];
-                Some(AgentProcess::spawn(&argv, &ctx.cwd, &["SOLIDCRAFT_CONTROL_TOKEN"], || {})?)
+                Some(AgentProcess::spawn(&argv, &ctx.cwd, &["DESURFACE_CONTROL_TOKEN"], || {})?)
             }
             None => None,
         };
@@ -213,7 +213,7 @@ impl Worker {
 
     /// One MCP request to the server; its `result`.
     fn mcp_call(&mut self, method: &str, params: Value) -> Result<Value, String> {
-        let Some(m) = self.mcp.as_ref() else { return Err("no SolidCraft tools in this session".into()) };
+        let Some(m) = self.mcp.as_ref() else { return Err("no DeSurface tools in this session".into()) };
         self.next += 1;
         let id = self.next;
         m.send(&json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}));
@@ -236,9 +236,9 @@ impl Worker {
                     }
                     return Ok(v.get("result").cloned().unwrap_or(Value::Null));
                 }
-                Ok(FromAgent::Exited(_)) => return Err("the SolidCraft tools stopped".into()),
+                Ok(FromAgent::Exited(_)) => return Err("the DeSurface tools stopped".into()),
                 Err(std::sync::mpsc::RecvTimeoutError::Timeout) if std::time::Instant::now() < deadline => {}
-                Err(_) => return Err("the SolidCraft tools did not answer".into()),
+                Err(_) => return Err("the DeSurface tools did not answer".into()),
             }
         }
     }
@@ -249,7 +249,7 @@ impl Worker {
         }
         self.mcp_call(
             "initialize",
-            json!({"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "solidcraft-agent-chat", "version": env!("CARGO_PKG_VERSION")}}),
+            json!({"protocolVersion": "2025-06-18", "capabilities": {}, "clientInfo": {"name": "desurface-agent-chat", "version": env!("CARGO_PKG_VERSION")}}),
         )?;
         if let Some(m) = &self.mcp {
             m.send(&json!({"jsonrpc": "2.0", "method": "notifications/initialized"}));
@@ -874,7 +874,7 @@ mod tests {
     }
 
     /// A scripted endpoint: one answer with a tool call, then a plain answer. The loop runs the
-    /// tool (here without SolidCraft tools: an unknown tool fails) and reports the turn's end.
+    /// tool (here without DeSurface tools: an unknown tool fails) and reports the turn's end.
     #[test]
     fn the_tool_loop_runs_calls_and_ends_the_turn() {
         let answers = std::sync::Mutex::new(vec![
@@ -1262,7 +1262,7 @@ mod tests {
     }
 
     /// A scripted Anthropic endpoint: one answer with a tool call, then a plain answer. The loop
-    /// runs the tool (here without SolidCraft tools: an unknown tool fails) and reports the end.
+    /// runs the tool (here without DeSurface tools: an unknown tool fails) and reports the end.
     #[test]
     fn the_anthropic_tool_loop_runs_calls_and_ends_the_turn() {
         let answers = std::sync::Mutex::new(vec![

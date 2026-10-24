@@ -4,7 +4,7 @@ The separate [explicit normalization API](render-texture-normalization.md) handl
 admitted high-precision/color/orientation conversions. The strict utility described
 below retains its existing refusals; normalization does not enable texture rendering.
 
-`solidcraft_render::texture_input` is an independent input utility for #900, coordinated
+`desurface_render::texture_input` is an independent input utility for #900, coordinated
 with #792 and #813. It accepts in-memory PNG/JPEG bytes and supplies completed RGBA8
 pixels. It does not change a document, read files, assign materials, add a resource-pack
 format, schedule work, upload GPU data or advertise PBR/triplanar support.
@@ -55,7 +55,7 @@ claim unsupported HDRI/PBR output.
 ## Licensed-file probe (2026-10-14)
 
 Files were downloaded outside the checkout for validation only, from the public API
-with an identifying SolidCraft User-Agent. No assets are bundled by this change.
+with an identifying DeSurface User-Agent. No assets are bundled by this change.
 [Poly Haven assets are CC0](https://polyhaven.com/license); live API integration has
 separate credit/identity conditions. These results are input checks, not shaded images:
 

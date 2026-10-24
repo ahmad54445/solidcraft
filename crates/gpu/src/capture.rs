@@ -1,6 +1,6 @@
 //! Pictures of a [`Scene`] drawn offscreen with the viewport's pipelines ([`crate::view`]): the
 //! same shading, edges, silhouettes, section cap and surface analysis the viewport shows, read
-//! back as RGBA. `solidcraft-cli snapshot`, MCP screenshots, `ui.render` and thumbnails draw
+//! back as RGBA. `desurface-cli snapshot`, MCP screenshots, `ui.render` and thumbnails draw
 //! through it, on the application's device ([`Capturer::new`]) or on a headless one
 //! ([`Capturer::headless`], [`shared`]). Without a qualifying adapter, the `auto` policy falls
 //! to the last tier, the CPU rasterizer ([`headless_rgba`]), and says so: every picture names the
@@ -11,8 +11,8 @@ use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use solidcraft_geom::Vec3;
-use solidcraft_render::{AnalysisMode, Camera, Rgb, SECTION_CAP, Scene};
+use desurface_geom::Vec3;
+use desurface_render::{AnalysisMode, Camera, Rgb, SECTION_CAP, Scene};
 use wgpu::util::DeviceExt;
 
 use crate::view::{AccessMap, Frame, GpuScene, GpuTarget, Renderer, analysis_colors, analysis_uniform};
@@ -116,7 +116,7 @@ impl Capturer {
         self.is_lost()
     }
 
-    /// A device of its own, without a window (native only): the adapter the `SOLIDCRAFT_GPU`
+    /// A device of its own, without a window (native only): the adapter the `DESURFACE_GPU`
     /// policy picks ([`crate::select`]).
     #[cfg(not(target_arch = "wasm32"))]
     pub fn headless() -> Result<Self> {
@@ -296,11 +296,11 @@ impl Capturer {
     /// [`Capturer::rgba`] as PNG bytes.
     pub fn png(&self, scene: &Scene, cam: &Camera, width: u32, height: u32) -> Result<Vec<u8>> {
         let rgba = self.rgba(scene, cam, width, height)?;
-        solidcraft_render::png(width as usize, height as usize, rgba).ok_or_else(|| GpuError::Render("PNG encoding failed".into()))
+        desurface_render::png(width as usize, height as usize, rgba).ok_or_else(|| GpuError::Render("PNG encoding failed".into()))
     }
 }
 
-/// The process's headless capturer (native only), opened on first use under the `SOLIDCRAFT_GPU`
+/// The process's headless capturer (native only), opened on first use under the `DESURFACE_GPU`
 /// policy and kept; the error when no adapter qualifies or the device fails (not retried).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn shared() -> std::result::Result<&'static Capturer, &'static GpuError> {
@@ -309,7 +309,7 @@ pub fn shared() -> std::result::Result<&'static Capturer, &'static GpuError> {
 }
 
 /// What draws this process's headless pictures (native only): the shared headless device, or the
-/// CPU rasterizer where the `SOLIDCRAFT_GPU` policy lands there (`cpu`, or `auto` with no
+/// CPU rasterizer where the `DESURFACE_GPU` policy lands there (`cpu`, or `auto` with no
 /// qualifying adapter).
 #[cfg(not(target_arch = "wasm32"))]
 pub enum Headless {
@@ -317,7 +317,7 @@ pub enum Headless {
     Cpu,
 }
 
-/// [`Headless`] under the `SOLIDCRAFT_GPU` policy; an error when the policy is `hardware` or
+/// [`Headless`] under the `DESURFACE_GPU` policy; an error when the policy is `hardware` or
 /// `software` and no adapter of that tier opens (or the variable names no policy).
 #[cfg(not(target_arch = "wasm32"))]
 pub fn headless() -> std::result::Result<Headless, String> {
@@ -346,7 +346,7 @@ pub fn headless_rgba(scene: &Scene, cam: &Camera, width: u32, height: u32) -> st
             if !(1..=MAX_SIDE).contains(&width) || !(1..=MAX_SIDE).contains(&height) {
                 return Err(format!("a picture is 1 to {MAX_SIDE} pixels a side, not {width} × {height}"));
             }
-            let canvas = solidcraft_render::render(scene, cam, width as usize, height as usize);
+            let canvas = desurface_render::render(scene, cam, width as usize, height as usize);
             Ok((canvas.rgba, "cpu"))
         }
     }
@@ -391,7 +391,7 @@ fn frame(scene: &Scene, cam: &Camera, [width, height]: [u32; 2], key: u64, acces
 /// A scene's meshes and lines as the viewport's model scene: faces in their colours (smooth
 /// normals; a face normal where a vertex has none), lines as wide lines (over everything when
 /// `on_top`), the grid under everything. A body whose appearance is see-through
-/// ([`solidcraft_render::SceneMesh::glass`]) goes into the scene's glass, drawn as the viewport
+/// ([`desurface_render::SceneMesh::glass`]) goes into the scene's glass, drawn as the viewport
 /// draws glass: far sides first, then near sides, so what lies inside it shows through.
 pub fn scene_geometry(scene: &Scene) -> GpuScene {
     let mut sc = GpuScene::default();
@@ -536,8 +536,8 @@ fn background_pipeline(device: &wgpu::Device, samples: u32, depth: wgpu::Texture
 mod tests {
     use super::*;
     use crate::view::TRI_SIZE;
-    use solidcraft_geom::Mesh;
-    use solidcraft_render::SceneMesh;
+    use desurface_geom::Mesh;
+    use desurface_render::SceneMesh;
     use std::sync::Arc;
 
     /// One triangle facing the camera.

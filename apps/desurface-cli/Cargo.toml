@@ -1,0 +1,36 @@
+[package]
+name = "desurface-cli"
+description = "DeSurface headless CLI: run command scripts, measure, export, render snapshots, replay oracle recipes"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+default-run = "desurface-cli"
+
+[lints]
+workspace = true
+
+[[bin]]
+name = "desurface-cli"
+path = "src/main.rs"
+
+# Compatibility alias for the CLI's former name: forwards to desurface-cli with a deprecation
+# note on stderr. Shipped in every package for at least one release.
+[[bin]]
+name = "solvecraft-cli"
+path = "src/alias.rs"
+
+[features]
+default = ["raytrace-cpu"]
+bundled-render-library = ["desurface-engine/bundled-render-library"]
+raytrace-cpu = ["desurface-engine/raytrace-cpu"]
+
+[dependencies]
+desurface-engine = { workspace = true }
+desurface-gpu = { workspace = true }
+desurface-mcp = { workspace = true }
+log = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+# Snapshot tests decode the pictures to compare them with a tolerance.
+image = { workspace = true }

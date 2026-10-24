@@ -7,11 +7,11 @@ use std::{
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::{
+use desurface_doc::{
     render_resources::{CpuHdrEnvironment, GpuHdrEnvironment, HdrId, HdrResource},
     render_settings::RenderJob,
 };
-use solidcraft_render::{
+use desurface_render::{
     job::{AreaLight, AreaLights, StudioLighting, Sun},
     texture_input::MapRole,
 };
@@ -188,7 +188,7 @@ pub(super) fn targets(s: &mut Session, params: &Value) -> Result<Value> {
         || input.query.chars().any(char::is_control)
         || input.limit == 0
         || input.limit > 128
-        || input.offset > solidcraft_render::job::MAX_CPU_BODIES
+        || input.offset > desurface_render::job::MAX_CPU_BODIES
     {
         return Err(bad(command, "bounded target search and page size 1..128 required"));
     }
@@ -292,7 +292,7 @@ pub(super) fn owns_sun(id: &str, command: &str) -> Result<bool> {
 
 pub(super) fn hdr_resource(id: &str, command: &str) -> Result<HdrResource> {
     item("hdr", id, command)?;
-    HdrResource::new(asset_bytes(id, solidcraft_render::lighting::MAX_HDR_BYTES as u64, command)?).map_err(|e| bad(command, e.to_string()))
+    HdrResource::new(asset_bytes(id, desurface_render::lighting::MAX_HDR_BYTES as u64, command)?).map_err(|e| bad(command, e.to_string()))
 }
 
 pub(super) fn hdr_rotation(author_rotation: f64, command: &str) -> Result<f64> {
@@ -385,7 +385,7 @@ struct EnvironmentApply {
     replace_environment: bool,
 }
 
-fn has_environment(setup: &solidcraft_doc::render_settings::RenderSetup) -> bool {
+fn has_environment(setup: &desurface_doc::render_settings::RenderSetup) -> bool {
     match &setup.job {
         Some(RenderJob::CpuRaytrace { options }) => options.hdr.is_some() || options.environment.is_some(),
         Some(RenderJob::GpuPath { options, .. }) => options.hdr.is_some() || options.environment.is_some(),
@@ -492,7 +492,7 @@ pub(super) fn prepare_surface(s: &mut Session, params: &Value) -> Result<Value> 
     }
     let center = body.mesh.bounds().center();
     let origin = input.origin.unwrap_or([center.x, center.y, center.z]);
-    let frame = solidcraft_render::job::textures::PlanarFrame { origin, u, v };
+    let frame = desurface_render::job::textures::PlanarFrame { origin, u, v };
     frame.validate().map_err(|e| bad(command, e.to_string()))?;
     let manifest = item("surface_manifest", &input.id, command)?;
     Ok(json!({"id":input.id,"revision":s.revision,"executor":"gpu-path","variant":"gpu_planar_maps",
@@ -573,14 +573,14 @@ pub(super) fn rig_lighting(input: &RigInput, command: &str) -> Result<(StudioLig
     ))
 }
 
-pub(super) fn rig_stage(input: &RigInput, command: &str) -> Result<solidcraft_render::stage::Stage> {
-    use solidcraft_render::stage::{Stage, StagePanel};
+pub(super) fn rig_stage(input: &RigInput, command: &str) -> Result<desurface_render::stage::Stage> {
+    use desurface_render::stage::{Stage, StagePanel};
     if input.variant != "complete" {
         return Ok(Stage::default());
     }
     let source = item("rigs", &input.id, command)?;
     let modifiers = source["modifiers"].as_array().ok_or_else(|| bad(command, "rig modifier array missing"))?;
-    if modifiers.len() > solidcraft_render::stage::MAX_STAGE_PANELS {
+    if modifiers.len() > desurface_render::stage::MAX_STAGE_PANELS {
         return Err(bad(command, "too many rig cards"));
     }
     let scale = input.subject_extent_mm / 1000.0;
@@ -611,9 +611,9 @@ pub(super) fn rig_stage(input: &RigInput, command: &str) -> Result<solidcraft_re
     }
     Stage::new(panels).map_err(|e| bad(command, e.to_string()))
 }
-pub(super) fn rig_clearance(scene: &solidcraft_render::ProductScene, lighting: &StudioLighting, command: &str) -> Result<()> {
+pub(super) fn rig_clearance(scene: &desurface_render::ProductScene, lighting: &StudioLighting, command: &str) -> Result<()> {
     for (i, light) in lighting.area_lights.iter().enumerate() {
-        let panel = solidcraft_render::stage::StagePanel {
+        let panel = desurface_render::stage::StagePanel {
             id: format!("emitter_{i}"),
             center_mm: light.center,
             half_u_mm: light.u,

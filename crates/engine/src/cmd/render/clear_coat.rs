@@ -1,8 +1,8 @@
 //! Request-only coat overrides on immutable captured geometry; no saved appearance changes.
 use crate::{Result, params::bad};
 use serde::Deserialize;
-use solidcraft_geom::Vec3;
-use solidcraft_render::{
+use desurface_geom::Vec3;
+use desurface_render::{
     ProductScene,
     clear_coat::ClearCoat,
     surface::{OpaqueSurface, srgb8_to_linear},

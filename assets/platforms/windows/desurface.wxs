@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DeSurface MSI (WiX Toolset v5, plus the UI and Util extensions). Built by package.ps1:
+
+    wix build desurface.wxs -arch x64 -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext
+      -culture en-US -loc desurface.en-us.wxl -d Version=1.2.3 -d DisplayVersion=1.2.3-rc.1
+      -d BinDir=... -d IconPath=... -o out.msi
+
+  Per-machine install with a setup wizard: Welcome, install folder (Program Files\DeSurface by
+  default, remembered for upgrades), Ready, progress, and a Finish page with a ticked "Launch
+  DeSurface" box. Installs a Start Menu shortcut, desurface-cli, the licence files (including
+  THIRD-PARTY-LICENSES.txt), makes DeSurface the owner of `.solidcraft` (and of the pre-rename `.solvecraft`), and offers it under
+  "Open with" for STEP, IGES, 3MF and STL. `msiexec /qn` installs silently.
+  Adapted from PhotoCraft's (storytold/photocraft, Apache-2.0; see ATTRIBUTION.md).
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <!-- Never change the UpgradeCode: it is what lets a new MSI replace every earlier install,
+       including those from before the SolveCraft -> DeSurface rename (docs/compatibility.md). -->
+  <Package
+      Name="DeSurface"
+      Manufacturer="SolidCraft contributors"
+      Version="$(var.Version)"
+      UpgradeCode="6A145FD6-D285-428D-AE84-A69570CDF4DB"
+      Scope="perMachine"
+      Compressed="yes"
+      Language="1033">
+    <SummaryInformation Description="DeSurface parametric 3D CAD" Manufacturer="SolidCraft contributors" />
+    <!-- Same-version upgrades let successive pre-releases of one X.Y.Z replace each other. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+        DowngradeErrorMessage="A newer version of DeSurface is already installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <!-- Advertised shortcuts to an .exe need an .exe icon identifier (ICE50). -->
+    <Icon Id="DesurfaceIcon.exe" SourceFile="$(var.IconPath)" />
+    <Property Id="ARPPRODUCTICON" Value="DesurfaceIcon.exe" />
+    <Property Id="ARPURLINFOABOUT" Value="https://docs.solidcraft.io/" />
+    <Property Id="ARPURLUPDATEINFO" Value="https://github.com/bherbruck/solidcraft/releases" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/bherbruck/solidcraft/issues" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="DeSurface" />
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder" />
+
+    <!-- An upgrade installs where the user put the previous version (written by DesurfaceApp). -->
+    <!-- Since the rename the folder and this key say DeSurface. A pre-rename install recorded
+         Software\SolveCraft, which isn't read: its upgrade (same UpgradeCode) removes the old
+         folder and installs into Program Files\DeSurface (docs/compatibility.md). -->
+    <Property Id="INSTALLFOLDER">
+      <RegistrySearch Id="PreviousInstallFolder" Root="HKLM" Key="Software\DeSurface" Name="InstallDir" Type="raw" />
+    </Property>
+
+    <Feature Id="Main" Title="DeSurface" Level="1">
+      <ComponentGroupRef Id="DesurfaceFiles" />
+    </Feature>
+
+    <!-- WixUI_InstallDir without its licence page (MIT OR Apache-2.0: nothing to accept). -->
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+    <UI>
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="InstallDirDlg" Order="2" Condition="NOT Installed" />
+      <Publish Dialog="InstallDirDlg" Control="Back" Event="NewDialog" Value="WelcomeDlg" Order="2" />
+      <Publish Dialog="ExitDialog" Control="Finish" Event="DoAction" Value="LaunchDesurface"
+          Condition="WIXUI_EXITDIALOGOPTIONALCHECKBOX = 1 AND NOT Installed" />
+    </UI>
+
+    <Property Id="DesurfaceVersion" Value="$(var.DisplayVersion)" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="DeSurface $(var.DisplayVersion) is installed. You can start it any time from the Start menu." />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOXTEXT" Value="Launch DeSurface" />
+    <Property Id="WIXUI_EXITDIALOGOPTIONALCHECKBOX" Value="1" />
+    <Property Id="WixShellExecTarget" Value="[#DesurfaceExe]" />
+    <!-- Runs in the wizard's own (unelevated) process, so the app starts as the user. -->
+    <CustomAction Id="LaunchDesurface" BinaryRef="Wix4UtilCA_$(sys.BUILDARCHSHORT)" DllEntry="WixShellExec" Impersonate="yes" Return="ignore" />
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="DesurfaceFiles" Directory="INSTALLFOLDER">
+      <!-- A new GUID with the rename: the key file changed from solvecraft.exe to desurface.exe.
+           The UpgradeCode above is unchanged, so this MSI major-upgrades a pre-rename install. -->
+      <Component Id="DesurfaceApp" Guid="A379D509-D776-4B34-A3A4-71FBF5724971">
+        <File Id="DesurfaceExe" Source="$(var.BinDir)\desurface.exe" KeyPath="yes">
+          <Shortcut Id="StartMenuShortcut" Directory="ProgramMenuFolder" Name="DeSurface"
+              Description="DeSurface parametric 3D CAD" WorkingDirectory="INSTALLFOLDER" Advertise="yes"
+              Icon="DesurfaceIcon.exe" IconIndex="0" />
+        </File>
+
+        <!-- .solidcraft: DeSurface's own format; DeSurface is its default app. -->
+        <ProgId Id="Desurface.Design" Description="DeSurface Design" Icon="DesurfaceExe" IconIndex="0">
+          <Extension Id="solidcraft" ContentType="application/x-solidcraft">
+            <Verb Id="open" Command="Open" TargetFile="DesurfaceExe" Argument="&quot;%1&quot;" />
+          </Extension>
+        </ProgId>
+        <!-- Compatibility shim (docs/compatibility.md): designs saved before the rename open as
+             the same ProgId. Registered by hand: a second Extension under one ProgId would write
+             its open verb twice (WIX0091). -->
+        <RegistryValue Root="HKLM" Key="Software\Classes\.solvecraft" Value="Desurface.Design" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.solvecraft" Name="Content Type" Value="application/x-solvecraft" Type="string" />
+        <!-- STEP, IGES and meshes: offered under "Open with", never forced as the default. -->
+        <ProgId Id="Desurface.Model" Description="3D model" Icon="DesurfaceExe" IconIndex="0" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Desurface.Model\shell\open\command" Value="&quot;[#DesurfaceExe]&quot; &quot;%1&quot;" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.step\OpenWithProgids" Name="Desurface.Model" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.stp\OpenWithProgids" Name="Desurface.Model" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.igs\OpenWithProgids" Name="Desurface.Model" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.iges\OpenWithProgids" Name="Desurface.Model" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.3mf\OpenWithProgids" Name="Desurface.Model" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\.stl\OpenWithProgids" Name="Desurface.Model" Value="" Type="string" />
+
+        <!-- "Open with" app list and the Run dialog (Win+R "desurface"). -->
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe" Name="FriendlyAppName" Value="DeSurface" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\shell\open\command" Value="&quot;[#DesurfaceExe]&quot; &quot;%1&quot;" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".solidcraft" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".solvecraft" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".step" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".stp" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".igs" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".iges" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".3mf" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Classes\Applications\desurface.exe\SupportedTypes" Name=".stl" Value="" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\App Paths\desurface.exe" Value="[#DesurfaceExe]" Type="string" />
+        <RegistryValue Root="HKLM" Key="Software\DeSurface" Name="InstallDir" Value="[INSTALLFOLDER]" Type="string" />
+      </Component>
+
+      <Component Id="DesurfaceCli">
+        <File Id="DesurfaceCliExe" Source="$(var.BinDir)\desurface-cli.exe" KeyPath="yes" />
+      </Component>
+      <!-- Compatibility shim (docs/compatibility.md): the old CLI name, forwarding to desurface-cli. -->
+      <Component Id="DesurfaceCliAlias">
+        <File Id="SolvecraftCliAliasExe" Source="$(var.BinDir)\solvecraft-cli.exe" KeyPath="yes" />
+      </Component>
+      <!-- Several unversioned files: an explicit GUID (WIX0367). -->
+      <Component Id="DesurfaceLicences" Guid="CDEDEE8D-4BE9-4872-A2EA-EE623A6C7E91">
+        <File Id="LicenseMit" Source="$(var.BinDir)\LICENSE-MIT" KeyPath="yes" />
+        <File Id="LicenseApache" Source="$(var.BinDir)\LICENSE-APACHE" />
+        <File Id="Notice" Source="$(var.BinDir)\NOTICE" />
+        <File Id="ThirdParty" Source="$(var.BinDir)\THIRD-PARTY-LICENSES.txt" />
+      </Component>
+    </ComponentGroup>
+  </Fragment>
+</Wix>

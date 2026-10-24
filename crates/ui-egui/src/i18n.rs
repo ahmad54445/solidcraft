@@ -147,7 +147,7 @@ impl Locale {
         interpolate(self.text(id), args)
     }
 
-    /// The default names SolidCraft gives (`Untitled` for a new design, `Sketch1`, `Body2`,
+    /// The default names DeSurface gives (`Untitled` for a new design, `Sketch1`, `Body2`,
     /// `Component3`), translated.
     fn default_name(self, text: &str) -> Option<String> {
         if text == "Untitled" {
@@ -370,7 +370,7 @@ mod tests {
             wanted.push(section.tab);
             wanted.push(section.panel);
         }
-        for spec in solidcraft_engine::command_specs() {
+        for spec in desurface_engine::command_specs() {
             wanted.push(spec.tab);
             wanted.push(spec.panel);
         }
@@ -390,7 +390,7 @@ mod tests {
     #[test]
     fn every_command_label_is_in_the_english_catalog() {
         let texts = english_texts();
-        let mut untranslated: Vec<&str> = solidcraft_engine::command_specs().iter().map(|c| c.label).filter(|label| !texts.contains(label)).collect();
+        let mut untranslated: Vec<&str> = desurface_engine::command_specs().iter().map(|c| c.label).filter(|label| !texts.contains(label)).collect();
         untranslated.sort_unstable();
         untranslated.dedup();
         assert!(
@@ -405,7 +405,7 @@ mod tests {
     #[test]
     fn every_sample_name_and_description_is_in_the_english_catalog() {
         let texts = english_texts();
-        let samples = solidcraft_engine::sample::samples();
+        let samples = desurface_engine::sample::samples();
         let missing: Vec<&str> = samples.iter().flat_map(|s| [s.name, s.about]).filter(|text| !texts.contains(text)).collect();
         assert!(missing.is_empty(), "sample texts absent from en.json: {missing:?}");
         assert_eq!(Locale::for_language("ja").label("Sample Plate"), "サンプル プレート");

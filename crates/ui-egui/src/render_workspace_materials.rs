@@ -4,7 +4,7 @@ use std::sync::{Arc, Weak};
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_engine::{
+use desurface_engine::{
     doc::{
         Document,
         appearance_pack::{self, GlassBoundary, Recipe},
@@ -25,7 +25,7 @@ const MAX_BINDINGS: usize = 128;
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub(super) struct Target {
     #[serde(default)]
-    pub stable_target: Option<solidcraft_engine::doc::render_surface::RenderBodyTarget>,
+    pub stable_target: Option<desurface_engine::doc::render_surface::RenderBodyTarget>,
     pub ordinal: usize,
     pub name: String,
 }
@@ -62,7 +62,7 @@ pub(super) struct Glass {
     pub boundary: Boundary,
     pub thickness: f64,
     pub shadows: bool,
-    pub subsurface: Option<solidcraft_engine::render::transmission::subsurface::Subsurface>,
+    pub subsurface: Option<desurface_engine::render::transmission::subsurface::Subsurface>,
 }
 impl Default for Glass {
     fn default() -> Self {
@@ -181,12 +181,12 @@ pub(super) struct View {
 pub(super) fn read_targets(app: &mut SolveApp) -> Result<Vec<Target>, String> {
     let reply = app.run("render.scene", json!({}))?;
     let values = reply.get("bodies").and_then(Value::as_array).ok_or_else(|| "missing render scene bodies".to_string())?;
-    if values.len() > solidcraft_engine::render::job::MAX_GPU_PATH_BODIES {
+    if values.len() > desurface_engine::render::job::MAX_GPU_PATH_BODIES {
         return Err("render scene exceeds its body limit".into());
     }
     let targets: Vec<Target> = serde_json::from_value(Value::Array(values.clone())).map_err(|e| e.to_string())?;
     if targets.iter().any(|t| {
-        t.ordinal >= solidcraft_engine::render::job::MAX_GPU_PATH_BODIES
+        t.ordinal >= desurface_engine::render::job::MAX_GPU_PATH_BODIES
             || t.name.is_empty()
             || t.name.len() > 1024
             || t.name.chars().any(char::is_control)
@@ -226,7 +226,7 @@ pub(super) fn params(app: &SolveApp, params: &mut Value) -> Result<(), String> {
             return Err(app.tr("render.material_revalidate_needed").to_string());
         }
         let target = &binding.target;
-        if target.ordinal >= solidcraft_engine::render::job::MAX_GPU_PATH_BODIES
+        if target.ordinal >= desurface_engine::render::job::MAX_GPU_PATH_BODIES
             || target.name.is_empty()
             || target.name.len() > 1024
             || target.name.chars().any(char::is_control)
@@ -300,8 +300,8 @@ pub(super) fn params(app: &SolveApp, params: &mut Value) -> Result<(), String> {
             textures.push(wire);
         }
     }
-    if glass.len() > solidcraft_engine::render::job::MAX_GPU_DIELECTRICS
-        || textures.len() > solidcraft_engine::render::job::textures::MAX_TEXTURE_BINDINGS
+    if glass.len() > desurface_engine::render::job::MAX_GPU_DIELECTRICS
+        || textures.len() > desurface_engine::render::job::textures::MAX_TEXTURE_BINDINGS
     {
         return Err(app.tr("render.material_limits").to_string());
     }
@@ -504,7 +504,7 @@ fn glass_controls(app: &mut SolveApp, ui: &mut egui::Ui, binding: &mut Binding) 
         let mut scatter = glass.subsurface.is_some();
         if ui_kit::checkbox(ui, app.tr("render.subsurface_enable"), &mut scatter).changed() {
             glass.subsurface =
-                scatter.then_some(solidcraft_engine::render::transmission::subsurface::Subsurface { scattering_per_mm: 0.1, anisotropy: 0.0 });
+                scatter.then_some(desurface_engine::render::transmission::subsurface::Subsurface { scattering_per_mm: 0.1, anisotropy: 0.0 });
             changed = true;
         }
         if let Some(subsurface) = &mut glass.subsurface {

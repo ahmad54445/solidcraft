@@ -197,7 +197,7 @@ mod tests {
                 count.set(count.get() + 1);
             };
             if save {
-                h.app.pick_save("part.solidcraft", &["solidcraft"], callback);
+                h.app.pick_save("part.solidcraft", &["desurface"], callback);
             } else {
                 h.app.pick_open(callback);
             }

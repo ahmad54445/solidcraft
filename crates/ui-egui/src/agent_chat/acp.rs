@@ -3,8 +3,8 @@
 //! reads messages; the process lives in `process.rs` and the state in `mod.rs`, so everything
 //! here is plain data and tested without an agent.
 //!
-//! What SolidCraft says it can do (`clientCapabilities`): no file system and no terminal (the agent
-//! reaches the design through SolidCraft's MCP server instead), and terminal login, so an agent
+//! What DeSurface says it can do (`clientCapabilities`): no file system and no terminal (the agent
+//! reaches the design through DeSurface's MCP server instead), and terminal login, so an agent
 //! that needs one describes a command for the user to run rather than asking for a key.
 
 use serde_json::{Value, json};
@@ -40,16 +40,16 @@ pub fn initialize_params(version: &str) -> Value {
             "auth": {"terminal": true},
             "_meta": {"terminal-auth": true},
         },
-        "clientInfo": {"name": "solidcraft", "title": "SolidCraft", "version": version},
+        "clientInfo": {"name": "desurface", "title": "DeSurface", "version": version},
     })
 }
 
-/// The name the chat gives its MCP server (#2592): not `solidcraft`, the name docs/mcp.md suggests
+/// The name the chat gives its MCP server (#2592): not `desurface`, the name docs/mcp.md suggests
 /// for a user's own setup, so an agent that merges its own MCP servers with the session's (Codex
 /// keeps its own entry on a clash) can't shadow the bridge with a headless session.
-pub const BRIDGE_NAME: &str = "solidcraft-app";
+pub const BRIDGE_NAME: &str = "desurface-app";
 
-/// The MCP server the agent starts to reach the design: `solidcraft-cli mcp --connect` bridged to
+/// The MCP server the agent starts to reach the design: `desurface-cli mcp --connect` bridged to
 /// this app's control port. The server finds the port's token in the token file the app wrote
 /// (docs/control-protocol.md), so the token never travels through the agent, and it keeps its
 /// default folder limits (docs/mcp.md): no `--allow-any-path`.
@@ -71,15 +71,15 @@ impl McpBridge {
 }
 
 /// What every session is told about where it is. Agents that don't read `_meta` ignore it.
-pub const SYSTEM_NOTE: &str = "You are running inside SolidCraft, a parametric 3D CAD application, as the user's assistant. \
-The open design is reachable through the `solidcraft-app` MCP server: use its tools (list_commands, batch, execute, inspect_design, \
+pub const SYSTEM_NOTE: &str = "You are running inside DeSurface, a parametric 3D CAD application, as the user's assistant. \
+The open design is reachable through the `desurface-app` MCP server: use its tools (list_commands, batch, execute, inspect_design, \
 measure, screenshot, set_parameter, undo) to read and change the design the user is looking at, and verify with measure or \
 inspect_design. Prefer one `batch` over many small calls. Saving, opening or exporting files waits for the user's approval in \
-the chat, and each message allows a limited number of changes. Don't use shell or file tools: work through the SolidCraft tools. \
+the chat, and each message allows a limited number of changes. Don't use shell or file tools: work through the DeSurface tools. \
 Keep answers short.";
 
 /// The Claude Code adapter's own tools that reach the computer rather than the design: turned off
-/// for the session (`_meta.claudeCode.options.disallowedTools`), so it works through SolidCraft's.
+/// for the session (`_meta.claudeCode.options.disallowedTools`), so it works through DeSurface's.
 pub const CLAUDE_DISALLOWED_TOOLS: &[&str] =
     &["Bash", "BashOutput", "KillShell", "Read", "Write", "Edit", "MultiEdit", "NotebookEdit", "Glob", "Grep", "WebFetch", "WebSearch", "Task"];
 
@@ -92,7 +92,7 @@ pub fn session_new_params(cwd: &std::path::Path, bridge: Option<&McpBridge>) -> 
             "systemPrompt": {"append": SYSTEM_NOTE},
             // Hosts may opt a session out of "bypass permissions" (the Claude adapter reads it):
             // every tool call the agent asks about reaches the panel.
-            // Its own shell and file tools are off: the agent works through SolidCraft's tools.
+            // Its own shell and file tools are off: the agent works through DeSurface's tools.
             "claudeCode": {"options": {"allowDangerouslySkipPermissions": false, "disallowedTools": CLAUDE_DISALLOWED_TOOLS}},
         },
     })
@@ -212,7 +212,7 @@ pub fn auth_methods(init: &Value) -> Vec<AuthMethod> {
                                 .map(|v| v.iter().take(16).filter_map(|x| x.get("name").and_then(Value::as_str).map(str::to_string)).collect())
                                 .unwrap_or_default(),
                         },
-                        // A key the agent would take from the client: SolidCraft never handles
+                        // A key the agent would take from the client: DeSurface never handles
                         // keys, so this becomes "set it in your environment" instead.
                         _ if m.get("_meta").and_then(|x| x.get("api-key")).is_some() => {
                             let provider = m
@@ -488,21 +488,21 @@ mod tests {
         assert!(split_command("   ").is_empty());
     }
 
-    /// #2592: the bridge is not called `solidcraft`, the name a user's own MCP entry takes from
+    /// #2592: the bridge is not called `desurface`, the name a user's own MCP entry takes from
     /// docs/mcp.md, and the note tells the agent the name it really has.
     #[test]
     fn the_bridge_has_a_name_of_its_own_and_the_note_uses_it() {
-        assert_ne!(BRIDGE_NAME, "solidcraft");
+        assert_ne!(BRIDGE_NAME, "desurface");
         assert!(SYSTEM_NOTE.contains(&format!("`{BRIDGE_NAME}` MCP server")), "{SYSTEM_NOTE}");
-        assert!(!SYSTEM_NOTE.contains("`solidcraft` MCP server"));
-        // The panel still recognises the bridge's tools as SolidCraft's (agents name them after
-        // their server, e.g. `mcp__solidcraft-app__batch`).
-        assert!(BRIDGE_NAME.contains("solidcraft"));
+        assert!(!SYSTEM_NOTE.contains("`desurface` MCP server"));
+        // The panel still recognises the bridge's tools as DeSurface's (agents name them after
+        // their server, e.g. `mcp__desurface-app__batch`).
+        assert!(BRIDGE_NAME.contains("desurface"));
     }
 
     #[test]
     fn the_session_gets_the_bridged_mcp_server_without_a_token_or_any_path() {
-        let b = McpBridge { cli: "/opt/solidcraft/solidcraft-cli".into(), port: 41234 };
+        let b = McpBridge { cli: "/opt/desurface/desurface-cli".into(), port: 41234 };
         let p = session_new_params(std::path::Path::new("/home/u/designs"), Some(&b));
         let s = &p["mcpServers"][0];
         assert_eq!(s["name"], BRIDGE_NAME);

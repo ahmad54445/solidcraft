@@ -3,8 +3,8 @@
 use super::{cpu, inspector, library, setups, studio};
 use crate::SolveApp;
 use serde_json::json;
-use solidcraft_engine::render::job::Phase;
-use solidcraft_engine::{CommandInfo, CommandSpec};
+use desurface_engine::render::job::Phase;
+use desurface_engine::{CommandInfo, CommandSpec};
 
 fn is_job_action(id: &str) -> bool {
     matches!(id, "render.preflight" | "render.start" | "render.cancel" | "render.export" | "render.result.regrade")
@@ -157,9 +157,9 @@ pub(super) fn perform_job(app: &mut SolveApp, id: &str) -> Result<(), String> {
     Ok(())
 }
 
-pub(super) fn presentation(app: &SolveApp) -> solidcraft_engine::render::job::presentation::Presentation {
+pub(super) fn presentation(app: &SolveApp) -> desurface_engine::render::job::presentation::Presentation {
     let view = &app.render_workspace.view;
-    solidcraft_engine::render::job::presentation::Presentation {
+    desurface_engine::render::job::presentation::Presentation {
         exposure_ev: view.draft.exposure_ev,
         tone_map: view.studio.tone_map,
         finishing: view.studio.finishing,

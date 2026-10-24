@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::ProductScene;
-use solidcraft_geom::Aabb3;
+use desurface_geom::Aabb3;
 
 fn request(integrator: Integrator) -> ImageRequest {
     ImageRequest {
@@ -125,7 +125,7 @@ fn cancelled_raytrace_task_never_returns_a_frame() {
 #[cfg(feature = "raytrace-cpu")]
 #[test]
 fn completed_raytrace_task_releases_captured_mesh_before_returning_png() {
-    let mesh = Arc::new(solidcraft_geom::Mesh::default());
+    let mesh = Arc::new(desurface_geom::Mesh::default());
     let captured = Arc::downgrade(&mesh);
     let scene = ProductScene {
         meshes: vec![crate::ProductMesh {

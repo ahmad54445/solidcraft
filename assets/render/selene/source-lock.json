@@ -4,7 +4,7 @@
     "language": "en",
     "status": "pinned_native",
     "name": "SELENE improved showcase source lock",
-    "authorship": "Original SolidCraft source-admission metadata based on the supplied native file and public source history; the unchanged improved native source is retained.",
+    "authorship": "Original DeSurface source-admission metadata based on the supplied native file and public source history; the unchanged improved native source is retained.",
     "license": "MIT OR Apache-2.0",
     "provenance_id": "ORIGINAL-2026-10-CATALOG",
     "inspected_on": "2026-10-22"
@@ -47,7 +47,7 @@
     ],
     "notices": [
       {
-        "scope": "Original rover geometry and SolidCraft emblem",
+        "scope": "Original rover geometry and DeSurface emblem",
         "author": "0xlillith and SolidCraft contributors",
         "license": "MIT OR Apache-2.0",
         "source": "https://github.com/0xlillith/solidcraft-rover/blob/b32437915372d32b71419dc8f5143fe22ff1e869/ATTRIBUTION.md"
@@ -63,7 +63,7 @@
         "scope": "Showcase assembly and helper additions",
         "author": "SychPL (Mateusz Sych)",
         "source": "https://github.com/SychPL/solidcraft/blob/32ec1720447e3fcc6bb6cc53a63fb5b39cfa21b9/SELENE-showcase.solidcraft",
-        "note": "Explicit author permission covers redistribution and derivatives, including SELENE-functional.solidcraft.",
+        "note": "Explicit author permission covers redistribution and derivatives, including SELENE-functional.desurface.",
         "license": "MIT OR Apache-2.0",
         "license_grant_url": "https://github.com/tangency-labs/solidcraft/pull/5494#issuecomment-6375788360",
         "license_grant_created_at": "2026-10-23T22:13:37Z"
@@ -111,7 +111,7 @@
       "url": "https://github.com/tangency-labs/solidcraft/blob/463cea0615a22be2f7d6c30512211f9eda97ff28/skills/solidcraft-mechanisms/reference.md",
       "repository": "tangency-labs/solidcraft",
       "commit": "463cea0615a22be2f7d6c30512211f9eda97ff28",
-      "path": "skills/solidcraft-mechanisms/reference.md",
+      "path": "skills/desurface-mechanisms/reference.md",
       "scope": "Published SELENE actuator, anchoring, motion-link and visibility example; command units and limitations.",
       "evidence_level": "documentation"
     },
@@ -227,7 +227,7 @@
       "repository": "tangency-labs/solidcraft",
       "commit": "463cea0615a22be2f7d6c30512211f9eda97ff28",
       "path": "ATTRIBUTION.md",
-      "scope": "Credits docs/screenshots/rover-build.gif and rover-build.mp4 as construction replay of Rover-recorded.solidcraft. Those rows do not identify the improved showcase native file.",
+      "scope": "Credits docs/screenshots/rover-build.gif and rover-build.mp4 as construction replay of Rover-recorded.desurface. Those rows do not identify the improved showcase native file.",
       "evidence_level": "upstream_license_document"
     },
     {
@@ -265,7 +265,7 @@
       "type": "pinned_document",
       "repository": "tangency-labs/solidcraft",
       "commit": "ac1768e08b83ed33212459951f5b50aa7a57cddc",
-      "path": "skills/solidcraft-mechanisms/reference.md",
+      "path": "skills/desurface-mechanisms/reference.md",
       "url": "https://github.com/tangency-labs/solidcraft/blob/ac1768e08b83ed33212459951f5b50aa7a57cddc/skills/solidcraft-mechanisms/reference.md",
       "scope": "The exact reference supplied by the owner; command contracts and the earlier SELENE closed-loop example.",
       "evidence_level": "documentation"
@@ -273,7 +273,7 @@
   ],
   "public_search": {
     "inspected_on": "2026-10-21",
-    "method": "Read-only GitHub repository, tree, release, pull-request and comment APIs. Only the SolidCraft project, its original rover repository and contributor fork were inspected.",
+    "method": "Read-only GitHub repository, tree, release, pull-request and comment APIs. Only the DeSurface project, its original rover repository and contributor fork were inspected.",
     "conclusion": "The improved filename and behavior are documented, but no improved native model or native ZIP attachment was found in the public locations listed below. This is a bounded search result, not proof that the file does not exist elsewhere.",
     "repositories": [
       {
@@ -534,7 +534,7 @@
     {
       "id": "SELENE-ADMIT-007",
       "check": "Keep runtime evidence separate.",
-      "acceptance": "A pinned source is not a replay or physics result. Runtime motion needs a recorded SolidCraft revision, command inputs, tolerances, source digest, solved poses, stop/contact reports and review. Changed source bytes invalidate dependent bindings and recordings."
+      "acceptance": "A pinned source is not a replay or physics result. Runtime motion needs a recorded DeSurface revision, command inputs, tolerances, source digest, solved poses, stop/contact reports and review. Changed source bytes invalidate dependent bindings and recordings."
     }
   ],
   "native_inspection": {
@@ -559,7 +559,7 @@
   },
   "authoring_runtime": {
     "status": "derivative_native_acceptance_passed",
-    "name": "Official SolidCraft CLI",
+    "name": "Official DeSurface CLI",
     "version": "0.18.2",
     "platform": "linux-x86_64",
     "release_url": "https://github.com/tangency-labs/solidcraft/releases/tag/v0.18.2",

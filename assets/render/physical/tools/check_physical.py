@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run physical-data checks and optional read-only native card admission.
 
-The optional --cli must point to a trusted existing SolidCraft CLI executable.
+The optional --cli must point to a trusted existing DeSurface CLI executable.
 It only runs material.properties.validate in fresh CLI processes; it never runs
 material.create, material.assign, opens a user's document or writes a native design.
 Evidence stays under ignored target/. This is not aggregate workspace CI.
@@ -82,7 +82,7 @@ def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--cli',type=Path)
     args=parser.parse_args();stamp=datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
     folder=physical.ROOT/'target/physical-material-review'/stamp;folder.mkdir(parents=True,exist_ok=False)
-    start=time.monotonic();before=snapshot();report={'schema':'solidcraft-physical-check/1','status':'fail','source_inputs':before,
+    start=time.monotonic();before=snapshot();report={'schema':'desurface-physical-check/1','status':'fail','source_inputs':before,
       'python':sys.version.split()[0],'full_workspace_ci':'not_run_by_this_gate','runtime_assignment':False}
     exit_code=1
     try:

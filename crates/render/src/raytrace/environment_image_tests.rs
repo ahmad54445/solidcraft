@@ -1,6 +1,6 @@
 use super::*;
 use crate::lighting::{HdrSource, environment_input::EnvironmentInput};
-use solidcraft_geom::{Aabb3, Mesh};
+use desurface_geom::{Aabb3, Mesh};
 use std::sync::Arc;
 
 fn input() -> EnvironmentInput {

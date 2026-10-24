@@ -41,7 +41,7 @@ def package(output: Path) -> dict:
         sums.append(digest(destination)+'  '+name)
     readme = '''# SELENE native studio render
 
-This package contains the exact completed SolidCraft GPU-path PNG and its source,
+This package contains the exact completed DeSurface GPU-path PNG and its source,
 renderer, resource and request manifest. It is a 3840 x 2400 native render with
 1,024 samples per pixel, maximum path depth 16, ACES-fitted tone mapping and
 edge-aware a-trous denoising. The functional master is unchanged: 2,116 native

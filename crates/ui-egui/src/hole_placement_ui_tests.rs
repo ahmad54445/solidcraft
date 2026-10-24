@@ -6,10 +6,10 @@
 //! looks the face up once for every point near the cursor.
 
 use serde_json::{Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::FeatureKind;
-use solidcraft_engine::geom::{Aabb3, Vec2, Vec3};
-use solidcraft_engine::sketch::{CurveKind, LinkKind, SPoint};
+use desurface_engine::Sel;
+use desurface_engine::doc::FeatureKind;
+use desurface_engine::geom::{Aabb3, Vec2, Vec3};
+use desurface_engine::sketch::{CurveKind, LinkKind, SPoint};
 
 use crate::dialogs::Kind;
 use crate::scenario::Harness;
@@ -577,7 +577,7 @@ fn a_face_place_snaps_to_the_points_of_shown_geometry_only() {
         sk.view.hide_projected = hide;
         let takes = crate::dialogs::SnapPoints::of(&sk);
         for (i, p) in sk.points.iter().enumerate() {
-            let want = solidcraft_engine::view::sketch_point_visible(&sk, i) && !(hide && p.link.is_some());
+            let want = desurface_engine::view::sketch_point_visible(&sk, i) && !(hide && p.link.is_some());
             assert_eq!(takes.takes(p), want, "point {} (link {:?}), Show Projected off: {hide}", p.id, p.link);
         }
         let taken = sk.points.iter().filter(|p| takes.takes(p)).count();

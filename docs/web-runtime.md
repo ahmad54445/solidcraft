@@ -1,11 +1,11 @@
 # Browser runtime (design)
 
-Design note for SolidCraft in the browser: tiered storage, worker offload, GPU jobs, and
+Design note for DeSurface in the browser: tiered storage, worker offload, GPU jobs, and
 agent control that stay aligned with the desktop app, the control channel, and
 [MCP](mcp.md). Implementation lives primarily in
 [craft-libs](https://github.com/storytold/craft-libs) (`craft-tier-store`, `craft-worker-host`,
-`craft-gpu`, `craft-runtime`); SolidCraft wires those crates into
-[`apps/solidcraft-web`](../apps/solidcraft-web) and [`files.rs`](../apps/solidcraft-web/src/files.rs)
+`craft-gpu`, `craft-runtime`); DeSurface wires those crates into
+[`apps/desurface-web`](../apps/desurface-web) and [`files.rs`](../apps/desurface-web/src/files.rs)
 rather than growing a second stack here.
 
 Related: [plugins.md](plugins.md) and [#1221](https://github.com/bherbruck/solidcraft/issues/1221)
@@ -18,11 +18,11 @@ The wasm app today ([`getting-started`](../docs/book/src/guide/getting-started.m
 the origin private file system (OPFS) behind virtual `/opfs/` paths, with optional File System
 Access import/export. That works for small and medium designs but hits three walls:
 
-| Wall | Symptom in SolidCraft |
+| Wall | Symptom in DeSurface |
 |------|------------------------|
 | Quota | Large STEP imports and container blobs compete with autosave and cache in OPFS |
 | Main thread | Open, save, and timeline evaluation run synchronously on the UI thread with egui |
-| Agents | MCP runs out of process (`solidcraft-cli mcp`); the tab has no first-class agent session |
+| Agents | MCP runs out of process (`desurface-cli mcp`); the tab has no first-class agent session |
 
 WebGPU for the viewport already runs on the main thread (wgpu via eframe). Moving the entire UI
 renderer into a worker is out of scope for the first integration; worker GPU is for offload jobs
@@ -65,14 +65,14 @@ Tiers (craft-tier-store)
 ```
 
 On **desktop**, the same `BlobStore` and job envelopes apply: warm/cold map to normal directories;
-[`solidcraft-cli mcp`](mcp.md) and wasmtime plugin hosts ([#1221](https://github.com/bherbruck/solidcraft/issues/1221))
+[`desurface-cli mcp`](mcp.md) and wasmtime plugin hosts ([#1221](https://github.com/bherbruck/solidcraft/issues/1221))
 call the same `run(command, args)` JSON.
 
-## Mapping SolidCraft today
+## Mapping DeSurface today
 
 | Today | Target |
 |-------|--------|
-| [`files.rs`](../apps/solidcraft-web/src/files.rs) OPFS + `/opfs/` VFS | Warm tier keys; migration keeps existing filenames initially |
+| [`files.rs`](../apps/desurface-web/src/files.rs) OPFS + `/opfs/` VFS | Warm tier keys; migration keeps existing filenames initially |
 | Recovery autosave | Warm tier, same semantics as [`compatibility.md`](compatibility.md) |
 | [Design containers](design-container.md) content-addressed blobs | Tier keys by hash; cold tier holds large blobs without copying into OPFS |
 | [Control protocol](control-protocol.md) over TCP | Same methods over `MessagePort` to broker headless session (WebMCP-shaped, not a second registry) |
@@ -80,7 +80,7 @@ call the same `run(command, args)` JSON.
 
 ## craft-libs crates (reference)
 
-These names follow the craft-libs performance platform design; SolidCraft depends on them as
+These names follow the craft-libs performance platform design; DeSurface depends on them as
 published from storytold/craft-libs after cloud contracts land (#48, #52).
 
 | Crate | Role |
@@ -92,7 +92,7 @@ published from storytold/craft-libs after cloud contracts land (#48, #52).
 | `craft-gpu-providers` | Shared readback/composite helpers extracted from Craft app gpu crates |
 | `craft-runtime` | Facade: tier store + worker host + optional `cloud-delegate` hooks |
 
-Generic runtime code must not depend on SolidCraft crates. SolidCraft registers app-specific
+Generic runtime code must not depend on DeSurface crates. DeSurface registers app-specific
 providers and key namespaces only.
 
 ## GPU and the viewport
@@ -106,7 +106,7 @@ providers and key namespaces only.
 
 | Mode | Transport |
 |------|-----------|
-| Desktop agent | `solidcraft-cli mcp` (stdio) or `--connect` to [control protocol](control-protocol.md) |
+| Desktop agent | `desurface-cli mcp` (stdio) or `--connect` to [control protocol](control-protocol.md) |
 | Browser agent | RPC to broker session; dialog-free tools only |
 | IDE bridge | Optional local relay (stdio MCP ↔ tab); not required for CollabCraft-hosted wasm |
 
@@ -117,7 +117,7 @@ never `--allow-any-path` in the tab.
 
 | Host | Runtime |
 |------|---------|
-| Desktop | wasmtime + fuel/memory limits; WIT `solidcraft:plugin@1.0.0` with `run`, `manifest`, permissions |
+| Desktop | wasmtime + fuel/memory limits; WIT `desurface:plugin@1.0.0` with `run`, `manifest`, permissions |
 | Web | Component or module in broker; same WIT contract; sandbox = manifest permissions enforced before `run()` |
 
 Milestone 1: one-shot commands and importers/exporters. Milestone 2: **parametric timeline
@@ -132,7 +132,7 @@ Static wasm apps on `craft.quasarke.net` ship `craft-worker-host.js` (brotli-pre
 the app bundle. Prefer one global runtime worker per origin once message routing and wasm size are
 budgeted; per-app worker URLs are acceptable for pilots. CSP must allow `worker-src` / SharedWorker.
 
-## Phasing (SolidCraft)
+## Phasing (DeSurface)
 
 1. **Document and track** (this file); no user-visible change.
 2. **Tier-store wiring:** replace ad-hoc OPFS glue with `craft-tier-store` keys; keep on-disk layout.
@@ -146,7 +146,7 @@ budgeted; per-app worker URLs are acceptable for pilots. CSP must allow `worker-
 - Moving egui/viewport WebGPU into SharedWorker
 - Second non-wgpu GPU backend in craft-libs
 - **Implementing** parametric `FeatureKind::Plugin` (designed in [plugins.md](plugins.md); follows craft-runtime wiring)
-- Duplicating `craft-cloud` or embedding `craft-nextcloud` in SolidCraft wasm
+- Duplicating `craft-cloud` or embedding `craft-nextcloud` in DeSurface wasm
 
 ## Tests
 

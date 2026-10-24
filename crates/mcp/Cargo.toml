@@ -1,6 +1,6 @@
 [package]
-name = "solidcraft-mcp"
-description = "SolidCraft MCP server: JSON-RPC 2.0 over stdio, driving a headless session or the running app"
+name = "desurface-mcp"
+description = "DeSurface MCP server: JSON-RPC 2.0 over stdio, driving a headless session or the running app"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -9,9 +9,9 @@ license.workspace = true
 workspace = true
 
 [dependencies]
-solidcraft-engine = { workspace = true }
+desurface-engine = { workspace = true }
 serde_json = { workspace = true }
 
 [dev-dependencies]
-# The renderer `solidcraft-cli mcp` installs, so the tests' screenshots are drawn as the server's.
-solidcraft-gpu = { workspace = true }
+# The renderer `desurface-cli mcp` installs, so the tests' screenshots are drawn as the server's.
+desurface-gpu = { workspace = true }

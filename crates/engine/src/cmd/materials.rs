@@ -5,9 +5,9 @@
 //! features.
 
 use serde_json::{Value, json};
-use solidcraft_doc::appearance::{Look, library};
-use solidcraft_doc::config::Column;
-use solidcraft_doc::{DEFAULT_MATERIAL, MATERIALS, MAX_USER_MATERIALS, UserMaterial, valid_density};
+use desurface_doc::appearance::{Look, library};
+use desurface_doc::config::Column;
+use desurface_doc::{DEFAULT_MATERIAL, MATERIALS, MAX_USER_MATERIALS, UserMaterial, valid_density};
 
 use super::CommandSpec;
 use super::inspect::{color_param, look_json};
@@ -97,7 +97,7 @@ pub(super) fn material_json(m: &UserMaterial) -> Result<Value> {
         out["physical_card"] = json!(record);
         out["physical_validation"] = json!(card.validate()?);
         let measured = card.properties.iter().find_map(|p| match p.data {
-            solidcraft_doc::physical_material::PropertyData::Density { kg_m3 } => Some(kg_m3),
+            desurface_doc::physical_material::PropertyData::Density { kg_m3 } => Some(kg_m3),
             _ => None,
         });
         if let Some(measured) = measured {
@@ -111,12 +111,12 @@ pub(super) fn material_json(m: &UserMaterial) -> Result<Value> {
     Ok(out)
 }
 
-fn physical_card(cmd: &str, p: &Value) -> Result<Option<Option<solidcraft_doc::physical_material::ValidatedCard>>> {
+fn physical_card(cmd: &str, p: &Value) -> Result<Option<Option<desurface_doc::physical_material::ValidatedCard>>> {
     match p.get("physical_card") {
         None => Ok(None),
         Some(Value::Null) => Ok(Some(None)),
         Some(value) => {
-            solidcraft_doc::physical_material::ValidatedCard::from_value(value).map(|card| Some(Some(card))).map_err(|e| bad(cmd, e.to_string()))
+            desurface_doc::physical_material::ValidatedCard::from_value(value).map(|card| Some(Some(card))).map_err(|e| bad(cmd, e.to_string()))
         }
     }
 }

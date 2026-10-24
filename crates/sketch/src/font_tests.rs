@@ -4,7 +4,7 @@
 
 use std::path::PathBuf;
 
-use solidcraft_geom::Vec2;
+use desurface_geom::Vec2;
 
 use crate::fonts::find_family_in;
 use crate::tests::v;
@@ -144,7 +144,7 @@ struct Folder(PathBuf);
 
 impl Folder {
     fn new(name: &str) -> Folder {
-        let dir = std::env::temp_dir().join(format!("solidcraft-font-tests-{}-{name}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-font-tests-{}-{name}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("nested")).unwrap();
         std::fs::write(dir.join("nested").join("tiny.ttf"), tiny_font()).unwrap();
@@ -274,7 +274,7 @@ fn a_font_name_is_a_path_when_it_has_a_separator_or_a_font_extension() {
     let message = |name: &str| font_data(Some(name)).err().unwrap().to_string();
     // A name with a separator or a font extension is a file, whatever else it looks like; `%VAR%` is expanded in it and a
     // variable that is not set (or no variable at all) stays as written.
-    assert!(message("%NO_SUCH_VAR_SOLIDCRAFT%/a.ttf").contains("font file `%NO_SUCH_VAR_SOLIDCRAFT%/a.ttf`"));
+    assert!(message("%NO_SUCH_VAR_DESURFACE%/a.ttf").contains("font file `%NO_SUCH_VAR_DESURFACE%/a.ttf`"));
     assert!(message("100% sure.ttf").contains("font file `100% sure.ttf`"));
     assert!(message("Arial.TTF").contains("font file `Arial.TTF`"));
     assert!(message("fonts/a.otf").contains("font file `fonts/a.otf`"));

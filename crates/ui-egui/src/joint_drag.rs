@@ -4,8 +4,8 @@
 
 use egui::Pos2;
 use serde_json::json;
-use solidcraft_engine::doc::{apply_point, joints, mat_inverse};
-use solidcraft_engine::geom::Vec3;
+use desurface_engine::doc::{apply_point, joints, mat_inverse};
+use desurface_engine::geom::Vec3;
 
 use crate::SolveApp;
 use crate::viewport::{Hit, Proj};
@@ -101,8 +101,8 @@ pub fn end(app: &mut SolveApp) {
 #[cfg(test)]
 mod tests {
     use serde_json::{Value, json};
-    use solidcraft_engine::doc::{apply_point, joints};
-    use solidcraft_engine::geom::Vec3;
+    use desurface_engine::doc::{apply_point, joints};
+    use desurface_engine::geom::Vec3;
 
     use crate::scenario::Harness;
     use crate::test_support::play;

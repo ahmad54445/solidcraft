@@ -5,7 +5,7 @@
     "status": "source_container_inspected_runtime_pending",
     "name": "SELENE improved showcase mechanism acceptance",
     "source_lock": "../source-lock.json",
-    "authorship": "Original acceptance criteria, source-container bindings and analytic planning checks derived from public SolidCraft descriptions and the pinned SychPL native source.",
+    "authorship": "Original acceptance criteria, source-container bindings and analytic planning checks derived from public DeSurface descriptions and the pinned SychPL native source.",
     "license": "MIT OR Apache-2.0",
     "provenance_id": "ORIGINAL-2026-10-CATALOG",
     "units": {

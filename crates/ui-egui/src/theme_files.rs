@@ -1,11 +1,11 @@
-//! Colour and shape themes as files (#2255): a `solidcraft-theme/1` JSON file names a base palette (the
+//! Colour and shape themes as files (#2255): a `desurface-theme/1` JSON file names a base palette (the
 //! built-in Dark or Light) and sets any of its [`Tokens`] by name, so a theme can be a handful of
 //! lines. Built-in themes (Gruvbox and others) are such files under `assets/styles/ui/themes/`;
 //! imported ones are kept in the preferences (`Prefs::custom_themes`), so they also work in the
 //! browser. Colour vision modes still apply on top of a theme (`Tokens::with_vision`).
 //!
 //! ```json
-//! {"format": "solidcraft-theme/1", "name": "Mine", "base": "dark",
+//! {"format": "desurface-theme/1", "name": "Mine", "base": "dark",
 //!  "colors": {"panel": "#282828", "triad": ["#fb4934", "#b8bb26", "#83a598"]}}
 //! ```
 
@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use crate::theme::{IconColors, Tokens};
 
 /// The `format` tag of a theme file.
-pub const FORMAT: &str = "solidcraft-theme/1";
+pub const FORMAT: &str = "desurface-theme/1";
 /// Hostile-input caps: file size, colours per file, name length, imported themes kept.
 const MAX_BYTES: usize = 256 * 1024;
 pub const MAX_COLORS: usize = 512;
@@ -524,7 +524,7 @@ pub fn export(name: &str, base: Base, t: &Tokens) -> Value {
     json!({"format": FORMAT, "name": name, "base": base, "colors": colors, "radii": radii, "borders": borders, "icon_palette": icon_palette})
 }
 
-/// The theme files that come with SolidCraft (original files; Gruvbox, Tokyo Night, Solarized, Nord, Nosferatu and Catppuccin map open-source palettes, MIT).
+/// The theme files that come with DeSurface (original files; Gruvbox, Tokyo Night, Solarized, Nord, Nosferatu and Catppuccin map open-source palettes, MIT).
 const BUILTIN: [(&str, &str); 20] = [
     ("gruvbox-dark", include_str!("../../../assets/styles/ui/themes/gruvbox-dark.json")),
     ("gruvbox-dark-hard", include_str!("../../../assets/styles/ui/themes/gruvbox-dark-hard.json")),
@@ -532,7 +532,7 @@ const BUILTIN: [(&str, &str); 20] = [
     ("gruvbox-light", include_str!("../../../assets/styles/ui/themes/gruvbox-light.json")),
     ("gruvbox-light-hard", include_str!("../../../assets/styles/ui/themes/gruvbox-light-hard.json")),
     ("gruvbox-light-soft", include_str!("../../../assets/styles/ui/themes/gruvbox-light-soft.json")),
-    ("solidcraft-95", include_str!("../../../assets/styles/ui/themes/solidcraft-95.json")),
+    ("desurface-95", include_str!("../../../assets/styles/ui/themes/desurface-95.json")),
     ("platinum-9", include_str!("../../../assets/styles/ui/themes/platinum-9.json")),
     ("cupertino", include_str!("../../../assets/styles/ui/themes/cupertino.json")),
     ("green-phosphor", include_str!("../../../assets/styles/ui/themes/green-phosphor.json")),
@@ -676,7 +676,7 @@ mod tests {
             assert!(from_value(&bad).is_err());
         }
         for theme in builtin() {
-            assert_eq!(resolve(theme).borders.bevel.is_some(), theme.id == "solidcraft-95", "{}", theme.id);
+            assert_eq!(resolve(theme).borders.bevel.is_some(), theme.id == "desurface-95", "{}", theme.id);
         }
     }
 
@@ -737,7 +737,7 @@ mod tests {
 
     #[test]
     fn a_short_file_sets_only_its_colours() {
-        let t = parse(r##"{"format":"solidcraft-theme/1","name":"My Theme!","base":"light","colors":{"panel":"#102030","triad":["#ff0000","#00ff00","#0000ff80"]}}"##).unwrap();
+        let t = parse(r##"{"format":"desurface-theme/1","name":"My Theme!","base":"light","colors":{"panel":"#102030","triad":["#ff0000","#00ff00","#0000ff80"]}}"##).unwrap();
         assert_eq!((t.id.as_str(), t.name.as_str(), t.base), ("my-theme", "My Theme!", Base::Light));
         let p = resolve(&t);
         assert_eq!(p.panel, Color32::from_rgb(0x10, 0x20, 0x30));
@@ -765,12 +765,12 @@ mod tests {
 
     #[test]
     fn bad_files_are_refused_naming_every_bad_key() {
-        let ok = r#""format":"solidcraft-theme/1","name":"x","base":"dark""#;
+        let ok = r#""format":"desurface-theme/1","name":"x","base":"dark""#;
         for (text, want) in [
             ("[]".to_string(), "format"),
-            (r#"{"format":"solidcraft-theme/2","name":"x","base":"dark"}"#.into(), "format"),
-            (r#"{"format":"solidcraft-theme/1","name":" ","base":"dark"}"#.into(), "name"),
-            (r#"{"format":"solidcraft-theme/1","name":"x","base":"blue"}"#.into(), "base"),
+            (r#"{"format":"desurface-theme/2","name":"x","base":"dark"}"#.into(), "format"),
+            (r#"{"format":"desurface-theme/1","name":" ","base":"dark"}"#.into(), "name"),
+            (r#"{"format":"desurface-theme/1","name":"x","base":"blue"}"#.into(), "base"),
             (format!(r#"{{{ok},"colors":[]}}"#), "colors"),
             (format!(r##"{{{ok},"colors":{{"panle":"#000000","text":"red","triad":["#000000"],"icons.axes":"#000000"}}}}"##), "panle"),
             ("x".repeat(MAX_BYTES + 1), "KiB"),
@@ -882,7 +882,7 @@ mod tests {
         for id in ["platinum-9", "green-phosphor", "amber-phosphor"] {
             assert_eq!(values(id), [0; 6], "{id}");
         }
-        assert_eq!(values("solidcraft-95"), [3, 3, 4, 4, 3, 3]);
+        assert_eq!(values("desurface-95"), [3, 3, 4, 4, 3, 3]);
         assert_eq!(values("blueprint"), [4, 6, 8, 10, 6, 7]);
         assert_eq!(values("cupertino"), [6, 8, 12, 16, 8, 9]);
         let defaults = radius_values(Tokens::dark());

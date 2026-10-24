@@ -1,9 +1,9 @@
 //! Native progressive product rendering. Software BVH traversal needs no ray-query
 //! features. Small measured quanta adapt to the device, then check cancellation.
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 #[cfg(test)]
-use solidcraft_render::job::ToneMap;
-use solidcraft_render::{
+use desurface_render::job::ToneMap;
+use desurface_render::{
     Availability, ExecutorDescriptor, ExecutorId, ProductScene, RenderFeature, RenderFormat, RenderMode, RenderOperation, RenderProfile,
     ScratchLayout,
     job::{
@@ -82,7 +82,7 @@ fn checked_creation<T>(device: &wgpu::Device, create: impl FnOnce() -> Result<T>
 }
 
 /// Open and validate a native device before advertising the executor. Failure leaves the
-/// caller's CPU host usable. Respects SOLIDCRAFT_GPU, including the software adapter policy.
+/// caller's CPU host usable. Respects DESURFACE_GPU, including the software adapter policy.
 pub fn host() -> Result<ImageHost> {
     let (adapter, device, queue) = open_headless()?;
     log::info!("gpu-path adapter: {} ({:?})", adapter.get_info().name, adapter.get_info().device_type);
@@ -91,14 +91,14 @@ pub fn host() -> Result<ImageHost> {
 
 /// Open an independent job device on the viewport's selected adapter. In particular,
 /// software fallback and safe mode must not rediscover a failing hardware driver.
-/// An explicit incompatible SOLIDCRAFT_GPU policy leaves this executor unavailable.
+/// An explicit incompatible DESURFACE_GPU policy leaves this executor unavailable.
 /// The path tracer runs on Vulkan only: a viewport on another backend is reopened on the same
 /// GPU through Vulkan, and without one the executor is unavailable and images render on the CPU.
 pub fn host_on_adapter(adapter: &wgpu::Adapter) -> Result<ImageHost> {
     let policy = crate::select::Policy::from_env().map_err(gpu)?;
     let info = adapter.get_info();
     if !policy.admits(crate::select::tier_of(info.device_type)) {
-        return Err(gpu(format!("viewport adapter does not satisfy SOLIDCRAFT_GPU={}", policy.name())));
+        return Err(gpu(format!("viewport adapter does not satisfy DESURFACE_GPU={}", policy.name())));
     }
     if info.backend != wgpu::Backend::Vulkan {
         let (vulkan, _) = crate::select::pick_vulkan(policy, |i| i.vendor == info.vendor && i.device == info.device)
@@ -136,7 +136,7 @@ fn device_limits(supported: wgpu::Limits) -> Result<wgpu::Limits> {
 fn open_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue)> {
     let required_limits = device_limits(adapter.limits())?;
     pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-        label: Some("solidcraft progressive path"),
+        label: Some("desurface progressive path"),
         required_features: crate::depth_features(adapter),
         required_limits,
         ..Default::default()
@@ -146,7 +146,7 @@ fn open_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue)> {
 fn open_headless() -> Result<(wgpu::Adapter, wgpu::Device, wgpu::Queue)> {
     let policy = crate::select::Policy::from_env().map_err(gpu)?;
     let (adapter, _) = crate::select::pick_vulkan(policy, |_| true)
-        .ok_or_else(|| gpu(format!("{VULKAN_ONLY}; no Vulkan adapter satisfies SOLIDCRAFT_GPU={}", policy.name())))?;
+        .ok_or_else(|| gpu(format!("{VULKAN_ONLY}; no Vulkan adapter satisfies DESURFACE_GPU={}", policy.name())))?;
     let (device, queue) = open_device(&adapter)?;
     Ok((adapter, device, queue))
 }
@@ -305,7 +305,7 @@ fn descriptor() -> Result<ExecutorDescriptor> {
 }
 
 fn admission(scene: &ProductScene, request: &ImageRequest, options: JobOptions) -> Result<Admission> {
-    if request.integrator != solidcraft_render::job::Integrator::Raster || request.raytrace.is_some() {
+    if request.integrator != desurface_render::job::Integrator::Raster || request.raytrace.is_some() {
         return Err(JobError::new(ErrorCode::InvalidRequest, "GPU path rendering does not accept CPU raytrace options"));
     }
     options.validate()?;
@@ -334,7 +334,7 @@ fn admission(scene: &ProductScene, request: &ImageRequest, options: JobOptions) 
     if let Some(environment) = &request.environment {
         environment.validate()?;
     }
-    let scattering = |t: Option<solidcraft_render::transmission::Transmission>| t.and_then(|v| v.subsurface()).is_some_and(|s| s.active());
+    let scattering = |t: Option<desurface_render::transmission::Transmission>| t.and_then(|v| v.subsurface()).is_some_and(|s| s.active());
     if scene.meshes.iter().any(|b| scattering(b.transmission) || b.faces.iter().any(|f| scattering(f.transmission)))
         && (options.denoise || options.transmission_samples != 1 || options.volume.is_some_and(|v| v.active()))
     {
@@ -388,7 +388,7 @@ fn admission(scene: &ProductScene, request: &ImageRequest, options: JobOptions) 
     if options.linear_exr {
         admission.preparation_bytes = admission
             .preparation_bytes
-            .checked_add(solidcraft_render::job::linear_exr::encoded_limit(request.width, request.height)?)
+            .checked_add(desurface_render::job::linear_exr::encoded_limit(request.width, request.height)?)
             .ok_or_else(|| JobError::new(ErrorCode::LimitExceeded, "linear master admission overflow"))?;
     }
     let bloom_bytes = options.finishing.bloom.map_or(Ok(0), |b| b.scratch_bytes(request.width, request.height))?;
@@ -524,15 +524,15 @@ struct Task {
     denoiser: Option<denoise::Resources>,
     sample: u32,
     lane: u32,
-    sampling_report: Option<solidcraft_render::job::adaptive::SamplingReport>,
+    sampling_report: Option<desurface_render::job::adaptive::SamplingReport>,
     volume: [[f32; 4]; 3],
     aging: [[f32; 20]; 8],
-    photographic: Option<solidcraft_render::job::photographic::PhotographicTask>,
+    photographic: Option<desurface_render::job::photographic::PhotographicTask>,
     offset: u32,
     epsilon: f32,
     png: Option<PngTask>,
-    exr_work: Option<solidcraft_render::job::linear_exr::ExrTask>,
-    bloom_work: Option<solidcraft_render::job::bloom::BloomTask>,
+    exr_work: Option<desurface_render::job::linear_exr::ExrTask>,
+    bloom_work: Option<desurface_render::job::bloom::BloomTask>,
     exr: Option<Vec<u8>>,
     started: Instant,
     // Uniform environment is used only by the numerical furnace test, never advertised as HDRI.
@@ -865,10 +865,10 @@ impl Task {
         result
     }
 }
-use solidcraft_render::job::presentation::Display;
+use desurface_render::job::presentation::Display;
 
 impl ImageWork for Task {
-    fn sampling_report(&self) -> Option<solidcraft_render::job::adaptive::SamplingReport> {
+    fn sampling_report(&self) -> Option<desurface_render::job::adaptive::SamplingReport> {
         self.sampling_report.clone()
     }
     fn take_linear_exr(&mut self) -> Option<Vec<u8>> {
@@ -922,7 +922,7 @@ impl ImageWork for Task {
             let pixels = self.read_linear()?;
             if self.options.linear_exr {
                 self.exr_work =
-                    Some(solidcraft_render::job::linear_exr::ExrTask::new(self.request.width, self.request.height, pixels, self.cancel.clone())?);
+                    Some(desurface_render::job::linear_exr::ExrTask::new(self.request.width, self.request.height, pixels, self.cancel.clone())?);
                 return Ok(TaskPoll::Pending(Progress { phase: Phase::Encoding, done: 0, total: u64::from(self.request.height) }));
             }
             pixels
@@ -936,7 +936,7 @@ impl ImageWork for Task {
         }
         if let Some(options) = self.options.finishing.bloom.filter(|options| options.active()) {
             self.bloom_work =
-                Some(solidcraft_render::job::bloom::BloomTask::new(self.request.width, self.request.height, linear, options, self.cancel.clone())?);
+                Some(desurface_render::job::bloom::BloomTask::new(self.request.width, self.request.height, linear, options, self.cancel.clone())?);
             return Ok(TaskPoll::Pending(Progress {
                 phase: Phase::Encoding,
                 done: 0,
@@ -961,7 +961,7 @@ impl Task {
             height: self.request.height,
             exposure: 2.0f64.powf(self.options.exposure_ev),
             tone_map: self.options.tone_map,
-            background: self.request.background.map(solidcraft_render::surface::srgb8_to_linear),
+            background: self.request.background.map(desurface_render::surface::srgb8_to_linear),
             transparent: self.request.transparent_background,
         };
         // Pixels are independent: encode contiguous chunks on every core.
@@ -987,7 +987,7 @@ impl Task {
                 .try_for_each(|job| job.join().unwrap_or_else(|_| Err(JobError::new(ErrorCode::Internal, "display encoding worker failed"))))
         })?;
         if self.options.finishing.photographic.active() {
-            self.photographic = Some(solidcraft_render::job::photographic::PhotographicTask::new(
+            self.photographic = Some(desurface_render::job::photographic::PhotographicTask::new(
                 self.request.width,
                 self.request.height,
                 rgba,

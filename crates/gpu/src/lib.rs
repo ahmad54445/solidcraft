@@ -1,4 +1,4 @@
-//! SolidCraft's GPU work: the viewport's render pipelines ([`view`]), pictures drawn with them
+//! DeSurface's GPU work: the viewport's render pipelines ([`view`]), pictures drawn with them
 //! offscreen ([`capture`]), and display tessellation plans evaluated in a compute shader.
 //!
 //! Plan evaluation: the surface point and normal at every vertex's parameters, in a compute
@@ -14,9 +14,9 @@
 #![forbid(unsafe_code)]
 
 #[cfg(not(target_arch = "wasm32"))]
-use solidcraft_geom::Mesh;
-use solidcraft_geom::Vec3;
-use solidcraft_geom::tess::{EvalCurve, EvalSurface, TessPlan};
+use desurface_geom::Mesh;
+use desurface_geom::Vec3;
+use desurface_geom::tess::{EvalCurve, EvalSurface, TessPlan};
 use wgpu::util::DeviceExt;
 
 pub mod capture;
@@ -61,7 +61,7 @@ fn popped(f: impl std::future::Future<Output = Option<wgpu::Error>>) -> Option<w
 }
 
 /// An adapter and device without a window (native only): the adapter [`select::pick`] chooses
-/// under the `SOLIDCRAFT_GPU` policy. The environment may narrow the backends and pick the D3D12
+/// under the `DESURFACE_GPU` policy. The environment may narrow the backends and pick the D3D12
 /// shader compiler (`WGPU_BACKEND`, `WGPU_DX12_COMPILER`).
 #[cfg(not(target_arch = "wasm32"))]
 fn open_headless() -> Result<(wgpu::Adapter, wgpu::Device, wgpu::Queue)> {
@@ -74,7 +74,7 @@ fn open_headless() -> Result<(wgpu::Adapter, wgpu::Device, wgpu::Queue)> {
 #[cfg(not(target_arch = "wasm32"))]
 fn open_device(adapter: &wgpu::Adapter) -> Result<(wgpu::Device, wgpu::Queue)> {
     pollster::block_on(adapter.request_device(&wgpu::DeviceDescriptor {
-        label: Some("solidcraft headless"),
+        label: Some("desurface headless"),
         required_features: depth_features(adapter),
         required_limits: wgpu::Limits::downlevel_defaults().using_resolution(adapter.limits()),
         ..Default::default()
@@ -88,7 +88,7 @@ const WORKGROUP: u32 = 64;
 
 #[derive(Debug, thiserror::Error)]
 pub enum GpuError {
-    #[error("no GPU adapter qualifies under the `{0}` policy (SOLIDCRAFT_GPU); `solidcraft-cli gpu` lists the adapters this machine offers")]
+    #[error("no GPU adapter qualifies under the `{0}` policy (DESURFACE_GPU); `desurface-cli gpu` lists the adapters this machine offers")]
     NoAdapter(&'static str),
     #[error("{0}")]
     Policy(String),
@@ -191,7 +191,7 @@ impl TessGpu {
 
     fn build(device: &wgpu::Device, shader: &str) -> (wgpu::ComputePipeline, wgpu::BindGroupLayout) {
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("solidcraft tessellation"),
+            label: Some("desurface tessellation"),
             source: wgpu::ShaderSource::Wgsl(shader.into()),
         });
         let entry = |binding: u32, ty: wgpu::BufferBindingType| wgpu::BindGroupLayoutEntry {
@@ -202,7 +202,7 @@ impl TessGpu {
         };
         let storage = |read_only| wgpu::BufferBindingType::Storage { read_only };
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("solidcraft tessellation"),
+            label: Some("desurface tessellation"),
             entries: &[
                 entry(0, wgpu::BufferBindingType::Uniform),
                 entry(1, storage(true)),
@@ -212,12 +212,12 @@ impl TessGpu {
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("solidcraft tessellation"),
+            label: Some("desurface tessellation"),
             bind_group_layouts: &[Some(&layout)],
             immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("solidcraft tessellation"),
+            label: Some("desurface tessellation"),
             layout: Some(&pipeline_layout),
             module: &module,
             entry_point: Some("main"),

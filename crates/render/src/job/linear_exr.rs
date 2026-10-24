@@ -65,7 +65,7 @@ pub(super) fn header(width: u32, height: u32) -> Result<Vec<u8>> {
         chromaticities.extend_from_slice(&value.to_le_bytes());
     }
     attribute(&mut out, b"chromaticities", b"chromaticities", &chromaticities)?;
-    attribute(&mut out, b"software", b"string", b"SolidCraft native GPU path")?;
+    attribute(&mut out, b"software", b"string", b"DeSurface native GPU path")?;
     attribute(&mut out,b"comments",b"string",b"Raw scene-linear sRGB/D65; RGB coverage-premultiplied; before exposure, denoising, finishing, backdrop and tone mapping. Relative radiance, not calibrated SI units.")?;
     out.push(0);
     Ok(out)

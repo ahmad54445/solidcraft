@@ -62,7 +62,7 @@ fn a_permission_is_answered_once() {
 
 /// An app with the chat's endpoint wired to a channel the test feeds, and a message in progress.
 fn app_in_a_turn() -> (SolveApp, Sender<ControlRequest>) {
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     // The default mode: modelling runs, files ask.
     assert_eq!(app.preferences.ai_permissions, agents::Mode::Edits);
     let (tx, rx) = channel();
@@ -169,8 +169,8 @@ fn the_gate_refuses_and_limits() {
 #[test]
 fn merging_finds_the_turns_start_when_the_history_was_trimmed() {
     // Distinct designs: what counts is which `Arc` a snapshot holds.
-    let doc = |_: usize| Arc::new(solidcraft_engine::doc::Document::default());
-    let snap = |d: &Arc<solidcraft_engine::doc::Document>| solidcraft_engine::Snapshot {
+    let doc = |_: usize| Arc::new(desurface_engine::doc::Document::default());
+    let snap = |d: &Arc<desurface_engine::doc::Document>| desurface_engine::Snapshot {
         label: String::new(),
         doc: d.clone(),
         active_sketch: None,
@@ -278,7 +278,7 @@ fn the_chat_pops_out_into_its_own_window_and_docks_back() {
 /// down (686, 687, 686…) on a Retina screen.
 #[test]
 fn the_window_place_is_given_once_when_it_opens() {
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     app.preferences.agent_chat_window = Some([1967.0, 160.0, 569.0, 686.0]);
     let first = panel::window_builder(&app);
     assert_eq!(first.position, Some(egui::pos2(1967.0, 160.0)));
@@ -385,11 +385,11 @@ fn permission_modes_decide_what_asks() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The agent's own questions: SolidCraft's tools are allowed (its gate checks them), an earlier
+/// The agent's own questions: DeSurface's tools are allowed (its gate checks them), an earlier
 /// "Always allow" answers by itself, and both leave a note; anything else is asked.
 #[test]
 fn the_agents_own_questions_are_answered_by_the_mode_or_asked() {
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     app.agent_chat.running_id = "claude".into();
     let opts = || {
         vec![
@@ -398,8 +398,8 @@ fn the_agents_own_questions_are_answered_by_the_mode_or_asked() {
             PermissionOption { id: "no".into(), name: "Reject".into(), kind: "reject_once".into() },
         ]
     };
-    on_permission(&mut app, 1, "mcp__solidcraft__batch".into(), opts());
-    assert!(matches!(app.agent_chat.items.last(), Some(Item::Notice { text, .. }) if text.contains("mcp__solidcraft__batch")));
+    on_permission(&mut app, 1, "mcp__desurface__batch".into(), opts());
+    assert!(matches!(app.agent_chat.items.last(), Some(Item::Notice { text, .. }) if text.contains("mcp__desurface__batch")));
     on_permission(&mut app, 2, "Run ls".into(), opts());
     assert!(matches!(app.agent_chat.items.last(), Some(Item::Permission { answer: None, .. })));
     let n = app.agent_chat.items.len() - 1;
@@ -459,7 +459,7 @@ impl ChatBackend for Script {
 
 /// An app whose agent is scripted and ready.
 fn app_with_script() -> (SolveApp, Script, egui::Context) {
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     let script = Script::default();
     app.agent_chat.backend = Some(Box::new(script.clone()));
     app.agent_chat.state = Some(State::Ready);
@@ -628,7 +628,7 @@ done
 "#;
     let argv = vec!["sh".to_string(), "-c".to_string(), script.to_string(), "fake-agent".to_string(), log.to_string_lossy().into_owned()];
     let start = backend::StartContext { cwd: dir.clone(), bridge: None, tools: None, wake: Box::new(|| {}) };
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     app.agent_chat.backend = Some(Box::new(acp_client::AcpBackend::start(&argv, start).unwrap()));
     app.agent_chat.state = Some(State::Starting);
     let ctx = crate::fonts::test_context();
@@ -721,7 +721,7 @@ done
 "#;
     let argv = vec!["sh".to_string(), "-c".to_string(), script.to_string(), "fake-agent".to_string(), log.to_string_lossy().into_owned()];
     let start = backend::StartContext { cwd: dir.clone(), bridge: None, tools: None, wake: Box::new(|| {}) };
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     app.agent_chat.backend = Some(Box::new(acp_client::AcpBackend::start(&argv, start).unwrap()));
     app.agent_chat.state = Some(State::Starting);
     let ctx = crate::fonts::test_context();
@@ -837,7 +837,7 @@ done
 "#;
     let argv = vec!["sh".to_string(), "-c".to_string(), script.to_string(), "fake-agent".to_string(), log.to_string_lossy().into_owned()];
     let start = backend::StartContext { cwd: dir.clone(), bridge: None, tools: None, wake: Box::new(|| {}) };
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     app.agent_chat.backend = Some(Box::new(acp_client::AcpBackend::start(&argv, start).unwrap()));
     app.agent_chat.state = Some(State::Starting);
     app.agent_chat.running_id = "fake".into();
@@ -872,7 +872,7 @@ done
 
 /// A folder of files to attach: a picture and a text file.
 fn attachable(tag: &str) -> std::path::PathBuf {
-    let d = std::env::temp_dir().join(format!("solidcraft-chat-files-{tag}-{}", std::process::id()));
+    let d = std::env::temp_dir().join(format!("desurface-chat-files-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&d);
     std::fs::create_dir_all(&d).unwrap();
     image::RgbaImage::from_pixel(40, 30, image::Rgba([250, 250, 250, 255])).save(d.join("target.png")).unwrap();
@@ -1016,7 +1016,7 @@ fn files_wait_with_their_message_and_pictures_skip_an_agent_that_takes_none() {
 #[test]
 fn at_most_eight_files_on_a_message() {
     let d = attachable("eight");
-    let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+    let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
     for _ in 0..attach::MAX_FILES {
         attach_path(&mut app, &at(&d, "brief.md")).unwrap();
     }
@@ -1206,7 +1206,7 @@ fn the_plus_button_attaches_a_chosen_file_or_a_pasted_picture() {
     for ext in ["png", "jpg", "gif", "webp", "svg", "md", "step", "stl"] {
         assert!(exts.iter().any(|e| e == ext), "{ext} in {exts:?}");
     }
-    assert!(!exts.iter().any(|e| e == "solidcraft"));
+    assert!(!exts.iter().any(|e| e == "desurface"));
     attach_rgba(&mut h.app, 4, 3, &[200; 48]).unwrap();
     attach_rgba(&mut h.app, 4, 3, &[200; 47]).unwrap();
     settle_chat(&mut h);

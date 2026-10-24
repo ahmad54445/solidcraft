@@ -82,7 +82,7 @@ impl RichTextExt for RichText {
 // Keep pending definitions too: set_fonts takes effect on the next frame, while the web
 // fetch and preference update can both finish before that frame starts.
 fn installed_fonts_id() -> egui::Id {
-    egui::Id::new("solidcraft_interface_fonts")
+    egui::Id::new("desurface_interface_fonts")
 }
 
 fn install(ctx: &egui::Context, fonts: FontDefinitions) {
@@ -120,7 +120,7 @@ pub fn ui_font(name: &str) -> Option<egui::FontData> {
     if name.is_empty() {
         return None;
     }
-    let data = solidcraft_engine::sketch::font_data(Some(name)).ok()?;
+    let data = desurface_engine::sketch::font_data(Some(name)).ok()?;
     ttf_parser::Face::parse(data.bytes(), data.index).ok()?;
     let mut font = egui::FontData::from_owned(data.bytes().to_vec());
     font.index = data.index;
@@ -555,7 +555,7 @@ fn scan_dir_for_font_where(dir: &std::path::Path, depth_remaining: usize, matche
     None
 }
 
-/// The font folders named by `SOLIDCRAFT_FONT_DIRS` (a path list), or else by the single folder
+/// The font folders named by `DESURFACE_FONT_DIRS` (a path list), or else by the single folder
 /// in `CRAFT_FONTS_DIR` (the craft-fonts pack).
 #[cfg(not(target_arch = "wasm32"))]
 fn font_override_dirs(dirs: Option<std::ffi::OsString>, pack: Option<std::ffi::OsString>) -> Vec<std::path::PathBuf> {
@@ -566,11 +566,11 @@ fn font_override_dirs(dirs: Option<std::ffi::OsString>, pack: Option<std::ffi::O
     }
 }
 
-/// Find a CJK fallback font on the local system or in SOLIDCRAFT_FONT_DIRS / CRAFT_FONTS_DIR.
+/// Find a CJK fallback font on the local system or in DESURFACE_FONT_DIRS / CRAFT_FONTS_DIR.
 #[cfg(not(target_arch = "wasm32"))]
 fn find_system_cjk_font() -> Option<Vec<u8>> {
     // 1. Check the font folders the user named.
-    for dir in font_override_dirs(std::env::var_os("SOLIDCRAFT_FONT_DIRS"), std::env::var_os("CRAFT_FONTS_DIR")) {
+    for dir in font_override_dirs(std::env::var_os("DESURFACE_FONT_DIRS"), std::env::var_os("CRAFT_FONTS_DIR")) {
         let names = ["BIZUDPGothic-Regular.ttf", "BIZ-UDGothicR.ttc", "NotoSansCJK-Regular.ttc", "NotoSansJP-Regular.ttf"];
         for name in names {
             if let Some(bytes) = try_read_font(&dir.join(name)) {
@@ -901,7 +901,7 @@ pub(crate) fn test_context() -> egui::Context {
 mod tests {
     use super::*;
 
-    /// `SOLIDCRAFT_FONT_DIRS` wins and may list several folders; `CRAFT_FONTS_DIR` is the fallback.
+    /// `DESURFACE_FONT_DIRS` wins and may list several folders; `CRAFT_FONTS_DIR` is the fallback.
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn cjk_font_folders_from_the_environment() -> Result<(), std::env::JoinPathsError> {
@@ -974,7 +974,7 @@ mod tests {
         // #1290: the chosen font leads the Proportional family; the default face stays after it.
         assert!(ui_font("").is_none());
         assert!(ui_font("No Such Font 1290").is_none());
-        let font = ui_font(solidcraft_engine::sketch::DEFAULT_FONT_FAMILY).expect("the built-in sketch font reads");
+        let font = ui_font(desurface_engine::sketch::DEFAULT_FONT_FAMILY).expect("the built-in sketch font reads");
         let defaults = base_font_definitions();
         let fonts = with_ui_font(defaults.clone(), font.clone());
         let again = with_ui_font(fonts, font);
@@ -1033,7 +1033,7 @@ mod tests {
     #[test]
     fn web_download_and_preference_changes_compose_without_losing_plex_or_japanese() {
         let ctx = test_context();
-        let chosen = solidcraft_engine::sketch::DEFAULT_FONT_FAMILY;
+        let chosen = desurface_engine::sketch::DEFAULT_FONT_FAMILY;
         install(&ctx, web_font_definitions(chosen, None));
         // Both installations happen before the first frame, like a fast cached web fetch.
         assert!(install_cjk_font_for(
@@ -1263,7 +1263,7 @@ mod tests {
 
     impl FontFolder {
         fn new(name: &str) -> FontFolder {
-            let dir = std::env::temp_dir().join(format!("solidcraft-ui-font-tests-{}-{name}", std::process::id()));
+            let dir = std::env::temp_dir().join(format!("desurface-ui-font-tests-{}-{name}", std::process::id()));
             let _ = std::fs::remove_dir_all(&dir);
             std::fs::create_dir_all(&dir).unwrap();
             FontFolder(dir)

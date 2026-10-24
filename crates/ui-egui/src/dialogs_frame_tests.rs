@@ -1,6 +1,6 @@
 use crate::test_support::run_all;
 use serde_json::json;
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 use super::*;
 use crate::Services;

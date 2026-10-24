@@ -5,7 +5,7 @@
 
 use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
-use solidcraft_geom::Vec2;
+use desurface_geom::Vec2;
 
 use crate::sketch2d::{Geom2, MAX_DRAWING_BYTES, MAX_ENTITIES};
 use crate::{IoError, Result};
@@ -500,7 +500,7 @@ mod tests {
 
     /// The parser recurses over groups and reads numbers out of a document the user did not write,
     /// so none of these may panic: `catch_unwind` turns one into a failed test, the way
-    /// `hostile_files_never_panic` does for STEP (solidcraft#469).
+    /// `hostile_files_never_panic` does for STEP (desurface#469).
     #[test]
     fn hostile_svg_never_panics() {
         let good = r#"<svg xmlns="http://www.w3.org/2000/svg" width="100mm" height="50mm" viewBox="0 0 100 50">

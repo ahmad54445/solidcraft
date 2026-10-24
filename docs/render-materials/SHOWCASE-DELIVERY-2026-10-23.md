@@ -43,7 +43,7 @@ The video contains three explicit background chapters. Solid and radial-gradient
 - Earlier renderer core: 482 CPU-feature tests and 271 default-feature tests passed. Corrected full hardware GPU suite: 115 passed, 0 failed, 3 explicit ignores. These are distinct suites, not an aggregate project CI certificate.
 - Final shipped asset gate: 836 collected files, all attributed. Icon tooling: 17 tests passed. No font files, application/encoder binaries, control credentials, personal settings or raw intermediate EXR pile are bundled.
 
-The user-facing studio guide, source recipes, manifests, exact export hashes and selected screenshots are published alongside the editable sample. `tools/render-showcase/package.py` verifies source identities before packaging. `distribution/SolidCraft-Render-Showcase.json` describes the verified ZIP.
+The user-facing studio guide, source recipes, manifests, exact export hashes and selected screenshots are published alongside the editable sample. `tools/render-showcase/package.py` verifies source identities before packaging. `distribution/DeSurface-Render-Showcase.json` describes the verified ZIP.
 
 ## Remaining external state, not hidden by this delivery
 

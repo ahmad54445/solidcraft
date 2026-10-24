@@ -1,7 +1,7 @@
 use super::*;
 use crate::job::{ReflectionBody, ReflectionMode, ReflectionOptions};
 use crate::lighting::{HdrSource, environment_input::EnvironmentInput};
-use solidcraft_geom::Mesh;
+use desurface_geom::Mesh;
 use std::sync::Arc;
 
 fn environment(bright: bool, rotation: f64) -> EnvironmentInput {
@@ -81,7 +81,7 @@ fn ideal_metal_mirror_receives_environment_once_and_camera_background_stays_inde
     let mut empty = req;
     empty.raytrace.as_mut().unwrap().reflections = Some(ReflectionOptions::default());
     let image = ::image::load_from_memory(&render(
-        ProductScene { meshes: Vec::new(), bounds: solidcraft_geom::Aabb3::EMPTY },
+        ProductScene { meshes: Vec::new(), bounds: desurface_geom::Aabb3::EMPTY },
         empty,
         Some(environment(false, 0.0)),
     ))

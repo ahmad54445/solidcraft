@@ -2,7 +2,7 @@
 
 This package develops the **author-supplied improved SELENE** into an editable native model for close-up rendering and subsequent mechanism animation. The input is SychPL's `SELENE-showcase.solidcraft`, matched byte for byte to his published file. The original is retained unchanged; the enhanced derivative is [models/SELENE-functional.solidcraft](models/SELENE-functional.solidcraft).
 
-Open the derivative in the personal SolidCraft render branch. The model contains the geometry, component ownership, joints, motion links, physical-material proxies, appearances, browser groups, saved views and inspection studies. Python is only a development tool for reproducing the changes; opening and using the design does not require Python.
+Open the derivative in the personal DeSurface render branch. The model contains the geometry, component ownership, joints, motion links, physical-material proxies, appearances, browser groups, saved views and inspection studies. Python is only a development tool for reproducing the changes; opening and using the design does not require Python.
 
 ![SELENE functional showcase in native Design shading](exports/SELENE-overview.png)
 
@@ -37,13 +37,13 @@ The source cap has an ideal screw relation. The six complete vials remain in the
 
 ## Reproduce the native derivative
 
-Use Python 3.11+ and the **official SolidCraft v0.18.2 CLI** identified in [SOURCE.md](SOURCE.md). That executor writes `solidcraft/28`, readable by the personal render branch's format-29 reader. The newer official v0.19.0 writes format 30 and is unsuitable as a drop-in authoring replacement for that branch. No format marker is edited to bypass compatibility.
+Use Python 3.11+ and the **official DeSurface v0.18.2 CLI** identified in [SOURCE.md](SOURCE.md). That executor writes `solidcraft/28`, readable by the personal render branch's format-29 reader. The newer official v0.19.0 writes format 30 and is unsuitable as a drop-in authoring replacement for that branch. No format marker is edited to bypass compatibility.
 
 From the repository root:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 assets/render/selene/tools/build.py \
-  --cli /path/to/solidcraft-cli \
+  --cli /path/to/desurface-cli \
   --work target/selene/rebuild \
   --output target/selene/SELENE-functional.solidcraft
 ```
@@ -56,7 +56,7 @@ Run independent acceptance on the saved derivative:
 
 ```sh
 PYTHONDONTWRITEBYTECODE=1 python3 assets/render/selene/tools/validate_native.py \
-  --cli /path/to/solidcraft-cli \
+  --cli /path/to/desurface-cli \
   --model target/selene/SELENE-functional.solidcraft \
   --interference-pairs assets/render/selene/motion/interference-pairs.json \
   --out target/selene/acceptance

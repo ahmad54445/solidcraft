@@ -1,5 +1,5 @@
 use super::*;
-use solidcraft_geom::{Aabb3, Mesh};
+use desurface_geom::{Aabb3, Mesh};
 
 #[cfg(all(feature = "raytrace-cpu", not(target_arch = "wasm32")))]
 mod progressive_checkpoints {

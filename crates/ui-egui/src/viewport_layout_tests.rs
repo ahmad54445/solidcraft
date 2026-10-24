@@ -2,7 +2,7 @@ use super::*;
 use crate::scenario::Harness;
 use crate::viewport::NavMode;
 use serde_json::json;
-use solidcraft_engine::render::StandardView;
+use desurface_engine::render::StandardView;
 
 #[test]
 fn thin_rotated_bounds_fit_using_the_original_full_projection() {

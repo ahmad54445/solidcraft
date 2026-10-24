@@ -5,7 +5,7 @@ use crate::{
     render_surface::{RenderBodyTarget, bounded_sequence},
 };
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use solidcraft_render::job::aging::{AgingLayer, AgingStack, BodyTarget, MAX_AGING_LAYERS};
+use desurface_render::job::aging::{AgingLayer, AgingStack, BodyTarget, MAX_AGING_LAYERS};
 use std::ops::{Deref, DerefMut};
 
 fn invalid(message: impl Into<String>) -> DocError {
@@ -162,7 +162,7 @@ impl<'de> Deserialize<'de> for SavedAgingStack {
 mod tests {
     use super::*;
     use serde_json::json;
-    use solidcraft_render::job::aging::AgingKind;
+    use desurface_render::job::aging::AgingKind;
     #[test]
     fn saved_layers_roundtrip_stable_occurrences_and_keep_untargeted_legacy_fields() {
         let original = AgingLayer::preset(AgingKind::Dust);

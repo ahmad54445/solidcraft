@@ -42,7 +42,7 @@ if curl --fail --silent --location --output /dev/null "$previous_url/summary"; t
   ostree --repo="$repo_dir" remote delete previous
 fi
 for arch in x86_64 aarch64; do
-  asset="solidcraft-$version-linux-$arch.flatpak"
+  asset="desurface-$version-linux-$arch.flatpak"
   gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern "$asset" --dir "$bundles"
   (
     cd "$bundles"
@@ -87,25 +87,25 @@ for arch in x86_64 aarch64; do
   fi
   test "$(ostree --repo="$repo_dir" show --print-metadata-key=ostree.endoflife-rebase "$legacy_ref")" = "'app/$app_id/$arch/stable'"
 done
-flatpak build-update-repo --title="SolidCraft" --comment='Official SolidCraft releases' \
-  --description='Official Flatpak repository for SolidCraft' \
+flatpak build-update-repo --title="DeSurface" --comment='Official DeSurface releases' \
+  --description='Official Flatpak repository for DeSurface' \
   --homepage="https://github.com/$GITHUB_REPOSITORY" --default-branch=stable "$repo_dir"
 test -s "$repo_dir/summary"
-cat >"$site/flatpak/solidcraft.flatpakrepo" <<META
+cat >"$site/flatpak/desurface.flatpakrepo" <<META
 [Flatpak Repo]
-Title=SolidCraft
-Comment=Official SolidCraft releases
-Description=Official Flatpak repository for SolidCraft
+Title=DeSurface
+Comment=Official DeSurface releases
+Description=Official Flatpak repository for DeSurface
 Url=$base_url/flatpak/repo/
 Homepage=https://github.com/$GITHUB_REPOSITORY
 META
 cat >"$site/flatpak/index.html" <<HTML
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>SolidCraft Flatpak repository</title></head><body><main><h1>SolidCraft Flatpak repository</h1><p>Latest published release: <strong>$tag</strong></p><p><a href="solidcraft.flatpakrepo">Add the SolidCraft repository</a></p><p>Flathub provides the required Freedesktop runtime. Add both remotes to the same user installation:</p><pre>flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
-flatpak remote-add --user --if-not-exists solidcraft $base_url/flatpak/solidcraft.flatpakrepo
-flatpak install --user solidcraft $published_id
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>DeSurface Flatpak repository</title></head><body><main><h1>DeSurface Flatpak repository</h1><p>Latest published release: <strong>$tag</strong></p><p><a href="desurface.flatpakrepo">Add the DeSurface repository</a></p><p>Flathub provides the required Freedesktop runtime. Add both remotes to the same user installation:</p><pre>flatpak remote-add --user --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+flatpak remote-add --user --if-not-exists desurface $base_url/flatpak/desurface.flatpakrepo
+flatpak install --user desurface $published_id
 flatpak run $published_id</pre></main></body></html>
 HTML
 # Compatibility shim (docs/compatibility.md): links and instructions from before the rename point
 # at solvecraft.flatpakrepo. Existing remotes keep working either way: they store the repo URL.
-cp "$site/flatpak/solidcraft.flatpakrepo" "$site/flatpak/solvecraft.flatpakrepo"
+cp "$site/flatpak/desurface.flatpakrepo" "$site/flatpak/solvecraft.flatpakrepo"
 touch "$site/.nojekyll"

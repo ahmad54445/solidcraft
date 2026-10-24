@@ -3,8 +3,8 @@
 //! round face), and, at sketch points, into the part unless Flip is on.
 
 use serde_json::json;
-use solidcraft_engine::doc::FeatureKind;
-use solidcraft_engine::geom::Vec3;
+use desurface_engine::doc::FeatureKind;
+use desurface_engine::geom::Vec3;
 
 use crate::scenario::Harness;
 
@@ -110,7 +110,7 @@ fn flip_drills_holes_at_sketch_points_the_other_way() {
             *depth = "5 mm".into();
         }
         d.inputs = vec![crate::selection::SelInput::new("Points", crate::selection::POINTS, true)];
-        d.inputs[0].items = vec![solidcraft_engine::Sel::SketchPoint { id: format!("{sketch}:q") }];
+        d.inputs[0].items = vec![desurface_engine::Sel::SketchPoint { id: format!("{sketch}:q") }];
     }
     h.frames(2);
     // The arrow shows the way the hole goes: down from the top, and up once Flip is on.

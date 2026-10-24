@@ -79,8 +79,8 @@ def main() -> int:
         record["source_assets"] = source_receipt
         env = os.environ.copy()
         env.update(CARGO_TARGET_DIR=str(args.target_dir.resolve()), CARGO_BUILD_JOBS="2", CARGO_INCREMENTAL="0")
-        command = ["cargo", "build", "--locked", "--profile", "ci", "-p", "solidcraft-gpu", "-p", "solidcraft-render",
-                   "-p", "solidcraft-geom", "--lib", "--features", "solidcraft-render/raytrace-cpu", "--message-format=json"]
+        command = ["cargo", "build", "--locked", "--profile", "ci", "-p", "desurface-gpu", "-p", "desurface-render",
+                   "-p", "desurface-geom", "--lib", "--features", "desurface-render/raytrace-cpu", "--message-format=json"]
         with (out / "build.jsonl").open("w", encoding="utf-8") as stdout, (out / "build.log").open("w", encoding="utf-8") as stderr:
             result = subprocess.run(command, cwd=ROOT, env=env, stdout=stdout, stderr=stderr, stdin=subprocess.DEVNULL)
         record["commands"].append({"command": command, "exit_code": result.returncode})
@@ -94,7 +94,7 @@ def main() -> int:
                 for filename in value["filenames"]:
                     if filename.endswith(".rlib"):
                         artifacts[name] = filename
-        names = ["solidcraft_gpu", "solidcraft_render", "solidcraft_geom", "log"]
+        names = ["desurface_gpu", "desurface_render", "desurface_geom", "log"]
         if any(name not in artifacts for name in names):
             raise RuntimeError("Cargo did not report all exact library artifacts")
         binary = out / ("native_smoke.exe" if os.name == "nt" else "native_smoke")
@@ -108,9 +108,9 @@ def main() -> int:
         if result.returncode:
             raise RuntimeError("Native probe build failed; inspect probe-build.log")
         for key in list(env):
-            if key.startswith(("SOLIDCRAFT_", "SOLVECRAFT_", "WGPU_")):
+            if key.startswith(("DESURFACE_", "SOLVECRAFT_", "WGPU_")):
                 env.pop(key)
-        env.update(SOLIDCRAFT_GPU="hardware", SOLIDCRAFT_REQUIRE_GPU="1", WGPU_BACKEND="vulkan")
+        env.update(DESURFACE_GPU="hardware", DESURFACE_REQUIRE_GPU="1", WGPU_BACKEND="vulkan")
         command = [str(binary), str(ROOT), str(out)]
         with (out / "render.log").open("w", encoding="utf-8") as stdout, (out / "adapter.log").open("w", encoding="utf-8") as stderr:
             result = subprocess.run(command, cwd=ROOT, env=env, stdout=stdout, stderr=stderr, stdin=subprocess.DEVNULL)
@@ -126,7 +126,7 @@ def main() -> int:
         if len(frames) != 3 or "POOL|0" not in log or "STATUS|PASS" not in log:
             raise RuntimeError("Missing output or reservation-release evidence")
         adapter_lines = (out / "adapter.log").read_text(encoding="utf-8").splitlines()
-        observations = [line for line in adapter_lines if re.fullmatch(r"\[info solidcraft_gpu::path\] gpu-path adapter: .+ \((DiscreteGpu|IntegratedGpu|VirtualGpu|Other)\)", line)]
+        observations = [line for line in adapter_lines if re.fullmatch(r"\[info desurface_gpu::path\] gpu-path adapter: .+ \((DiscreteGpu|IntegratedGpu|VirtualGpu|Other)\)", line)]
         if len(observations) != 1:
             raise RuntimeError("Expected one non-software adapter observation from the renderer itself")
         if git("rev-parse", "HEAD^{tree}") != record["source_tree"] or git("status", "--porcelain"):

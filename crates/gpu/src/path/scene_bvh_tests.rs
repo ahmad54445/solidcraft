@@ -1,6 +1,6 @@
 use super::{MAX_BVH_DEPTH, Node, Triangle, build};
-use solidcraft_geom::Vec3;
-use solidcraft_render::{job::CancelToken, surface::OpaqueSurface};
+use desurface_geom::Vec3;
+use desurface_render::{job::CancelToken, surface::OpaqueSurface};
 
 // Triangle centres spread over 60 decades: a sixteen-bin SAH split on the
 // centre range peels only the few largest triangles off at each level, so an

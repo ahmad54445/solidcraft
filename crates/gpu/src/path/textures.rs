@@ -1,6 +1,6 @@
 //! One read-only storage buffer: body lookup, planar records and linear RGBA pixels.
-use solidcraft_geom::Vec3;
-use solidcraft_render::job::{
+use desurface_geom::Vec3;
+use desurface_render::job::{
     CancelToken, ErrorCode, JobError, Result,
     textures::{BaseColorMode, RuntimeTextures, TextureMap},
 };

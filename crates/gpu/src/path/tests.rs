@@ -1,6 +1,6 @@
 use super::*;
-use solidcraft_geom::{Aabb3, Mesh};
-use solidcraft_render::{Camera, ProductMesh, StandardView, surface::OpaqueSurface};
+use desurface_geom::{Aabb3, Mesh};
+use desurface_render::{Camera, ProductMesh, StandardView, surface::OpaqueSurface};
 
 fn executor() -> Option<Executor> {
     let (adapter, device, queue) = match open_headless() {
@@ -9,7 +9,7 @@ fn executor() -> Option<Executor> {
             // The path tracer runs on Vulkan only: where the backends in use leave Vulkan out
             // (macOS, or `WGPU_BACKEND=dx12`), it is unavailable by design, not missing.
             let vulkan = crate::select::native_backends().contains(wgpu::Backends::VULKAN);
-            assert!(!vulkan || std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none(), "required GPU unavailable: {e}");
+            assert!(!vulkan || std::env::var_os("DESURFACE_REQUIRE_GPU").is_none(), "required GPU unavailable: {e}");
             eprintln!("gpu-path device test skipped: {e}");
             return None;
         }
@@ -76,8 +76,8 @@ fn white() -> OpaqueSurface {
     OpaqueSurface::new(Vec3::new(1.0, 1.0, 1.0), 0.0, 1.0, 1.0).unwrap()
 }
 
-fn clear_glass() -> solidcraft_render::transmission::Transmission {
-    solidcraft_render::transmission::Transmission::new(Vec3::ZERO, None).unwrap()
+fn clear_glass() -> desurface_render::transmission::Transmission {
+    desurface_render::transmission::Transmission::new(Vec3::ZERO, None).unwrap()
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn volume_glass_requires_closed_outward_homogeneous_geometry() {
         t.swap(1, 2);
     }
     assert!(scene::flatten(&inward, Vec3::ZERO, &CancelToken::default()).is_err());
-    open.meshes[0].transmission = Some(solidcraft_render::transmission::Transmission::new(Vec3::ZERO, Some(0.1)).unwrap());
+    open.meshes[0].transmission = Some(desurface_render::transmission::Transmission::new(Vec3::ZERO, Some(0.1)).unwrap());
     assert!(scene::flatten(&open, Vec3::ZERO, &CancelToken::default()).is_ok());
 }
 
@@ -164,7 +164,7 @@ fn gpu_exact_dielectric_matches_f64_fresnel() {
             context.queue.submit([encoder.finish()]);
             task.sample = 1;
             let actual = task.read_linear().unwrap()[0];
-            let expected = solidcraft_render::transmission::fresnel(cosine, ni, nt).unwrap();
+            let expected = desurface_render::transmission::fresnel(cosine, ni, nt).unwrap();
             for (a, b) in actual.iter().zip([expected.s, expected.p, expected.transmitted_cosine.unwrap_or(0.0)]) {
                 assert!((f64::from(*a) - b).abs() < 2e-5, "Fresnel {ni}->{nt} cos={cosine}: {a} != {b}");
             }
@@ -261,8 +261,8 @@ fn gpu_camera_inside_volume_fails_without_publishing_fake_radiance() {
 fn engine_preflight_keeps_cpu_alpha_and_routes_physical_glass_to_the_native_host() {
     use serde_json::json;
     let Some(executor) = executor() else { return };
-    let mut s = solidcraft_engine::Session::default();
-    s.set_render_job_host(Some(solidcraft_render::job::CpuHost::cooperative())).unwrap();
+    let mut s = desurface_engine::Session::default();
+    s.set_render_job_host(Some(desurface_render::job::CpuHost::cooperative())).unwrap();
     s.execute("solid.box", &json!({"length":10,"width":10,"height":2,"body_name":"Glass"})).unwrap();
     s.execute("appearance.assign", &json!({"bodies":["Glass"],"color":"#c0e0ff","opacity":0.2})).unwrap();
     let cpu = s.execute("render.preflight", &json!({"settings":{"width":16,"height":16}})).unwrap();
@@ -285,7 +285,7 @@ fn engine_preflight_keeps_cpu_alpha_and_routes_physical_glass_to_the_native_host
     assert_eq!(snapshot, s.doc.to_json());
     params["progressive"] = json!(false);
     assert!(s.execute("render.preflight", &params).is_err());
-    assert!(!solidcraft_engine::product_scene::extract(&s).unwrap().has_transmission());
+    assert!(!desurface_engine::product_scene::extract(&s).unwrap().has_transmission());
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn gpu_thin_lens_focus_and_defocus_match_geometric_oracle() {
         let mut request = request(2);
         request.camera = Camera { distance: 12.0, fov: 0.7, yaw, pitch, roll, ..Default::default() };
         let camera = request.camera;
-        let lens = solidcraft_render::job::ThinLens { aperture_radius_mm: 0.4, focus_distance_mm: 9.0 };
+        let lens = desurface_render::job::ThinLens { aperture_radius_mm: 0.4, focus_distance_mm: 9.0 };
         let options = JobOptions { lens: Some(lens), ..Default::default() };
         let mut task = Task::new(context.clone(), sphere(white()), request, options, CancelToken::default()).unwrap();
         let (right, up, back) = camera.basis();
@@ -370,9 +370,9 @@ fn gpu_zero_aperture_is_bit_identical_and_lens_admission_is_explicit() {
         task.read_linear().unwrap()
     };
     for fov in [0.0, 0.7] {
-        assert_eq!(render(None, fov), render(Some(solidcraft_render::job::ThinLens { aperture_radius_mm: 0.0, focus_distance_mm: 8.0 }), fov));
+        assert_eq!(render(None, fov), render(Some(desurface_render::job::ThinLens { aperture_radius_mm: 0.0, focus_distance_mm: 8.0 }), fov));
     }
-    let lens = Some(solidcraft_render::job::ThinLens { aperture_radius_mm: 0.3, focus_distance_mm: 4.0 });
+    let lens = Some(desurface_render::job::ThinLens { aperture_radius_mm: 0.3, focus_distance_mm: 4.0 });
     assert_eq!(render(lens, 0.7), render(lens, 0.7));
     request.camera.fov = 0.0;
     assert!(admission(&sphere(white()), &request, JobOptions { lens, ..Default::default() }).is_err());
@@ -381,10 +381,10 @@ fn gpu_zero_aperture_is_bit_identical_and_lens_admission_is_explicit() {
 }
 
 #[test]
-#[ignore = "manual glass transport evidence; set SOLIDCRAFT_GLASS_EVIDENCE to a PNG path"]
+#[ignore = "manual glass transport evidence; set DESURFACE_GLASS_EVIDENCE to a PNG path"]
 fn glass_transport_evidence() {
     let Some(executor) = executor() else { return };
-    let output = std::env::var("SOLIDCRAFT_GLASS_EVIDENCE").unwrap();
+    let output = std::env::var("DESURFACE_GLASS_EVIDENCE").unwrap();
     let mut meshes = Vec::new();
     for (centre, radius, color) in
         [(Vec3::new(-1.3, 0.0, 1.5), 1.5, Vec3::new(0.75, 0.94, 1.0)), (Vec3::new(2.0, 1.0, 1.0), 1.0, Vec3::new(1.0, 0.7, 0.35))]
@@ -395,7 +395,7 @@ fn glass_transport_evidence() {
             *p = *p * radius + centre;
         }
         body.transmission =
-            Some(solidcraft_render::transmission::Transmission::new(Vec3::new(-color.x.ln(), -color.y.ln(), -color.z.ln()) / 5.0, None).unwrap());
+            Some(desurface_render::transmission::Transmission::new(Vec3::new(-color.x.ln(), -color.y.ln(), -color.z.ln()) / 5.0, None).unwrap());
         meshes.push(body);
     }
     for y in -16..16 {
@@ -440,7 +440,7 @@ fn glass_transport_evidence() {
         transparent_background: false,
     };
     let lens =
-        std::env::var_os("SOLIDCRAFT_GLASS_DOF").map(|_| solidcraft_render::job::ThinLens { aperture_radius_mm: 0.5, focus_distance_mm: 12.0 });
+        std::env::var_os("DESURFACE_GLASS_DOF").map(|_| desurface_render::job::ThinLens { aperture_radius_mm: 0.5, focus_distance_mm: 12.0 });
     let options = JobOptions { samples: 256, max_depth: 16, seed: 1948, lens, ..Default::default() };
     let mut task = Task::new(executor.context.clone(), ProductScene { meshes, bounds }, request, options, CancelToken::default()).unwrap();
     task.environment = 1.0;
@@ -484,7 +484,7 @@ fn glass_slab(thin: bool) -> ProductScene {
             opacity: 1.0,
             surface: Some(OpaqueSurface::new(Vec3::ZERO, 0.0, 0.1, 1.5).unwrap()),
             transmission: Some(
-                solidcraft_render::transmission::Transmission::new(Vec3::new(-0.5_f64.ln(), -0.8_f64.ln(), 0.0), thin.then_some(1.0)).unwrap(),
+                desurface_render::transmission::Transmission::new(Vec3::new(-0.5_f64.ln(), -0.8_f64.ln(), 0.0), thin.then_some(1.0)).unwrap(),
             ),
             faces: vec![],
         }],
@@ -498,9 +498,9 @@ fn gpu_solid_and_thin_slabs_match_absorbing_interreflection_oracle() {
         let mut scene = glass_slab(thin);
         if thin {
             let sigma = scene.meshes[0].transmission.unwrap().extinction();
-            scene.meshes[0].transmission = Some(solidcraft_render::transmission::Transmission::new(sigma, Some(thickness)).unwrap());
+            scene.meshes[0].transmission = Some(desurface_render::transmission::Transmission::new(sigma, Some(thickness)).unwrap());
         }
-        let (_, expected) = solidcraft_render::transmission::slab(scene.meshes[0].transmission.unwrap(), thickness, 1.0, 1.0, 1.5).unwrap();
+        let (_, expected) = desurface_render::transmission::slab(scene.meshes[0].transmission.unwrap(), thickness, 1.0, 1.0, 1.5).unwrap();
         let mut request = request(1);
         request.camera.fov = 0.0001;
         let options = JobOptions { samples: 4096, max_depth: 16, seed: 1948, ..Default::default() };
@@ -573,16 +573,16 @@ fn admission_applies_the_gpu_estimate_instead_of_the_cpu_raster_budget() {
     // A library-bounded source (not an ordinary UI scene): about 100 MiB of face appearances
     // on a small mesh at the largest image. Its CPU raster estimate is above 384 MiB (covered
     // in the render crate); the GPU's own estimate stays within its 512 MiB job cap.
-    let count = (100 * 1024 * 1024 / std::mem::size_of::<solidcraft_render::FaceAppearance>()).min(1_000_000);
+    let count = (100 * 1024 * 1024 / std::mem::size_of::<desurface_render::FaceAppearance>()).min(1_000_000);
     let mut scene = sphere(white());
-    let appearance = solidcraft_render::FaceAppearance { face: 0, color: [255; 3], opacity: 1.0, surface: None, transmission: None };
+    let appearance = desurface_render::FaceAppearance { face: 0, color: [255; 3], opacity: 1.0, surface: None, transmission: None };
     scene.meshes[0].faces = vec![appearance; count];
     let r = request(2048);
     let a = admission(&scene, &r, JobOptions::default()).unwrap();
     assert!(a.estimated_total_bytes <= 512 * 1024 * 1024, "{a:?}");
     assert_eq!(a.face_appearances, count as u64);
     // The CPU host still rejects the same source.
-    assert_eq!(solidcraft_render::job::admit(&scene, &r).unwrap_err().code, ErrorCode::LimitExceeded);
+    assert_eq!(desurface_render::job::admit(&scene, &r).unwrap_err().code, ErrorCode::LimitExceeded);
 }
 
 #[test]
@@ -830,7 +830,7 @@ fn gpu_tiny_scene_matches_cpu_studio_with_face_appearance() {
             surface: Some(white()),
             transmission: None,
             faces: [7, 9]
-                .map(|face| solidcraft_render::FaceAppearance { face, color: [0; 3], opacity: 1.0, surface: Some(surface), transmission: None })
+                .map(|face| desurface_render::FaceAppearance { face, color: [0; 3], opacity: 1.0, surface: Some(surface), transmission: None })
                 .to_vec(),
         }],
         bounds,
@@ -842,7 +842,7 @@ fn gpu_tiny_scene_matches_cpu_studio_with_face_appearance() {
         task.complete_sample().unwrap();
     }
     let actual = task.read_linear().unwrap();
-    let expected = solidcraft_render::studio::shade(surface, Vec3::Z, Vec3::Z).unwrap();
+    let expected = desurface_render::studio::shade(surface, Vec3::Z, Vec3::Z).unwrap();
     for pixel in actual {
         assert_eq!(pixel[3], 1.0);
         for (a, b) in pixel.iter().zip([expected.x, expected.y, expected.z]) {
@@ -910,7 +910,7 @@ fn native_host_cancel_never_publishes_a_frame() {
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();
     let job = host
         .submit_with_options(
-            solidcraft_render::job::JobId { session: 1, serial: 1, generation: 1 },
+            desurface_render::job::JobId { session: 1, serial: 1, generation: 1 },
             1,
             sphere(white()),
             request(64),
@@ -937,7 +937,7 @@ fn native_host_cancel_never_publishes_a_frame() {
 #[ignore = "manual 1M-triangle 1920x1080 GPU performance measurement"]
 fn path_performance() {
     let executor = executor().expect("benchmark requires an adapter");
-    let samples = std::env::var("SOLIDCRAFT_PATH_BENCH_SAMPLES").ok().map(|s| s.parse::<u32>().unwrap()).unwrap_or(1);
+    let samples = std::env::var("DESURFACE_PATH_BENCH_SAMPLES").ok().map(|s| s.parse::<u32>().unwrap()).unwrap_or(1);
     let options = JobOptions { samples, ..Default::default() };
     options.validate().unwrap();
     let surface = OpaqueSurface::new(Vec3::new(0.8, 0.4, 0.2), 0.25, 0.4, 1.5).unwrap();
@@ -981,10 +981,10 @@ fn path_performance() {
 fn admission_refuses_cpu_options_without_opening_a_device() {
     let scene = ProductScene { meshes: Vec::new(), bounds: Aabb3::EMPTY };
     let mut input = request(16);
-    input.integrator = solidcraft_render::job::Integrator::Raytrace;
+    input.integrator = desurface_render::job::Integrator::Raytrace;
     assert_eq!(admission(&scene, &input, JobOptions::default()).unwrap_err().code, ErrorCode::InvalidRequest);
-    input.integrator = solidcraft_render::job::Integrator::Raster;
-    input.raytrace = Some(solidcraft_render::job::RaytraceOptions::default());
+    input.integrator = desurface_render::job::Integrator::Raster;
+    input.raytrace = Some(desurface_render::job::RaytraceOptions::default());
     assert_eq!(admission(&scene, &input, JobOptions::default()).unwrap_err().code, ErrorCode::InvalidRequest);
 }
 
@@ -1013,7 +1013,7 @@ fn gpu_clear_coat_brdf_matches_f64_surface_oracle() {
             for ior in [1.5, 3.0] {
                 let surface = OpaqueSurface::new(Vec3::new(0.8, 0.5, 0.2), metallic, 0.3, 1.5)
                     .unwrap()
-                    .with_clear_coat(solidcraft_render::clear_coat::ClearCoat::new(1.0, roughness, ior).unwrap());
+                    .with_clear_coat(desurface_render::clear_coat::ClearCoat::new(1.0, roughness, ior).unwrap());
                 let mut task = Task::new(context.clone(), sphere(surface), request(1), JobOptions::default(), CancelToken::default()).unwrap();
                 for (view, light) in [
                     (Vec3::Z, Vec3::Z),
@@ -1073,7 +1073,7 @@ fn gpu_clear_coat_pdf_matches_f64_surface_oracle() {
             for ior in [1.5, 3.0] {
                 let surface = OpaqueSurface::new(Vec3::new(0.8, 0.5, 0.2), metallic, 0.3, 1.5)
                     .unwrap()
-                    .with_clear_coat(solidcraft_render::clear_coat::ClearCoat::new(1.0, roughness, ior).unwrap());
+                    .with_clear_coat(desurface_render::clear_coat::ClearCoat::new(1.0, roughness, ior).unwrap());
                 let mut task = Task::new(context.clone(), sphere(surface), request(1), JobOptions::default(), CancelToken::default()).unwrap();
                 for (view, light) in [
                     (Vec3::Z, Vec3::Z),
@@ -1098,7 +1098,7 @@ fn gpu_clear_coat_pdf_matches_f64_surface_oracle() {
                     context.queue.submit([encoder.finish()]);
                     task.sample = 1;
                     let actual = task.read_linear().unwrap()[0];
-                    let expected = solidcraft_render::clear_coat::surface_pdf(surface, Vec3::Z, view, light).unwrap();
+                    let expected = desurface_render::clear_coat::surface_pdf(surface, Vec3::Z, view, light).unwrap();
                     for (a, b) in actual.iter().zip([expected, 0.0, 0.0]) {
                         assert!((f64::from(*a) - b).abs() <= 3e-3 * b.abs() + 2e-5, "m={metallic}, r={roughness}, ior={ior}: {a} vs {b}");
                     }
@@ -1131,7 +1131,7 @@ fn gpu_clear_coat_samples_the_pdf_mixture_components() {
     for weight in [0.0, 0.4, 1.0] {
         let surface = OpaqueSurface::new(Vec3::new(0.02, 0.02, 0.02), 0.0, 0.45, 1.5)
             .unwrap()
-            .with_clear_coat(solidcraft_render::clear_coat::ClearCoat::new(weight, 0.12, 1.5).unwrap());
+            .with_clear_coat(desurface_render::clear_coat::ClearCoat::new(weight, 0.12, 1.5).unwrap());
         let mut task = Task::new(context.clone(), sphere(surface), request(1), JobOptions::default(), CancelToken::default()).unwrap();
         let p = weight * 0.5;
         // One variate strictly inside each nonempty mixture interval.
@@ -1173,7 +1173,7 @@ fn gpu_clear_coat_samples_the_pdf_mixture_components() {
 
 #[test]
 fn gpu_studio_area_mis_matches_independent_quadrature_and_distance_visibility() {
-    use solidcraft_render::job::{AreaLight, AreaLights, StudioLighting};
+    use desurface_render::job::{AreaLight, AreaLights, StudioLighting};
     let Some(executor) = executor() else { return };
     let surface = white();
     let plane = |z: f64| {
@@ -1238,7 +1238,7 @@ fn gpu_studio_area_mis_matches_independent_quadrature_and_distance_visibility() 
 
 #[test]
 fn gpu_studio_environment_mis_matches_furnace_at_last_and_continuing_bounces() {
-    use solidcraft_render::job::StudioLighting;
+    use desurface_render::job::StudioLighting;
     let Some(executor) = executor() else { return };
     for depth in [1, 2] {
         let options = JobOptions {
@@ -1261,10 +1261,10 @@ fn gpu_studio_environment_mis_matches_furnace_at_last_and_continuing_bounces() {
 
 #[test]
 fn gpu_emitter_inside_glass_applies_final_segment_absorption() {
-    use solidcraft_render::job::{AreaLight, AreaLights, StudioLighting};
+    use desurface_render::job::{AreaLight, AreaLights, StudioLighting};
     let Some(executor) = executor() else { return };
     let mut glass = sphere(OpaqueSurface::new(Vec3::ZERO, 0.0, 0.1, 1.0).unwrap());
-    glass.meshes[0].transmission = Some(solidcraft_render::transmission::Transmission::new(Vec3::new(0.7, 0.3, 0.0), None).unwrap());
+    glass.meshes[0].transmission = Some(desurface_render::transmission::Transmission::new(Vec3::new(0.7, 0.3, 0.0), None).unwrap());
     let light = AreaLight { center: [0.0; 3], u: [0.4, 0.0, 0.0], v: [0.0, 0.4, 0.0], radiance: [3.0; 3] };
     let options = JobOptions {
         samples: 16,
@@ -1316,7 +1316,7 @@ fn original_hdr() -> Vec<u8> {
 }
 #[test]
 fn gpu_hdr_environment_matches_constant_furnace_and_resource_admission() {
-    use solidcraft_render::lighting::environment::EnvironmentSource;
+    use desurface_render::lighting::environment::EnvironmentSource;
     let Some(executor) = executor() else { return };
     let source = Arc::new(EnvironmentSource::hdr(original_hdr(), 0.3, 1.0, false).unwrap());
     let mut image = request(8);
@@ -1336,7 +1336,7 @@ fn gpu_hdr_environment_matches_constant_furnace_and_resource_admission() {
 }
 #[test]
 fn gpu_finite_sun_matches_cone_quadrature_at_final_and_continuing_bounces() {
-    use solidcraft_render::job::{StudioLighting, Sun};
+    use desurface_render::job::{StudioLighting, Sun};
     let Some(executor) = executor() else { return };
     let sun = Sun { direction: [0.0, 0.0, 1.0], angular_radius_rad: 0.4, radiance: [3.0; 3] };
     let mut expected = 0.0;
@@ -1368,7 +1368,7 @@ fn gpu_finite_sun_matches_cone_quadrature_at_final_and_continuing_bounces() {
 
 #[test]
 fn gpu_environment_orientation_rotation_intensity_and_pdf_match_cpu() {
-    use solidcraft_render::lighting::environment::EnvironmentSource;
+    use desurface_render::lighting::environment::EnvironmentSource;
     let Some(executor) = executor() else { return };
     let context = &executor.context;
     let mut bytes = b"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\n\n-Y 2 +X 4\n".to_vec();
@@ -1468,7 +1468,7 @@ fn shadow_probe(context: &Arc<Context>, scene: ProductScene, origin: Vec3, direc
 
 #[test]
 fn gpu_shadow_sheets_solids_endpoints_and_invalid_crossings_match_oracles() {
-    use solidcraft_render::transmission::{slab, solid_shadow};
+    use desurface_render::transmission::{slab, solid_shadow};
     let Some(executor) = executor() else { return };
     let context = &executor.context;
     for thin in [true, false] {
@@ -1525,7 +1525,7 @@ fn gpu_shadow_interface_walk_is_bounded_and_stacked_sheet_pdf_matches() {
             mesh.tri_face.extend_from_slice(&base.tri_face);
         }
         scene.meshes[0].mesh = Arc::new(mesh);
-        scene.meshes[0].transmission = Some(solidcraft_render::transmission::Transmission::new(Vec3::ZERO, Some(0.0)).unwrap());
+        scene.meshes[0].transmission = Some(desurface_render::transmission::Transmission::new(Vec3::ZERO, Some(0.0)).unwrap());
         let actual = shadow_probe(&executor.context, scene, Vec3::new(0.0, 0.0, 2.0), -Vec3::Z, 100.0);
         if count == 65 {
             assert_eq!(actual[0], [0.0, 0.0, 0.0, 1.0]);
@@ -1540,7 +1540,7 @@ fn gpu_shadow_interface_walk_is_bounded_and_stacked_sheet_pdf_matches() {
 
 #[test]
 fn gpu_shadow_mis_does_not_double_direct_energy_through_index_matched_glass() {
-    use solidcraft_render::job::{AreaLight, AreaLights, StudioLighting};
+    use desurface_render::job::{AreaLight, AreaLights, StudioLighting};
     let Some(executor) = executor() else { return };
     let surface = white();
     let receiver = ProductMesh {
@@ -1571,7 +1571,7 @@ fn gpu_shadow_mis_does_not_double_direct_energy_through_index_matched_glass() {
         let mut scene = glass_slab(thin);
         scene.meshes[0].surface = Some(OpaqueSurface::new(Vec3::ZERO, 0.0, 0.1, 1.0).unwrap());
         scene.meshes[0].transmission =
-            Some(solidcraft_render::transmission::Transmission::new(Vec3::ZERO, thin.then_some(0.0)).unwrap().with_shadow_transmission(enabled));
+            Some(desurface_render::transmission::Transmission::new(Vec3::ZERO, thin.then_some(0.0)).unwrap().with_shadow_transmission(enabled));
         scene.meshes.push(receiver.clone());
         let options = JobOptions {
             samples: 4096,
@@ -1595,7 +1595,7 @@ fn gpu_shadow_mis_does_not_double_direct_energy_through_index_matched_glass() {
 
 #[test]
 fn gpu_absorbing_two_sheet_mis_matches_f64_quadrature() {
-    use solidcraft_render::job::{AreaLight, AreaLights, StudioLighting};
+    use desurface_render::job::{AreaLight, AreaLights, StudioLighting};
     let Some(executor) = executor() else { return };
     let surface = white();
     // A tiny receiver excludes sheet-reflection returns from this direct-only oracle.
@@ -1616,13 +1616,13 @@ fn gpu_absorbing_two_sheet_mis_matches_f64_quadrature() {
         faces: vec![],
     };
     let light = AreaLight { center: [0.0, 0.0, 2.0], u: [4.0, 0.0, 0.0], v: [0.0, -4.0, 0.0], radiance: [1.0; 3] };
-    let optics = solidcraft_render::transmission::Transmission::new(Vec3::new(0.2, 0.1, 0.05), Some(0.7)).unwrap();
+    let optics = desurface_render::transmission::Transmission::new(Vec3::new(0.2, 0.1, 0.05), Some(0.7)).unwrap();
     let mut expected = 0.0;
     for y in 0..128 {
         for x in 0..128 {
             let delta = Vec3::new(-4.0 + (f64::from(x) + 0.5) / 16.0, -4.0 + (f64::from(y) + 0.5) / 16.0, 4.0);
             let l = delta.normalized().unwrap();
-            let transmission = solidcraft_render::transmission::slab(optics, 0.7, l.z, 1.0, 1.5).unwrap().1.x;
+            let transmission = desurface_render::transmission::slab(optics, 0.7, l.z, 1.0, 1.5).unwrap().1.x;
             expected += transmission * transmission * surface.brdf(Vec3::Z, Vec3::Z, l).unwrap().x * l.z * l.z / delta.len2() * 64.0 / 16384.0;
         }
     }
@@ -1658,8 +1658,8 @@ fn gpu_absorbing_two_sheet_mis_matches_f64_quadrature() {
 
 #[test]
 fn gpu_hdr_and_sun_shadow_mis_preserve_index_matched_energy() {
-    use solidcraft_render::job::{StudioLighting, Sun};
-    use solidcraft_render::lighting::environment::EnvironmentSource;
+    use desurface_render::job::{StudioLighting, Sun};
+    use desurface_render::lighting::environment::EnvironmentSource;
     let Some(executor) = executor() else { return };
     let sun = Sun { direction: [0.0, 0.0, 1.0], angular_radius_rad: 0.4, radiance: [3.0; 3] };
     let mut sun_expected = 0.0;
@@ -1684,7 +1684,7 @@ fn gpu_hdr_and_sun_shadow_mis_preserve_index_matched_energy() {
             let mut scene = glass_slab(thin);
             scene.meshes[0].surface = Some(OpaqueSurface::new(Vec3::ZERO, 0.0, 0.1, 1.0).unwrap());
             scene.meshes[0].transmission =
-                Some(solidcraft_render::transmission::Transmission::new(Vec3::ZERO, thin.then_some(0.0)).unwrap().with_shadow_transmission(true));
+                Some(desurface_render::transmission::Transmission::new(Vec3::ZERO, thin.then_some(0.0)).unwrap().with_shadow_transmission(true));
             let mut receiver = environment_plane().meshes.remove(0);
             for p in &mut Arc::make_mut(&mut receiver.mesh).positions {
                 p.z -= 2.0;
@@ -1716,9 +1716,9 @@ fn gpu_hdr_and_sun_shadow_mis_preserve_index_matched_energy() {
     }
 }
 
-fn texture_fixture(frame: solidcraft_render::job::textures::PlanarFrame) -> Arc<solidcraft_render::job::textures::RuntimeTextures> {
+fn texture_fixture(frame: desurface_render::job::textures::PlanarFrame) -> Arc<desurface_render::job::textures::RuntimeTextures> {
     use image::ImageEncoder;
-    use solidcraft_render::{
+    use desurface_render::{
         job::textures::{RuntimeTextures, TextureBinding, TextureMap},
         texture_input::MapRole,
     };
@@ -1745,7 +1745,7 @@ fn texture_fixture(frame: solidcraft_render::job::textures::PlanarFrame) -> Arc<
 }
 #[test]
 fn texture_admission_rejects_glass_and_stale_identity_and_honors_cancellation() {
-    use solidcraft_render::job::textures::PlanarFrame;
+    use desurface_render::job::textures::PlanarFrame;
     let source = texture_fixture(PlanarFrame { origin: [0.; 3], u: [1., 0., 0.], v: [0., 1., 0.] });
     let mut input = request(2);
     input.textures = Some(source.clone());
@@ -1753,7 +1753,7 @@ fn texture_admission_rejects_glass_and_stale_identity_and_honors_cancellation() 
     let plain = admission(&scene, &request(2), JobOptions::default()).unwrap();
     let textured = admission(&scene, &input, JobOptions::default()).unwrap();
     assert_eq!(textured.preparation_bytes - plain.preparation_bytes, source.working_bytes());
-    assert!(solidcraft_render::job::admit(&scene, &input).is_err());
+    assert!(desurface_render::job::admit(&scene, &input).is_err());
     let cancel = CancelToken::default();
     cancel.cancel();
     assert_eq!(textures::flatten(Some(&source), 1, Vec3::ZERO, &cancel).unwrap_err().code, ErrorCode::Cancelled);
@@ -1765,7 +1765,7 @@ fn texture_admission_rejects_glass_and_stale_identity_and_honors_cancellation() 
 }
 #[test]
 fn gpu_planar_color_and_normal_maps_match_cpu_sampling_oracle() {
-    use solidcraft_render::job::textures::{PlanarFrame, sample_map};
+    use desurface_render::job::textures::{PlanarFrame, sample_map};
     let Some(executor) = executor() else { return };
     let context = &executor.context;
     let shader = context.device.create_shader_module(wgpu::ShaderModuleDescriptor { label: None, source: wgpu::ShaderSource::Wgsl(SHADER.into()) });
@@ -1823,7 +1823,7 @@ fn gpu_planar_color_and_normal_maps_match_cpu_sampling_oracle() {
 
 #[test]
 fn gpu_finite_emitter_inside_solid_retains_entry_radiance_eta() {
-    use solidcraft_render::job::{AreaLight, AreaLights, StudioLighting};
+    use desurface_render::job::{AreaLight, AreaLights, StudioLighting};
     let Some(executor) = executor() else { return };
     let surface = white();
     let receiver = ProductMesh {
@@ -1848,7 +1848,7 @@ fn gpu_finite_emitter_inside_solid_retains_entry_radiance_eta() {
         for x in 0..128 {
             let delta = Vec3::new(-9.0 + (f64::from(x) + 0.5) * 18.0 / 128.0, -9.0 + (f64::from(y) + 0.5) * 18.0 / 128.0, 2.0);
             let l = delta.normalized().unwrap();
-            let r = solidcraft_render::transmission::fresnel(l.z, 1.0, 1.5).unwrap().reflectance();
+            let r = desurface_render::transmission::fresnel(l.z, 1.0, 1.5).unwrap().reflectance();
             expected += (1.0 - r) / 2.25 * surface.brdf(Vec3::Z, Vec3::Z, l).unwrap().x * l.z * l.z / delta.len2() * 324.0 / 16384.0;
         }
     }
@@ -1856,7 +1856,7 @@ fn gpu_finite_emitter_inside_solid_retains_entry_radiance_eta() {
         let mut scene = glass_slab(thin);
         scene.meshes[0].surface = Some(OpaqueSurface::new(Vec3::ZERO, 0.0, 0.1, 1.5).unwrap());
         scene.meshes[0].transmission =
-            Some(solidcraft_render::transmission::Transmission::new(Vec3::ZERO, thin.then_some(0.0)).unwrap().with_shadow_transmission(enabled));
+            Some(desurface_render::transmission::Transmission::new(Vec3::ZERO, thin.then_some(0.0)).unwrap().with_shadow_transmission(enabled));
         scene.meshes.push(receiver.clone());
         let options = JobOptions {
             samples: 4096,
@@ -2085,7 +2085,7 @@ fn gpu_shadow_closed_corner_keeps_short_exit_segment() {
     scene.meshes[0].transmission = Some(optics);
     let cosine = std::f64::consts::FRAC_1_SQRT_2;
     let actual = shadow_probe(&executor.context, scene, Vec3::new(8.4999, 0., 2.), Vec3::new(cosine, 0., -cosine), 4.);
-    let expected = solidcraft_render::transmission::solid_shadow(optics, 0.0001 * 2.0_f64.sqrt(), cosine, cosine, 1.5).unwrap();
+    let expected = desurface_render::transmission::solid_shadow(optics, 0.0001 * 2.0_f64.sqrt(), cosine, cosine, 1.5).unwrap();
     assert_eq!(actual[1][1], 2.0, "{actual:?}");
     for (a, b) in actual[0].iter().zip([expected.x, expected.y, expected.z]) {
         assert!((f64::from(*a) - b).abs() < 2e-5, "{actual:?} vs {expected:?}");
@@ -2415,7 +2415,7 @@ fn gpu_long_ray_near_corner_refraction_keeps_real_exit() {
             scene.bounds = mesh.bounds();
             scene.meshes[0].mesh = Arc::new(mesh);
             scene.meshes[0].surface = Some(OpaqueSurface::new(Vec3::ZERO, 0., 0.1, ior).unwrap());
-            scene.meshes[0].transmission = Some(solidcraft_render::transmission::Transmission::new(Vec3::ZERO, None).unwrap());
+            scene.meshes[0].transmission = Some(desurface_render::transmission::Transmission::new(Vec3::ZERO, None).unwrap());
             let mut task = Task::new(context.clone(), scene, request(2), JobOptions::default(), CancelToken::default()).unwrap();
             let mut params = vec![0; 32];
             scene::vector(&mut params, transform(origin), 0.);
@@ -2521,7 +2521,7 @@ fn gpu_rib_total_internal_reflection_retains_origin_residual() {
             scene.bounds = mesh.bounds();
             scene.meshes[0].mesh = Arc::new(mesh);
             scene.meshes[0].surface = Some(OpaqueSurface::new(Vec3::ZERO, 0., 0.1, f64::from(1.49_f32)).unwrap());
-            scene.meshes[0].transmission = Some(solidcraft_render::transmission::Transmission::new(Vec3::ZERO, None).unwrap());
+            scene.meshes[0].transmission = Some(desurface_render::transmission::Transmission::new(Vec3::ZERO, None).unwrap());
             let mut task = Task::new(context.clone(), scene, request(2), JobOptions::default(), CancelToken::default()).unwrap();
             let mut params = vec![0; 32];
             scene::vector(&mut params, transform(a), 0.);
@@ -2779,7 +2779,7 @@ fn medium_failures_are_tolerated_only_when_rare() {
 
 #[test]
 fn identical_maps_pack_once_for_multiple_gpu_bodies() {
-    use solidcraft_render::job::textures::{PlanarFrame, RuntimeTextures};
+    use desurface_render::job::textures::{PlanarFrame, RuntimeTextures};
     let fixture = texture_fixture(PlanarFrame { origin: [0.0; 3], u: [2.0, 0.0, 0.0], v: [0.0, 2.0, 0.0] });
     let first = fixture.bindings()[0].clone();
     let mut second = first.clone();
@@ -2798,7 +2798,7 @@ fn identical_maps_pack_once_for_multiple_gpu_bodies() {
 #[test]
 fn gpu_scalar_maps_match_linear_reference_without_touching_ior() {
     use image::ImageEncoder;
-    use solidcraft_render::{
+    use desurface_render::{
         job::textures::{PlanarFrame, RuntimeTextures, TextureMap},
         texture_input::MapRole,
     };
@@ -2884,7 +2884,7 @@ fn production_envelope_is_device_bounded_and_never_silently_resized() {
 fn disjoint_glass_count_does_not_relax_closed_topology_or_overlap_validation() {
     let template = sphere_grid(white(), 8, 16);
     let mut source = ProductScene { meshes: Vec::new(), bounds: Aabb3::EMPTY };
-    for i in 0..solidcraft_render::job::MAX_GPU_DIELECTRICS {
+    for i in 0..desurface_render::job::MAX_GPU_DIELECTRICS {
         let mut body = template.meshes[0].clone();
         body.name = format!("separate glass {i}");
         for p in &mut Arc::make_mut(&mut body.mesh).positions {
@@ -2901,7 +2901,7 @@ fn disjoint_glass_count_does_not_relax_closed_topology_or_overlap_validation() {
 
 #[test]
 fn display_identity_matches_the_legacy_response_and_spatial_filters_ignore_chunking() {
-    use solidcraft_render::job::finishing::{Backdrop, BackdropMode, Finishing};
+    use desurface_render::job::finishing::{Backdrop, BackdropMode, Finishing};
     let cancel = CancelToken::default();
     let input: Vec<[f32; 4]> = (0..91)
         .map(|i| {
@@ -2964,7 +2964,7 @@ fn complete_linear_fixture(context: Arc<Context>, options: JobOptions) -> (Vec<u
     // Use the public environment-lighting contract, not the test-only numerical
     // furnace path. Primary misses remain transparent black in the linear master.
     let options = JobOptions {
-        lighting: Some(solidcraft_render::job::StudioLighting { environment: [8.0; 3], sun: None, area_lights: Default::default() }),
+        lighting: Some(desurface_render::job::StudioLighting { environment: [8.0; 3], sun: None, area_lights: Default::default() }),
         ..options
     };
     let mut task = Task::new(context, sphere(white()), request(16), options, CancelToken::default()).unwrap();
@@ -2982,7 +2982,7 @@ fn complete_linear_fixture(context: Arc<Context>, options: JobOptions) -> (Vec<u
 }
 #[test]
 fn gpu_raw_master_keeps_hdr_samples_before_denoise_gain_tone_and_camera_backdrop() {
-    use solidcraft_render::job::finishing::{Backdrop, Finishing};
+    use desurface_render::job::finishing::{Backdrop, Finishing};
     let Some(executor) = executor() else {
         return;
     };
@@ -3030,7 +3030,7 @@ fn gpu_raw_master_keeps_hdr_samples_before_denoise_gain_tone_and_camera_backdrop
     }
     assert!(maximum > 2.0, "raw highlight radiance must not be clipped or reconstructed from PNG: {maximum}");
     // Optional fresh external evidence folder for an independent OpenEXR reader.
-    if let Some(out) = std::env::var_os("SOLIDCRAFT_FINISHING_EVIDENCE_DIR") {
+    if let Some(out) = std::env::var_os("DESURFACE_FINISHING_EVIDENCE_DIR") {
         let out = std::path::PathBuf::from(out);
         assert!(out.is_absolute() && !out.exists());
         std::fs::create_dir_all(&out).unwrap();
@@ -3050,7 +3050,7 @@ fn gpu_raw_master_keeps_hdr_samples_before_denoise_gain_tone_and_camera_backdrop
 
 #[test]
 fn gpu_host_retains_linear_companion_under_the_same_exact_frame_lease() {
-    use solidcraft_render::job::{JobId, Phase};
+    use desurface_render::job::{JobId, Phase};
     let Some(executor) = executor() else {
         return;
     };
@@ -3061,7 +3061,7 @@ fn gpu_host_retains_linear_companion_under_the_same_exact_frame_lease() {
     let base = host.admit(&source, &req, JobOptions::default()).unwrap();
     let options = JobOptions { samples: 4, linear_exr: true, ..Default::default() };
     let extra = host.admit(&source, &req, options).unwrap();
-    assert_eq!(extra.estimated_total_bytes - base.estimated_total_bytes, solidcraft_render::job::linear_exr::encoded_limit(8, 8).unwrap());
+    assert_eq!(extra.estimated_total_bytes - base.estimated_total_bytes, desurface_render::job::linear_exr::encoded_limit(8, 8).unwrap());
     let handle = host.submit_with_options(id, 7, source.clone(), req.clone(), options).unwrap();
     let status = handle.wait_timeout(std::time::Duration::from_secs(30)).unwrap();
     assert_eq!(status.progress.phase, Phase::Completed, "{:?}", status.error);
@@ -3102,12 +3102,12 @@ fn gpu_host_retains_linear_companion_under_the_same_exact_frame_lease() {
 #[test]
 fn engine_exports_raw_master_from_the_exact_completed_job_without_png_conversion() {
     use serde_json::json;
-    use solidcraft_render::job::{JobId, Phase};
+    use desurface_render::job::{JobId, Phase};
     let Some(executor) = executor() else {
         return;
     };
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();
-    let mut s = solidcraft_engine::Session::default();
+    let mut s = desurface_engine::Session::default();
     s.register_render_job_host(host.clone()).unwrap();
     s.execute("solid.box", &json!({"length":2,"width":2,"height":1,"body_name":"Original output fixture"})).unwrap();
     let before = s.doc.to_json();
@@ -3121,7 +3121,7 @@ fn engine_exports_raw_master_from_the_exact_completed_job_without_png_conversion
     assert_eq!(handle.wait_timeout(std::time::Duration::from_secs(30)).unwrap().progress.phase, Phase::Completed);
     let frame = handle.frame().unwrap().unwrap();
     let root = std::env::temp_dir().join(format!(
-        "solidcraft-linear-export-{}-{}",
+        "desurface-linear-export-{}-{}",
         std::process::id(),
         std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()
     ));
@@ -3152,7 +3152,7 @@ fn engine_exports_raw_master_from_the_exact_completed_job_without_png_conversion
 
 #[test]
 fn gpu_bloom_changes_display_only_with_explicit_scratch_and_opaque_contract() {
-    use solidcraft_render::job::{bloom::Bloom, finishing::Finishing};
+    use desurface_render::job::{bloom::Bloom, finishing::Finishing};
     let Some(executor) = executor() else { return };
     let options = JobOptions { samples: 16, seed: 17, max_depth: 3, linear_exr: true, ..Default::default() };
     let (png, raw) = complete_linear_fixture(executor.context.clone(), options);
@@ -3211,10 +3211,10 @@ fn display_bloom_slices_refuse_invalid_ranges_without_panicking() {
 /// then prove that the same device still accepts a fresh nested scope stack.
 #[test]
 fn cancelled_environment_preparation_unwinds_gpu_error_scopes() {
-    use solidcraft_render::lighting::environment::EnvironmentSource;
+    use desurface_render::lighting::environment::EnvironmentSource;
     let Ok((_, device, _queue)) = open_headless() else {
         let vulkan = crate::select::native_backends().contains(wgpu::Backends::VULKAN);
-        assert!(!vulkan || std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none(), "required Vulkan device unavailable");
+        assert!(!vulkan || std::env::var_os("DESURFACE_REQUIRE_GPU").is_none(), "required Vulkan device unavailable");
         return;
     };
     let mut image = request(1);
@@ -3240,7 +3240,7 @@ fn cancelled_environment_preparation_unwinds_gpu_error_scopes() {
 fn failed_resource_creation_unwinds_gpu_error_scopes() {
     let Ok((_, device, _queue)) = open_headless() else {
         let vulkan = crate::select::native_backends().contains(wgpu::Backends::VULKAN);
-        assert!(!vulkan || std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none(), "required Vulkan device unavailable");
+        assert!(!vulkan || std::env::var_os("DESURFACE_REQUIRE_GPU").is_none(), "required Vulkan device unavailable");
         return;
     };
     let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -3266,7 +3266,7 @@ fn actual_first_gpu_quantum_is_small_and_cancellation_retains_no_completed_image
 
 #[test]
 fn real_device_loss_retires_the_executor_and_the_sessions_cached_availability() {
-    use solidcraft_engine::Session;
+    use desurface_engine::Session;
     let Some(executor) = executor() else { return };
     let context = executor.context.clone();
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();

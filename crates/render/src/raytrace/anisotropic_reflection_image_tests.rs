@@ -1,7 +1,7 @@
 use super::*;
 use crate::job::{AnisotropicFaceOptions, AnisotropicOrientation, ReflectionBody, ReflectionMode, ReflectionOptions};
 use crate::{ProductMesh, StandardView};
-use solidcraft_geom::Mesh;
+use desurface_geom::Mesh;
 use std::sync::Arc;
 
 fn scene() -> ProductScene {

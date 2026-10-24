@@ -1,6 +1,6 @@
 """Original editable CAD recipe authoring; Python is not an application dependency.
 
-The emitted JSON is the editable authority consumed by SolidCraft commands.
+The emitted JSON is the editable authority consumed by DeSurface commands.
 All dimensions are millimetres. No meshes or imported design assets are used.
 """
 import json
@@ -111,7 +111,7 @@ def write(name, value):
 
 
 def camera(target, distance):
-    # SolidCraft yaw zero is front (-Y); positive yaw moves left (-X).
+    # DeSurface yaw zero is front (-Y); positive yaw moves left (-X).
     return dict(target=target, yaw=math.radians(32), pitch=math.radians(30), roll=0, distance=distance, fov=math.radians(34))
 
 

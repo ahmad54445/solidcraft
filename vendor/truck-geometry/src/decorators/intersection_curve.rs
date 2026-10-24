@@ -163,13 +163,13 @@ where
     S: ParametricSurface3D + SearchNearestParameter<D2, Point = Point3>,
 {
     type Point = Point3;
-    // SolidCraft: the division of `algo::curve::parameter_division` (the same split points and
+    // DeSurface: the division of `algo::curve::parameter_division` (the same split points and
     // the same order), but each point's projection onto the two surfaces starts from the
     // parameters of the point that begins its piece instead of a search of the whole surfaces:
     // that search ran for every point and made dividing an intersection edge on a large B-spline
     // surface take seconds. A point the hinted projection misses is searched for as before.
     fn parameter_division(&self, range: (f64, f64), tol: f64) -> (Vec<f64>, Vec<Point3>) {
-        // SolidCraft: a tolerance finer than truck's (or not a number) divides at truck's
+        // DeSurface: a tolerance finer than truck's (or not a number) divides at truck's
         // instead of panicking: the points are only found to within it anyway. truck asserted
         // the tolerance, and a join whose caller asked for less failed on the panic (#4623).
         let tol = if tol >= TOLERANCE { tol } else { TOLERANCE };
@@ -179,7 +179,7 @@ where
     }
 }
 
-// SolidCraft: a point of the curve with its parameters on both surfaces.
+// DeSurface: a point of the curve with its parameters on both surfaces.
 type Triple = (Point3, Point2, Point2);
 
 impl<C, S> IntersectionCurve<C, S>
@@ -187,7 +187,7 @@ where
     C: ParametricCurve3D,
     S: ParametricSurface3D + SearchNearestParameter<D2, Point = Point3>,
 {
-    // SolidCraft: `search_triple` started from `hint`'s parameters, falling back to the search
+    // DeSurface: `search_triple` started from `hint`'s parameters, falling back to the search
     // from nothing (and, where that fails too, to `subs` as before). A hinted result is taken
     // only within the curve's tolerance of the leader's point, where the leader lies: started
     // from a neighbour (or from a periodic surface's seam), the projection can settle on another
@@ -215,7 +215,7 @@ where
     }
 }
 
-// SolidCraft: `algo::curve::sub_parameter_division`, carrying each end's parameters.
+// DeSurface: `algo::curve::sub_parameter_division`, carrying each end's parameters.
 fn hinted_sub_division<C, S>(
     curve: &IntersectionCurve<C, S>,
     range: (f64, f64),

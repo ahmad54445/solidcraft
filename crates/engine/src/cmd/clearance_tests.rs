@@ -221,7 +221,7 @@ fn a_thin_overlap_with_a_large_plate_is_measured_in_full() {
 /// malformed: the pair is reported unchecked rather than with that volume.
 #[test]
 fn a_malformed_shared_part_is_not_measured() {
-    use solidcraft_geom::{Aabb3, Vec3};
+    use desurface_geom::{Aabb3, Vec3};
     let bbox = Aabb3 { min: Vec3::new(0.0, 0.0, 0.0), max: Vec3::new(10.0, 10.0, 1.0) };
     assert!(super::plausible(50.0, Vec3::new(5.0, 5.0, 0.5), bbox));
     assert!(!super::plausible(50.0, Vec3::new(5.0, 5.0, 3.0), bbox));
@@ -408,9 +408,9 @@ fn a_pin_a_hair_off_its_hole_shares_its_crescent() {
 /// pair once was) does not.
 #[test]
 fn a_shared_volume_the_union_contradicts_is_caught() {
-    use solidcraft_geom::Vec3;
-    let a = solidcraft_kernel::box_solid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(10.0, 10.0, 10.0)).unwrap_or_else(|e| panic!("{e}"));
-    let b = solidcraft_kernel::box_solid(Vec3::new(7.0, 7.0, 7.0), Vec3::new(17.0, 17.0, 17.0)).unwrap_or_else(|e| panic!("{e}"));
+    use desurface_geom::Vec3;
+    let a = desurface_kernel::box_solid(Vec3::new(0.0, 0.0, 0.0), Vec3::new(10.0, 10.0, 10.0)).unwrap_or_else(|e| panic!("{e}"));
+    let b = desurface_kernel::box_solid(Vec3::new(7.0, 7.0, 7.0), Vec3::new(17.0, 17.0, 17.0)).unwrap_or_else(|e| panic!("{e}"));
     let at = Vec3::new(8.5, 8.5, 8.5);
     assert_eq!(super::union_disagrees(&a, &b, 27.0, at), None);
     assert!(super::union_disagrees(&a, &b, 81.0, at).is_some());
@@ -476,7 +476,7 @@ fn a_roller_pressed_into_a_large_plate_is_reported() {
 
 /// Two STL copies of a cube inserted into a design. Returns the names of the two mesh bodies.
 fn insert_two_mesh_cubes(s: &mut Session, tag: &str) -> Vec<String> {
-    let dir = std::env::temp_dir().join(format!("solidcraft-mesh-unchecked-{tag}-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-mesh-unchecked-{tag}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let stl = dir.join("cube.stl");

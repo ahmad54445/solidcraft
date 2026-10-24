@@ -1,11 +1,11 @@
-use solidcraft_geom::Vec3;
-use solidcraft_kernel::{Body, BoolOp};
+use desurface_geom::Vec3;
+use desurface_kernel::{Body, BoolOp};
 
 use super::*;
 
 /// The GPU, or `None` with a note when the machine has no adapter (CI runners without a GPU).
 /// A device that cannot build the pipeline fails the test: that is a shader the device rejects
-/// (as D3D12's FXC once did), not a missing GPU. `SOLIDCRAFT_REQUIRE_GPU=1` (the Windows CI job,
+/// (as D3D12's FXC once did), not a missing GPU. `DESURFACE_REQUIRE_GPU=1` (the Windows CI job,
 /// on the WARP software adapter) fails without an adapter too.
 fn gpu() -> Option<TessGpu> {
     match TessGpu::headless() {
@@ -14,7 +14,7 @@ fn gpu() -> Option<TessGpu> {
             Some(g)
         }
         Err(e @ GpuError::Pipeline(_)) => panic!("{e}"),
-        Err(e) if std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_some() => panic!("a GPU is required here: {e}"),
+        Err(e) if std::env::var_os("DESURFACE_REQUIRE_GPU").is_some() => panic!("a GPU is required here: {e}"),
         Err(e) => {
             eprintln!("skipping the GPU comparison: {e}");
             None
@@ -41,7 +41,7 @@ fn a_pipeline_the_device_rejects_is_an_error_not_a_crash() {
     let (adapter, device, queue) = match open_headless() {
         Ok(d) => d,
         Err(e) => {
-            assert!(std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none(), "a GPU is required here: {e}");
+            assert!(std::env::var_os("DESURFACE_REQUIRE_GPU").is_none(), "a GPU is required here: {e}");
             eprintln!("skipping: {e}");
             return;
         }
@@ -56,7 +56,7 @@ fn a_pipeline_the_device_rejects_is_an_error_not_a_crash() {
     assert!(matches!(TessGpu::with_shader(name.clone(), device.clone(), queue.clone(), "fn main( {"), Err(GpuError::Pipeline(_))));
     // The same device then builds the real pipeline and evaluates on it.
     let gpu = ok(TessGpu::new(name, device, queue));
-    let body = ok(solidcraft_kernel::torus(Vec3::ZERO, 6.0, 1.5));
+    let body = ok(desurface_kernel::torus(Vec3::ZERO, 6.0, 1.5));
     let plan = ok(body.display_plan(0.01));
     assert_eq!(ok(gpu.evaluate(&plan)).positions.len(), plan.evaluate().positions.len());
 }
@@ -104,19 +104,19 @@ fn ok<T, E: std::fmt::Debug>(r: std::result::Result<T, E>) -> T {
 }
 
 fn bodies() -> Vec<(&'static str, Body)> {
-    let bx = ok(solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(10.0, 10.0, 4.0)));
-    let pin = ok(solidcraft_kernel::cylinder(Vec3::new(5.0, 5.0, -1.0), Vec3::Z, 2.0, 6.0));
-    let cross = ok(solidcraft_kernel::cylinder(Vec3::new(5.0, -1.0, 2.0), Vec3::Y, 1.0, 12.0));
-    let cut = |a: &Body, b: &Body| ok(solidcraft_kernel::boolean(a, b, BoolOp::Cut)).unwrap_or_else(|| a.clone());
+    let bx = ok(desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(10.0, 10.0, 4.0)));
+    let pin = ok(desurface_kernel::cylinder(Vec3::new(5.0, 5.0, -1.0), Vec3::Z, 2.0, 6.0));
+    let cross = ok(desurface_kernel::cylinder(Vec3::new(5.0, -1.0, 2.0), Vec3::Y, 1.0, 12.0));
+    let cut = |a: &Body, b: &Body| ok(desurface_kernel::boolean(a, b, BoolOp::Cut)).unwrap_or_else(|| a.clone());
     let edges = [Vec3::new(5.0, 0.0, 4.0), Vec3::new(10.0, 5.0, 4.0), Vec3::new(5.0, 10.0, 4.0), Vec3::new(0.0, 5.0, 4.0)];
     vec![
         ("box with a hole", cut(&bx, &pin)),
         ("cross hole", cut(&pin, &cross)),
-        ("torus", ok(solidcraft_kernel::torus(Vec3::ZERO, 6.0, 1.5))),
-        ("fillets", ok(solidcraft_kernel::fillet(&bx, &edges, 1.5))),
+        ("torus", ok(desurface_kernel::torus(Vec3::ZERO, 6.0, 1.5))),
+        ("fillets", ok(desurface_kernel::fillet(&bx, &edges, 1.5))),
         (
             "mirrored",
-            ok(solidcraft_kernel::transform_matrix(&pin, [[-1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [3.0, 0.0, 1.0, 1.0]])),
+            ok(desurface_kernel::transform_matrix(&pin, [[-1.0, 0.0, 0.0, 0.0], [0.0, 1.0, 0.0, 0.0], [0.0, 0.0, 1.0, 0.0], [3.0, 0.0, 1.0, 1.0]])),
         ),
     ]
 }
@@ -254,7 +254,7 @@ fn tessellation_without_vertices_does_not_dispatch() {
     let Some(gpu) = gpu() else { return };
     let plan = TessPlan {
         surfaces: vec![EvalSurface::Plane { origin: Vec3::ZERO, du: Vec3::X, dv: Vec3::Y }],
-        faces: vec![solidcraft_geom::tess::FacePlan { surface: Some(0), ..Default::default() }],
+        faces: vec![desurface_geom::tess::FacePlan { surface: Some(0), ..Default::default() }],
         ..Default::default()
     };
     check_empty_tessellation(&gpu, &plan);
@@ -267,11 +267,11 @@ fn tessellation_without_surfaces_does_not_dispatch() {
 }
 
 /// Display meshing of a 400-hole plate (#303's benchmark): reference mesher, plan, CPU and GPU
-/// evaluation. `cargo test --release -p solidcraft-gpu bench_plate -- --ignored --nocapture`.
+/// evaluation. `cargo test --release -p desurface-gpu bench_plate -- --ignored --nocapture`.
 #[test]
 #[ignore]
 fn bench_plate() {
-    use solidcraft_geom::{Loop2, Plane, Region2, Seg2, Vec2};
+    use desurface_geom::{Loop2, Plane, Region2, Seg2, Vec2};
     let rect = |w: f64| Loop2 {
         segs: vec![
             Seg2::Line { a: Vec2::new(0.0, 0.0), b: Vec2::new(w, 0.0) },
@@ -286,7 +286,7 @@ fn bench_plate() {
             Loop2 { segs: vec![Seg2::Arc { center: c, radius: 3.0, start: 0.0, sweep: -std::f64::consts::TAU }] }
         })
         .collect();
-    let plate = ok(solidcraft_kernel::extrude(&Plane::XY, &[Region2 { outer: rect(200.0), holes }], 0.0, 5.0)).remove(0);
+    let plate = ok(desurface_kernel::extrude(&Plane::XY, &[Region2 { outer: rect(200.0), holes }], 0.0, 5.0)).remove(0);
     let gpu = gpu();
     let ms = |t: std::time::Instant| t.elapsed().as_secs_f64() * 1e3;
     let median = |mut v: Vec<f64>| {

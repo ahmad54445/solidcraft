@@ -1,4 +1,4 @@
-# SolidCraft rendering and appearance catalog — v0.2
+# DeSurface rendering and appearance catalog — v0.2
 
 **An English, clean-room product specification for the personal render/materials fork.**
 
@@ -18,7 +18,7 @@ The catalog is a content and implementation backlog. Its entries are not install
 | [Environments guide](environments-guide.md) | Procedural stages, lunar environments and environment presets. |
 | [Preset contract](PRESETS.md) | Quality tiers, composition rules, units and runtime availability. |
 | [UX plan](UX.md) | A few-click workflow with deeper controls available in context. |
-| [UI integration](UI_INTEGRATION.md) | Exact alignment with the implemented SolidCraft redesign: ribbon groups, existing icons/tokens, library, inspector, responsiveness and accessibility. |
+| [UI integration](UI_INTEGRATION.md) | Exact alignment with the implemented DeSurface redesign: ribbon groups, existing icons/tokens, library, inspector, responsiveness and accessibility. |
 | [Renderer plan](RENDERER.md) | Quality foundations, expensive features and evidence for competitive claims. |
 | [SELENE](SELENE.md) | Improved showcase source selection, lunar stills, model upgrades and future sample-handling dynamics. |
 | [Native SELENE package](../../assets/render/selene/README.md) | Pinned source, functional derivative, native verification and render preparation, plus the broader appearance/scene specifications. |
@@ -32,7 +32,7 @@ The catalog is a content and implementation backlog. Its entries are not install
 
 The [UI integration contract](ui-integration.json) pins 21 project source files across the fixed integration base and the observed 0.18.4 design reference. It records current command/icon mappings, proposed groups, disclosure, quality recommendations and twelve acceptance cases. It registers no UI or commands.
 
-JSON is authoritative for identifiers, counts and recipe values. Markdown explains policy and provides a readable index. Python scripts are optional development tooling for authoring and validation; they are not an application runtime or a proposed replacement for SolidCraft's Rust implementation.
+JSON is authoritative for identifiers, counts and recipe values. Markdown explains policy and provides a readable index. Python scripts are optional development tooling for authoring and validation; they are not an application runtime or a proposed replacement for DeSurface's Rust implementation.
 
 Run the package validator from the repository root:
 
@@ -70,4 +70,4 @@ The implementation already under way in the other thread remains the authority f
 
 The [SELENE package](../../assets/render/selene/README.md) contains original numerical appearance recipes, reviewable scene configuration and the current native reconstruction workflow. Its opaque PBR projections can be inspected through the supplied swatch command script. Advanced optics, terrain generators and final-quality output remain gated on actual executor support and validation.
 
-The owner supplied the improved [SELENE-showcase.solidcraft](../../assets/render/selene/source/SELENE-showcase.solidcraft). The [source lock](../../assets/render/selene/source-lock.json) is now `pinned_native`; [SOURCE.md](../../assets/render/selene/SOURCE.md) records its exact hash, author provenance, retained notices and runtime compatibility. The current native work adds [mechanism improvements](../../assets/render/selene/MECHANISMS.md) and a [Raspberry Pi 5 visual reconstruction](../../assets/render/selene/ELECTRONICS.md) through reproducible SolidCraft commands. The [native validation record](../../assets/render/selene/VALIDATION.md) identifies the saved derivative, executor, completed checks and remaining limits. The broader catalog remains unbound, and historical v7 remains excluded as a substitute.
+The owner supplied the improved [SELENE-showcase.solidcraft](../../assets/render/selene/source/SELENE-showcase.solidcraft). The [source lock](../../assets/render/selene/source-lock.json) is now `pinned_native`; [SOURCE.md](../../assets/render/selene/SOURCE.md) records its exact hash, author provenance, retained notices and runtime compatibility. The current native work adds [mechanism improvements](../../assets/render/selene/MECHANISMS.md) and a [Raspberry Pi 5 visual reconstruction](../../assets/render/selene/ELECTRONICS.md) through reproducible DeSurface commands. The [native validation record](../../assets/render/selene/VALIDATION.md) identifies the saved derivative, executor, completed checks and remaining limits. The broader catalog remains unbound, and historical v7 remains excluded as a substitute.

@@ -14,7 +14,7 @@
 //!
 //! The shell's volume is the solid's volume less those three boxes.
 use serde_json::json;
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 fn run(s: &mut Session, id: &str, p: serde_json::Value) {
     if let Err(e) = s.execute(id, &p) {
@@ -73,7 +73,7 @@ fn shell_saddle_corner_with_an_overhang_thinner_than_the_wall() {
 }
 
 fn volume(s: &Session) -> f64 {
-    s.model.state().bodies.iter().map(|b| solidcraft_kernel::measure(&b.body).map(|m| m.volume).unwrap_or(f64::NAN)).sum()
+    s.model.state().bodies.iter().map(|b| desurface_kernel::measure(&b.body).map(|m| m.volume).unwrap_or(f64::NAN)).sum()
 }
 
 fn sound(s: &Session) {

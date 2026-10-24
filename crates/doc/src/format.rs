@@ -307,7 +307,7 @@ impl Formats<'_> {
     /// even after folding, and already-applied changes never run again at their later number.
     fn upgrade(&self, v: &mut Value, version: u32, applied: Option<&[String]>) -> Result<()> {
         if version == 0 || version > self.current() {
-            return Err(DocError::Invalid(format!("not a SolidCraft design (format {version})")));
+            return Err(DocError::Invalid(format!("not a DeSurface design (format {version})")));
         }
         // A list beside a format that isn't made of changes means nothing (a tool or a test set
         // an older number on a newer file): it is ignored, like any field an upgrade drops.
@@ -317,7 +317,7 @@ impl Formats<'_> {
         if let Some(applied) = applied {
             if let Some(unknown) = applied.iter().find(|name| !self.knows_part_name(self.canonical_applied_name(version, name))) {
                 return Err(DocError::Invalid(format!(
-                    "this design was saved by a newer SolidCraft (file format {version} with `{unknown}`, which this version doesn't know): update SolidCraft to open it"
+                    "this design was saved by a newer DeSurface (file format {version} with `{unknown}`, which this version doesn't know): update DeSurface to open it"
                 )));
             }
             for part in self.parts(version).unwrap_or_default().iter().filter(|part| !already_applied(part)) {
@@ -565,22 +565,22 @@ fn v2_to_v3(v: &mut Value) -> Result<()> {
 
 /// Read a design file's JSON, upgrading older formats.
 pub fn read(s: &str) -> Result<Document> {
-    let mut v: Value = serde_json::from_str(s).map_err(|e| DocError::Invalid(format!("not a SolidCraft design: {e}")))?;
+    let mut v: Value = serde_json::from_str(s).map_err(|e| DocError::Invalid(format!("not a DeSurface design: {e}")))?;
     let Some(obj) = v.as_object() else {
-        return Err(DocError::Invalid("not a SolidCraft design (expected a JSON object)".into()));
+        return Err(DocError::Invalid("not a DeSurface design (expected a JSON object)".into()));
     };
     let version = match obj.get("format") {
         None => 1,
-        Some(Value::String(f)) => version_of(f).ok_or_else(|| DocError::Invalid(format!("not a SolidCraft design (format `{f}`)")))?,
-        Some(_) => return Err(DocError::Invalid("not a SolidCraft design (format is not a string)".into())),
+        Some(Value::String(f)) => version_of(f).ok_or_else(|| DocError::Invalid(format!("not a DeSurface design (format `{f}`)")))?,
+        Some(_) => return Err(DocError::Invalid("not a DeSurface design (format is not a string)".into())),
     };
     let applied = take_pending(&mut v)?;
     if version == 0 {
-        return Err(DocError::Invalid("not a SolidCraft design (format 0)".into()));
+        return Err(DocError::Invalid("not a DeSurface design (format 0)".into()));
     }
     if version > FORMAT {
         return Err(DocError::Invalid(format!(
-            "this design was saved by a newer SolidCraft (file format {version}; this version reads formats up to {FORMAT}): update SolidCraft to open it"
+            "this design was saved by a newer DeSurface (file format {version}; this version reads formats up to {FORMAT}): update DeSurface to open it"
         )));
     }
     check_design_numbers(&v)?;
@@ -605,7 +605,7 @@ pub fn read(s: &str) -> Result<Document> {
         if let Some(crate::Feature { kind: crate::FeatureKind::Sketch { sketch, .. }, .. }) = d.features.get_mut(feature_index) {
             let mut spaces = std::collections::BTreeMap::new();
             for link in &sketch.links {
-                spaces.entry(link.id.as_str()).or_insert_with(|| solidcraft_sketch::WireSpace::from_legacy_link(link));
+                spaces.entry(link.id.as_str()).or_insert_with(|| desurface_sketch::WireSpace::from_legacy_link(link));
             }
             for wire_index in wire_indices {
                 if let Some(wire) = sketch.wires.get_mut(wire_index) {
@@ -719,10 +719,10 @@ fn validate_sketch_sizes(value: &Value) -> Result<()> {
         }
         let Some(sketch) = feature.get("sketch") else { continue };
         let len = |key: &str| sketch.get(key).and_then(Value::as_array).map_or(0, Vec::len);
-        if len("points") > solidcraft_sketch::MAX_POINTS
-            || len("curves") > solidcraft_sketch::MAX_CURVES
-            || len("constraints") > solidcraft_sketch::MAX_CONSTRAINTS
-            || len("patterns") > solidcraft_sketch::MAX_CONSTRAINTS
+        if len("points") > desurface_sketch::MAX_POINTS
+            || len("curves") > desurface_sketch::MAX_CURVES
+            || len("constraints") > desurface_sketch::MAX_CONSTRAINTS
+            || len("patterns") > desurface_sketch::MAX_CONSTRAINTS
         {
             return Err(invalid());
         }
@@ -733,7 +733,7 @@ fn validate_sketch_sizes(value: &Value) -> Result<()> {
             for pattern in patterns {
                 let Some(entities) = pattern.get("entities").and_then(Value::as_array) else { return Err(invalid()) };
                 let Some(instances) = pattern.get("instances").and_then(Value::as_array) else { return Err(invalid()) };
-                if entities.len() > solidcraft_sketch::MAX_CURVES + solidcraft_sketch::MAX_POINTS || instances.len() >= 500 {
+                if entities.len() > desurface_sketch::MAX_CURVES + desurface_sketch::MAX_POINTS || instances.len() >= 500 {
                     return Err(invalid());
                 }
                 for instance in instances {
@@ -741,9 +741,9 @@ fn validate_sketch_sizes(value: &Value) -> Result<()> {
                     points = points.saturating_add(size("points"));
                     curves = curves.saturating_add(size("curves"));
                     constraints = constraints.saturating_add(size("constraints"));
-                    if points > solidcraft_sketch::MAX_POINTS
-                        || curves > solidcraft_sketch::MAX_CURVES
-                        || constraints > solidcraft_sketch::MAX_CONSTRAINTS
+                    if points > desurface_sketch::MAX_POINTS
+                        || curves > desurface_sketch::MAX_CURVES
+                        || constraints > desurface_sketch::MAX_CONSTRAINTS
                     {
                         return Err(invalid());
                     }
@@ -939,7 +939,7 @@ fn validate_versioned_geometry(value: &Value) -> Result<()> {
             }
             let indices = curve.get("pts").and_then(Value::as_array).ok_or_else(invalid)?;
             work = work.saturating_add(indices.len());
-            if !(4..=solidcraft_sketch::MAX_SPLINE_POINTS).contains(&indices.len())
+            if !(4..=desurface_sketch::MAX_SPLINE_POINTS).contains(&indices.len())
                 || work > 1_000_000
                 || curve.get("control").is_some_and(|control| control.as_bool() != Some(false))
                 || curve.get("degree").is_some_and(|degree| degree.as_u64() != Some(3))
@@ -1016,7 +1016,7 @@ fn validate_freeform_offsets(value: &Value) -> Result<()> {
             if !(1..=256).contains(&divisions)
                 || !divisions.is_power_of_two()
                 || !(1..=256).contains(&pieces)
-                || pieces * divisions >= solidcraft_sketch::MAX_SPLINE_POINTS as u64
+                || pieces * divisions >= desurface_sketch::MAX_SPLINE_POINTS as u64
                 || !distance.is_finite()
                 || !(1e-9..=MAX_REAL).contains(&distance.abs())
                 || !tolerance.is_finite()
@@ -1238,7 +1238,7 @@ mod tests {
         assert_eq!(trace_of(&v), Vec::<&str>::new());
         // A change this build doesn't know is a newer build's: refused, not guessed at.
         let err = formats.upgrade(&mut serde_json::json!({}), next, Some(&["c-later".into()])).unwrap_err();
-        assert!(err.to_string().contains("newer SolidCraft"), "{err}");
+        assert!(err.to_string().contains("newer DeSurface"), "{err}");
         // A list on a format that isn't made of changes means nothing.
         let mut v = serde_json::json!({});
         formats.upgrade(&mut v, HAND_WRITTEN, Some(&["a-first".into()])).unwrap();
@@ -1365,7 +1365,7 @@ mod tests {
             let mut file = serde_json::json!({"trace": []});
             let original = file.clone();
             let err = formats.upgrade(&mut file, 2, Some(&["experimental-card".into()])).unwrap_err();
-            assert!(err.to_string().contains("experimental-card") && err.to_string().contains("update SolidCraft"), "{err}");
+            assert!(err.to_string().contains("experimental-card") && err.to_string().contains("update DeSurface"), "{err}");
             assert_eq!(file, original, "refuse before applying even a known migration");
         }
     }
@@ -1410,7 +1410,7 @@ mod tests {
     #[test]
     fn version_twenty_three_designs_open_and_an_edge_flange_relief_is_saved_in_twenty_four() {
         let flange = |shape: Option<&str>, size: Option<&str>| crate::FeatureKind::SheetFlange {
-            edges: vec![crate::FlangeEdge::at(solidcraft_geom::Vec3::ZERO)],
+            edges: vec![crate::FlangeEdge::at(desurface_geom::Vec3::ZERO)],
             height: "10 mm".into(),
             angle: "90 deg".into(),
             radius: None,
@@ -1515,8 +1515,8 @@ mod tests {
 
     #[test]
     fn version_nine_wire_spaces_preserve_saved_points_and_explicit_markers() {
-        use solidcraft_geom::Vec3;
-        use solidcraft_sketch::{LinkKind, LinkSource, Sketch, WireSpace};
+        use desurface_geom::Vec3;
+        use desurface_sketch::{LinkKind, LinkSource, Sketch, WireSpace};
         let mut sketch = Sketch::new();
         sketch.add_drawn_wire(&[Vec3::new(12.0, 3.0, 4.0)]).unwrap();
         let link = sketch
@@ -1612,7 +1612,7 @@ mod tests {
         let mut document = Document::new("legacy named extent");
         document.set_param("offset", "2", Some("mm"), None).unwrap();
         let sketch = document
-            .add_feature(FeatureKind::Sketch { plane: PlaneRef::Origin { name: "XY".into() }, sketch: solidcraft_sketch::Sketch::new() }, None)
+            .add_feature(FeatureKind::Sketch { plane: PlaneRef::Origin { name: "XY".into() }, sketch: desurface_sketch::Sketch::new() }, None)
             .unwrap();
         document
             .add_feature(
@@ -1628,9 +1628,9 @@ mod tests {
                         start_offset: None,
                         through_all: false,
                         taper: Some("0 deg".into()),
-                        to: Some(crate::FacePick(solidcraft_geom::Vec3::new(0.0, 0.0, 10.0))),
+                        to: Some(crate::FacePick(desurface_geom::Vec3::new(0.0, 0.0, 10.0))),
                         to_offset: Some("offset + 1 mm".into()),
-                        from: Some(crate::FacePick(solidcraft_geom::Vec3::new(0.0, 0.0, 5.0))),
+                        from: Some(crate::FacePick(desurface_geom::Vec3::new(0.0, 0.0, 5.0))),
                     },
                     operation: Operation::NewBody,
                     targets: vec![],
@@ -1675,8 +1675,8 @@ mod tests {
 
     #[test]
     fn saved_offset_cannot_alias_and_overwrite_its_source_geometry() {
-        use solidcraft_geom::Vec2;
-        use solidcraft_sketch::{CurveKind, Sketch};
+        use desurface_geom::Vec2;
+        use desurface_sketch::{CurveKind, Sketch};
         let mut sketch = Sketch::new();
         let center = sketch.add_point(Vec2::ZERO, None).unwrap();
         let major = sketch.add_point(Vec2::new(10.0, 0.0), None).unwrap();
@@ -1699,7 +1699,7 @@ mod tests {
         let mut document = Document::new("missing offset geometry");
         document
             .add_feature(
-                crate::FeatureKind::Sketch { plane: crate::PlaneRef::Origin { name: "XY".into() }, sketch: solidcraft_sketch::Sketch::new() },
+                crate::FeatureKind::Sketch { plane: crate::PlaneRef::Origin { name: "XY".into() }, sketch: desurface_sketch::Sketch::new() },
                 None,
             )
             .unwrap();
@@ -1775,7 +1775,7 @@ mod tests {
             ("degree", serde_json::json!(2)),
             ("pts", serde_json::json!([0, 1, 2])),
             ("pts", serde_json::json!([0, 1, 2, u64::MAX])),
-            ("pts", serde_json::json!(vec![0; solidcraft_sketch::MAX_SPLINE_POINTS + 1])),
+            ("pts", serde_json::json!(vec![0; desurface_sketch::MAX_SPLINE_POINTS + 1])),
         ] {
             let mut damaged = curve.clone();
             damaged[key] = malformed;
@@ -1814,8 +1814,8 @@ mod tests {
 
     #[test]
     fn periodic_file_validation_refuses_damaged_closed_geometry() {
-        use solidcraft_geom::Vec2;
-        use solidcraft_sketch::{CurveKind, Sketch};
+        use desurface_geom::Vec2;
+        use desurface_sketch::{CurveKind, Sketch};
         let mut sketch = Sketch::new();
         let mut pts = Vec::new();
         for point in [Vec2::ZERO, Vec2::new(10.0, 0.0), Vec2::new(0.0, 10.0), Vec2::ZERO] {
@@ -1869,7 +1869,7 @@ mod tests {
             let error = read(&value.to_string()).unwrap_err().to_string();
             assert!(error.contains("free-form offset metadata"), "{error}");
             value["format"] = Value::from(format_string(FORMAT + 1));
-            assert!(read(&value.to_string()).unwrap_err().to_string().contains("newer SolidCraft"));
+            assert!(read(&value.to_string()).unwrap_err().to_string().contains("newer DeSurface"));
         }
     }
 
@@ -1894,7 +1894,7 @@ mod tests {
             assert!(error.contains("emboss face"), "{error}");
             value["format"] = Value::from(format_string(FORMAT + 1));
             let error = read(&value.to_string()).unwrap_err().to_string();
-            assert!(error.contains("newer SolidCraft"), "{error}");
+            assert!(error.contains("newer DeSurface"), "{error}");
         }
     }
 
@@ -1958,14 +1958,14 @@ mod tests {
         value["configs"]["columns"] = serde_json::json!([{"unknown_future_column":"Body"}]);
         value["configs"]["rules"] = serde_json::json!({"unknown_future_rule": true});
         let error = read(&value.to_string()).unwrap_err().to_string();
-        assert!(error.contains("newer SolidCraft") && error.contains("update SolidCraft"), "{error}");
+        assert!(error.contains("newer DeSurface") && error.contains("update DeSurface"), "{error}");
         assert!(!error.contains("unknown variant"), "format refusal precedes decoding new variants");
     }
 
     #[test]
     fn version_seven_origin_sketch_keeps_geometry_dimension_ids_and_expressions() {
-        use solidcraft_geom::Vec2;
-        use solidcraft_sketch::{ConstraintKind, Sketch};
+        use desurface_geom::Vec2;
+        use desurface_sketch::{ConstraintKind, Sketch};
         let mut d = Document::new("legacy origin dimensions");
         d.set_param("reach", "25 mm", Some("mm"), None).unwrap();
         let dim = d.new_model_param("reach", "mm");
@@ -1994,8 +1994,8 @@ mod tests {
 
     #[test]
     fn version_eight_persistent_angle_sweep_and_slot_dimensions_roundtrip() {
-        use solidcraft_geom::Vec2;
-        use solidcraft_sketch::{ConstraintKind, Sketch};
+        use desurface_geom::Vec2;
+        use desurface_sketch::{ConstraintKind, Sketch};
         let mut d = Document::new("persistent typed dimensions");
         let heading = d.new_model_param("45 deg", "deg");
         let sweep = d.new_model_param("180 deg", "deg");
@@ -2015,7 +2015,7 @@ mod tests {
         saved["format"] = Value::from(format_string(FORMAT + 1));
         saved["features"][0]["sketch"]["constraints"][0]["type"] = Value::from("future_dimension");
         let error = read(&saved.to_string()).unwrap_err().to_string();
-        assert!(error.contains("newer SolidCraft") && !error.contains("unknown variant"), "{error}");
+        assert!(error.contains("newer DeSurface") && !error.contains("unknown variant"), "{error}");
     }
 
     #[test]
@@ -2085,7 +2085,7 @@ mod tests {
     #[test]
     fn versions() {
         assert_eq!(version_of("solidcraft/1"), Some(1));
-        assert_eq!(version_of("solidcraft/x"), None);
+        assert_eq!(version_of("desurface/x"), None);
         // Compatibility shim: files saved before the rename carry the legacy tag.
         assert_eq!(version_of("solvecraft/13"), Some(13));
         assert_eq!(version_of("solvecraftx/13"), None);
@@ -2113,12 +2113,12 @@ mod tests {
         let (values, errors) = migrated.param_values();
         assert!(errors.is_empty());
         let p = migrated.resolve_plane(&values, plane, 0).unwrap();
-        assert_eq!(p.y, solidcraft_geom::Vec3::Z);
-        assert_eq!(p.normal(), -solidcraft_geom::Vec3::Y);
-        assert_eq!(p.origin, solidcraft_geom::Vec3::new(0.0, -7.0, 0.0));
+        assert_eq!(p.y, desurface_geom::Vec3::Z);
+        assert_eq!(p.normal(), -desurface_geom::Vec3::Y);
+        assert_eq!(p.origin, desurface_geom::Vec3::new(0.0, -7.0, 0.0));
         assert_eq!(read(&migrated.to_json()).unwrap(), migrated);
         let fresh = doc.resolve_plane(&values, &crate::PlaneRef::Origin { name: "XZ".into() }, 0).unwrap();
-        assert_eq!(fresh.normal(), solidcraft_geom::Vec3::Y);
+        assert_eq!(fresh.normal(), desurface_geom::Vec3::Y);
     }
 
     #[test]
@@ -2130,8 +2130,8 @@ mod tests {
         assert!(read(&v.to_string()).is_ok(), "a file without a format is format 1");
         v["format"] = Value::from(format_string(FORMAT + 1));
         let e = read(&v.to_string()).unwrap_err().to_string();
-        assert!(e.contains("newer SolidCraft"), "{e}");
-        for bad in ["solidcraft/0", "acad/3", "solidcraft/-1", "solidcraft/99999999999999999999"] {
+        assert!(e.contains("newer DeSurface"), "{e}");
+        for bad in ["solidcraft/0", "acad/3", "desurface/-1", "solidcraft/99999999999999999999"] {
             v["format"] = Value::from(bad);
             assert!(read(&v.to_string()).is_err(), "{bad}");
         }
@@ -2160,14 +2160,14 @@ mod tests {
     /// file too, before the arrays are deserialised.
     #[test]
     fn oversized_sketches_are_refused_before_typed_decoding() {
-        use solidcraft_sketch::{MAX_CONSTRAINTS, MAX_CURVES, MAX_POINTS, Sketch};
+        use desurface_sketch::{MAX_CONSTRAINTS, MAX_CURVES, MAX_POINTS, Sketch};
 
         // A sketch right at the point cap, chained by coincident constraints.
         let mut sketch = Sketch::new();
         let mut previous = 0;
         while sketch.points.len() < MAX_POINTS {
-            let i = sketch.add_point(solidcraft_geom::Vec2::new(0.001 * sketch.points.len() as f64, 0.0), None).unwrap();
-            sketch.add_constraint(solidcraft_sketch::ConstraintKind::Coincident { p: previous, q: i }, None).unwrap();
+            let i = sketch.add_point(desurface_geom::Vec2::new(0.001 * sketch.points.len() as f64, 0.0), None).unwrap();
+            sketch.add_constraint(desurface_sketch::ConstraintKind::Coincident { p: previous, q: i }, None).unwrap();
             previous = i;
         }
         let mut doc = Document::new("big sketch");
@@ -2274,11 +2274,11 @@ mod tests {
     }
 
     /// An integer-valued coordinate is range-checked like a float one, while ids and counters
-    /// may still be large integers (solidcraft#5021).
+    /// may still be large integers (desurface#5021).
     #[test]
     fn integer_valued_coordinates_are_range_checked_and_large_ids_still_load() {
-        let mut sketch = solidcraft_sketch::Sketch::new();
-        sketch.add_point(solidcraft_geom::Vec2::new(40.0, 0.0), None).unwrap();
+        let mut sketch = desurface_sketch::Sketch::new();
+        sketch.add_point(desurface_geom::Vec2::new(40.0, 0.0), None).unwrap();
         let mut d = Document::new("range");
         d.add_feature(crate::FeatureKind::Sketch { plane: crate::PlaneRef::Origin { name: "XY".into() }, sketch }, None).unwrap();
         let last = |v: &Value| v["features"][0]["sketch"]["points"].as_array().map_or(0, |a| a.len() - 1);
@@ -2335,7 +2335,7 @@ mod tests {
             "orientation": {"direction": [0.0, 1.0, 0.0]}, "twist": "90 deg", "scale": "0.5"});
         let k: FeatureKind = serde_json::from_value(new.clone()).unwrap();
         let FeatureKind::SurfaceSweep { orientation, .. } = &k else { panic!("{k:?}") };
-        assert_eq!(*orientation, SweepOrientation::Direction(crate::Dir(solidcraft_geom::Vec3::Y)));
+        assert_eq!(*orientation, SweepOrientation::Direction(crate::Dir(desurface_geom::Vec3::Y)));
         assert_eq!(serde_json::to_value(&k).unwrap(), new);
         let parallel: SweepOrientation = serde_json::from_value(serde_json::json!("parallel")).unwrap();
         assert_eq!(parallel, SweepOrientation::Parallel);

@@ -16,10 +16,10 @@ use std::cell::RefCell;
 use std::sync::Arc;
 
 use egui::{Pos2, vec2};
-use solidcraft_engine::Sel;
-use solidcraft_engine::Session;
-use solidcraft_engine::doc::expr::Kind as ValueKind;
-use solidcraft_engine::geom::{Aabb3, Mesh, Vec3};
+use desurface_engine::Sel;
+use desurface_engine::Session;
+use desurface_engine::doc::expr::Kind as ValueKind;
+use desurface_engine::geom::{Aabb3, Mesh, Vec3};
 
 use crate::SolveApp;
 use crate::dialogs::{Dialog, Kind};
@@ -351,7 +351,7 @@ fn marks(app: &SolveApp, painter: &egui::Painter, proj: &Proj) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solidcraft_engine::geom::Vec3;
+    use desurface_engine::geom::Vec3;
 
     /// A square face (two triangles) at z = 5 with a round edge about (2, 3) on it.
     fn mesh() -> Mesh {

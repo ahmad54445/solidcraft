@@ -1,7 +1,7 @@
 # Opaque CPU mip reference
 
 The numerical follow-up #1332 reuses the reference sampler in #1327 through
-`solidcraft_render::texture_sampling::mips`. It adds no installed renderer,
+`desurface_render::texture_sampling::mips`. It adds no installed renderer,
 resource storage, normalization, file decoder, worker, cache or GPU capability.
 The visible wood consumer remains separate work.
 
@@ -24,7 +24,7 @@ chain value. The host must also budget allocator overhead conservatively; this
 helper's cap is not an additional allowance outside #1237's shared preparation pool.
 Keep the borrowed base alive through its existing prepared-result/lease.
 
-`MIP_RECIPE_ID` is `solidcraft.opaque-linear-area-mips/1`: include it in preparation
+`MIP_RECIPE_ID` is `desurface.opaque-linear-area-mips/1`: include it in preparation
 and cache identity alongside source digest, role, normalization policies and host
 generation. This recipe fixes floor-halving, linear area filtering and opaque alpha.
 It must not alias level-zero-only output, a normal filter or another alpha policy.

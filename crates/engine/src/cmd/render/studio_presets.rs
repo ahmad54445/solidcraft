@@ -3,11 +3,11 @@
 use crate::{Result, Session, params::bad};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::{
+use desurface_doc::{
     render_resources::GpuHdrEnvironment,
     render_settings::{RenderJob, RenderSettings, RenderSetup},
 };
-use solidcraft_render::{
+use desurface_render::{
     job::{AreaLights, StudioLighting},
     stage::{Stage, StagePanel},
 };
@@ -210,7 +210,7 @@ pub(super) fn quality(s: &mut Session, params: &Value) -> Result<Value> {
     let (width, height) = (number(&["resolution", "width"])?, number(&["resolution", "height"])?);
     let (samples, depth) = (number(&["sampling", "maximum_samples"])?, number(&["transport", "maximum_depth"])?);
     let seed = number(&["seed"])?;
-    if solidcraft_render::job::GPU_PATH_LIMITS.fit(u64::from(width), u64::from(height), None) != Some((u64::from(width), u64::from(height)))
+    if desurface_render::job::GPU_PATH_LIMITS.fit(u64::from(width), u64::from(height), None) != Some((u64::from(width), u64::from(height)))
         || samples == 0
         || samples > 4096
         || depth == 0

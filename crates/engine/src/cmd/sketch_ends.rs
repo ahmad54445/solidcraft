@@ -2,7 +2,7 @@
 //! touch another curve only by position (untied), and tying the untied ones.
 
 use serde_json::{Value, json};
-use solidcraft_sketch::{ConstraintKind, EndReport, EndTouch, Sketch, loose_ends};
+use desurface_sketch::{ConstraintKind, EndReport, EndTouch, Sketch, loose_ends};
 
 use super::sketch::{add_c, edit, target_sketch};
 use super::{CommandSpec, in_sketch};

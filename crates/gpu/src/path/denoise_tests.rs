@@ -1,7 +1,7 @@
 use super::super::{Executor, JobOptions, Task, open_headless};
 use super::*;
-use solidcraft_geom::{Mesh, Vec3};
-use solidcraft_render::{
+use desurface_geom::{Mesh, Vec3};
+use desurface_render::{
     Camera, ProductMesh, ProductScene, StandardView,
     job::{CancelToken, ImageRequest, ImageWork, TaskPoll},
     surface::OpaqueSurface,
@@ -147,7 +147,7 @@ fn context() -> Option<Arc<Context>> {
             // The path tracer runs on Vulkan only: where the backends in use leave Vulkan out
             // (macOS, or `WGPU_BACKEND=dx12`), it is unavailable by design, not missing.
             let vulkan = crate::select::native_backends().contains(wgpu::Backends::VULKAN);
-            assert!(!vulkan || std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none(), "required GPU unavailable: {e}");
+            assert!(!vulkan || std::env::var_os("DESURFACE_REQUIRE_GPU").is_none(), "required GPU unavailable: {e}");
             return None;
         }
     };
@@ -227,8 +227,8 @@ fn denoise_admission_counts_guides_and_ping_pong_only_when_enabled() {
     let large_filtered = super::super::admission(&scene, &large, JobOptions { denoise: true, ..Default::default() }).unwrap();
     assert_eq!(large_filtered.pixel_scratch_bytes - large_plain.pixel_scratch_bytes, 2000 * 2000 * 80);
     assert!(large_filtered.estimated_total_bytes > 512 * 1024 * 1024);
-    assert!(large_filtered.estimated_total_bytes <= solidcraft_render::job::GPU_PATH_LIMITS.max_scratch_bytes);
-    let excessive = ImageRequest { width: (solidcraft_render::job::GPU_PATH_LIMITS.max_dimension + 1) as u32, ..request.clone() };
+    assert!(large_filtered.estimated_total_bytes <= desurface_render::job::GPU_PATH_LIMITS.max_scratch_bytes);
+    let excessive = ImageRequest { width: (desurface_render::job::GPU_PATH_LIMITS.max_dimension + 1) as u32, ..request.clone() };
     for denoise in [false, true] {
         assert!(super::super::admission(&scene, &excessive, JobOptions { denoise, ..Default::default() }).is_err());
     }
@@ -329,9 +329,9 @@ fn gpu_denoise_preflight_reports_limits_without_changing_document() {
     let Some(context) = context() else {
         return;
     };
-    let mut session = solidcraft_engine::Session::default();
-    session.set_render_job_host(Some(solidcraft_render::job::CpuHost::cooperative())).unwrap();
-    session.register_render_job_host(solidcraft_render::job::ImageHost::with_executor(Arc::new(Executor { context })).unwrap()).unwrap();
+    let mut session = desurface_engine::Session::default();
+    session.set_render_job_host(Some(desurface_render::job::CpuHost::cooperative())).unwrap();
+    session.register_render_job_host(desurface_render::job::ImageHost::with_executor(Arc::new(Executor { context })).unwrap()).unwrap();
     session.execute("solid.box", &serde_json::json!({"length":2,"width":2,"height":1})).unwrap();
     let before = session.doc.to_json();
     let mut params = serde_json::json!({"progressive":true,"denoise":true,"settings":{"width":8,"height":8}});

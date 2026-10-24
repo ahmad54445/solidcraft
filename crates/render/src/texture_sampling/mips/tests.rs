@@ -15,7 +15,7 @@ fn linear_checkerboard_mean_and_fractional_lod() {
     assert_eq!(chain.level_count(), 2);
     assert_eq!(chain.tail_bytes(), 16);
     assert_eq!(chain.retained_bytes(), chain.tail_bytes() + chain.tail.capacity() * size_of::<Level>() + size_of::<MipChain<'_>>());
-    assert_eq!(MIP_RECIPE_ID, "solidcraft.opaque-linear-area-mips/1");
+    assert_eq!(MIP_RECIPE_ID, "desurface.opaque-linear-area-mips/1");
     close(chain.sample_repeat_lod_opaque([0.25, 0.25], 0.).unwrap(), [0.; 3]);
     close(chain.sample_repeat_lod_opaque([0.25, 0.25], 1.).unwrap(), [0.5; 3]);
     close(chain.sample_repeat_lod_opaque([0.25, 0.25], 0.25).unwrap(), [0.125; 3]);

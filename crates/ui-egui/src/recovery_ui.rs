@@ -1,8 +1,8 @@
 //! Autosave ticks and the "Recover unsaved design?" window shown at launch.
 
 use serde_json::json;
-use solidcraft_engine::recovery::{self, Autosaver, Entry};
-use solidcraft_engine::{Result, Session};
+use desurface_engine::recovery::{self, Autosaver, Entry};
+use desurface_engine::{Result, Session};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -133,7 +133,7 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context) {
         .show(ctx, true, |ui| {
             ui_kit::text(
                 ui,
-                crate::i18n::tr_label("SolidCraft closed before these designs were saved. Their last autosave can be opened."),
+                crate::i18n::tr_label("DeSurface closed before these designs were saved. Their last autosave can be opened."),
                 ui_kit::Text::Report("intro", false),
             );
             for (index, e) in app.recoverable.iter().take(20).enumerate() {
@@ -187,7 +187,7 @@ mod tests {
     use std::fs;
 
     fn app(tag: &str, interval: Duration) -> (SolveApp, PathBuf) {
-        let dir = std::env::temp_dir().join(format!("solidcraft-recovery-tabs-{tag}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-recovery-tabs-{tag}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         let mut app = SolveApp::new(Session::default(), Services::default());
         start(&mut app, &dir, interval);

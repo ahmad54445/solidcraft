@@ -6,8 +6,8 @@
 use image::ImageDecoder;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use solidcraft_geom::Vec3;
-use solidcraft_render::{
+use desurface_geom::Vec3;
+use desurface_render::{
     lighting::{DecodedHdr, HdrDecodeTask, HdrSource, HdrTaskPoll},
     surface::unit_direction,
     texture_input::{
@@ -414,10 +414,10 @@ fn check_hdr(root: &Path, entry: &Environment) -> Result<HdrReceipt> {
     })
 }
 fn validate(root: &Path) -> Result<Report> {
-    let mut report = Report { schema: "solidcraft-native-starter-check/1", ..Default::default() };
+    let mut report = Report { schema: "desurface-native-starter-check/1", ..Default::default() };
     let surfaces: Surfaces = serde_json::from_slice(&read_bounded(root, &format!("{PACK}/materials/manifest.json"), 4 * 1024 * 1024)?)?;
     require(
-        surfaces.schema == "solidcraft-authored-surface-manifest/1"
+        surfaces.schema == "desurface-authored-surface-manifest/1"
             && surfaces.generator_version == "1.0.0"
             && surfaces.license == "MIT OR Apache-2.0",
         "unknown surface manifest",
@@ -456,7 +456,7 @@ fn validate(root: &Path) -> Result<Report> {
     }
     let environments: Environments = serde_json::from_slice(&read_bounded(root, &format!("{PACK}/environments/manifest.json"), 4 * 1024 * 1024)?)?;
     require(
-        environments.schema == "solidcraft.render-environment-manifest/1"
+        environments.schema == "desurface.render-environment-manifest/1"
             && environments.version == "1.0.0"
             && environments.license == "MIT OR Apache-2.0"
             && !environments.runtime_ready,
@@ -480,7 +480,7 @@ fn root() -> Result<PathBuf> {
     Ok(Path::new(env!("CARGO_MANIFEST_DIR")).parent().and_then(Path::parent).ok_or("missing repository root")?.to_path_buf())
 }
 fn run() -> Result<()> {
-    require(std::env::args_os().count() == 1, "usage: cargo run --locked --profile ci -p solidcraft-render --example validate_starter")?;
+    require(std::env::args_os().count() == 1, "usage: cargo run --locked --profile ci -p desurface-render --example validate_starter")?;
     let report = validate(&root()?)?;
     println!("{}", serde_json::to_string_pretty(&report)?);
     Ok(())
@@ -498,7 +498,7 @@ fn main() -> ExitCode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solidcraft_render::{lighting::HdrErrorCode, texture_sampling::mips::MipError};
+    use desurface_render::{lighting::HdrErrorCode, texture_sampling::mips::MipError};
 
     #[test]
     fn portable_paths_reject_escapes_and_ambiguous_windows_forms() {

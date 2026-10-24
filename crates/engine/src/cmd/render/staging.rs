@@ -2,8 +2,8 @@
 use crate::{Result, Session, params::bad};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::render_settings::{RenderJob, RenderSetup};
-use solidcraft_render::{
+use desurface_doc::render_settings::{RenderJob, RenderSetup};
+use desurface_render::{
     ProductScene,
     job::CancelToken,
     stage::{Stage, StagePanel},
@@ -156,8 +156,8 @@ pub(super) fn backdrop(s: &mut Session, params: &Value) -> Result<Value> {
     }
     // Camera back projects toward the camera; the stage depth points away.
     let yaw = setup.camera.yaw;
-    let depth = solidcraft_geom::Vec3::new(yaw.sin(), yaw.cos(), 0.);
-    let horizontal = solidcraft_geom::Vec3::new(yaw.cos(), -yaw.sin(), 0.);
+    let depth = desurface_geom::Vec3::new(yaw.sin(), yaw.cos(), 0.);
+    let horizontal = desurface_geom::Vec3::new(yaw.cos(), -yaw.sin(), 0.);
     let extent = extent.max(1.0); // minimum one-mm stage envelope, never scales the subject
     let radius = extent * 0.5;
     let near = -2.5 * extent;

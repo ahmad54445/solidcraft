@@ -6,9 +6,9 @@
 //! section of it.
 
 use serde_json::json;
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::FeatureKind;
-use solidcraft_engine::geom::Vec3;
+use desurface_engine::Sel;
+use desurface_engine::doc::FeatureKind;
+use desurface_engine::geom::Vec3;
 
 use crate::dialogs::Kind;
 use crate::scenario::{Harness, handle_at, rect_of};

@@ -4,7 +4,7 @@
 
 The common path is: **select a subject, choose a scene recipe, adjust the visible result, render**. A designer should obtain a useful presentation without knowing shader graph terminology. An expert should be able to inspect every physical assumption, replace any resource and automate the same operation.
 
-The workspace follows **SolidCraft's implemented ribbon redesign**, including its workspace switcher, selected-tab treatment, approved SVGs, shared UI kit and Floating/Docked shell layouts. Its panels read engine state; document and job operations go through the shared command registry, while focus and disclosure remain UI state. Camera gestures use the shared navigation handler.
+The workspace follows **DeSurface's implemented ribbon redesign**, including its workspace switcher, selected-tab treatment, approved SVGs, shared UI kit and Floating/Docked shell layouts. Its panels read engine state; document and job operations go through the shared command registry, while focus and disclosure remain UI state. Camera gestures use the shared navigation handler.
 
 The concrete integration specification is [UI_INTEGRATION.md](UI_INTEGRATION.md), with source pins, existing command/icon mappings and future layout intent in [ui-integration.json](ui-integration.json). The upstream design reference was checked at **0.18.4, `728f753b8094e1a54c5cc8b7e453982afa028023`**. The implementation base remains the personal fork's fixed **0.18.2, `93a2922c5ee272fb605703ae84c05825b4a74607`**. This source inspection does not update that base or claim that the proposed library and inspector already exist.
 

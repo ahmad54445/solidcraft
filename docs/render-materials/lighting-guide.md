@@ -4,7 +4,7 @@
 
 This package defines **280 concept lighting rigs** and **24 numeric authoring presets** for the personal render/materials development fork. It preserves the stable identifiers `LUZ-001` through `LUZ-200` from the original catalog and adds `LUZ-201` through `LUZ-280`.
 
-The lighting catalog has status `concept_catalog`. Its entries describe intended arrangements, controls, requirements and future validation. The numeric studio package has status `specified_unbound`: positions, dimensions and source relationships are specified, but a SolidCraft adapter has not been implemented and these presets have not been rendered or calibrated. A capability reference describes a requirement, not proof that an executor supports it.
+The lighting catalog has status `concept_catalog`. Its entries describe intended arrangements, controls, requirements and future validation. The numeric studio package has status `specified_unbound`: positions, dimensions and source relationships are specified, but a DeSurface adapter has not been implemented and these presets have not been rendered or calibrated. A capability reference describes a requirement, not proof that an executor supports it.
 
 All recipes are original authoring specifications under provenance identifier `ORIGINAL-2026-10-CATALOG`. No commercial preset, HDRI, photometric profile, material asset or renderer implementation is embedded. Where a recipe needs IES/LDT data, measured emission or a specialized optical model, that resource must be supplied, licensed and validated separately.
 

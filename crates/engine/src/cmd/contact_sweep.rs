@@ -4,9 +4,9 @@ use std::cell::Cell;
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::Arc;
 
-use solidcraft_doc::joints;
-use solidcraft_doc::{Document, IDENTITY, Mat, apply_point, mat_mul};
-use solidcraft_geom::{Aabb3, Bvh, Mesh, Vec3};
+use desurface_doc::joints;
+use desurface_doc::{Document, IDENTITY, Mat, apply_point, mat_mul};
+use desurface_geom::{Aabb3, Bvh, Mesh, Vec3};
 
 use crate::params::bad;
 use crate::{Result, Session};
@@ -44,13 +44,13 @@ pub(crate) struct ContactMesh {
     thickness: f64,
 }
 
-/// Contact meshes by the body's geometry ([`solidcraft_doc::ModelBody::geometry_key`]), shared
+/// Contact meshes by the body's geometry ([`desurface_doc::ModelBody::geometry_key`]), shared
 /// by a session and its scratch copies: driving a joint again meshes no body that did not change.
 #[derive(Default)]
 pub(crate) struct ContactMeshes(HashMap<u64, ContactMesh>);
 
 /// Tessellate `body` for contact checks and measure how thin it is.
-fn contact_mesh(body: &solidcraft_doc::ModelBody) -> Result<ContactMesh> {
+fn contact_mesh(body: &desurface_doc::ModelBody) -> Result<ContactMesh> {
     let tolerance = (body.body.size() * 1e-3).max(1e-3);
     let mesh = body.body.tessellate(tolerance)?;
     if mesh.triangles.len() > MAX_TRIANGLES || mesh.positions.len().saturating_add(mesh.triangles.len().saturating_mul(4)) > 200_000 {

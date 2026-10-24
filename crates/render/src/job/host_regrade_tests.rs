@@ -62,7 +62,7 @@ fn fixture(raw: bool) -> (ImageHost, JobHandle, Arc<AtomicUsize>, Presentation) 
         .submit_with_options(
             identity(1),
             42,
-            ProductScene { meshes: Vec::new(), bounds: solidcraft_geom::Aabb3::EMPTY },
+            ProductScene { meshes: Vec::new(), bounds: desurface_geom::Aabb3::EMPTY },
             request,
             JobOptions { linear_exr: raw, ..Default::default() },
         )

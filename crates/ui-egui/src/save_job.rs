@@ -4,7 +4,7 @@
 //! a file picker, and the outcome is taken up as running the command here would have left it.
 
 use serde_json::Value;
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 use crate::SolveApp;
 

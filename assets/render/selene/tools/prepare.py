@@ -118,7 +118,7 @@ def inspect_native(path: Path) -> dict:
         entry = archive.getinfo("document.json")
         require(entry.file_size <= MAX_DOCUMENT_BYTES, "Native document exceeds inspection budget.")
         document = decode(archive.read(entry))
-    require(re.fullmatch(r"solidcraft/[1-9][0-9]*", document.get("format", "")) is not None,
+    require(re.fullmatch(r"desurface/[1-9][0-9]*", document.get("format", "")) is not None,
             "Unknown native document format tag.")
     require(document.get("units") == "mm", "This demo requires native millimeter dimensions.")
     components = index_records(document.get("components", []), "components")

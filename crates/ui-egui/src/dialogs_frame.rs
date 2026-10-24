@@ -3,10 +3,10 @@
 //! picked in another sketch. Anchor, angle and mirror place the section on each line.
 
 use serde_json::{Map, Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::expr::Kind as ValueKind;
-use solidcraft_engine::doc::frame::{self, MemberProfile};
-use solidcraft_engine::doc::{FeatureKind, ProfileSel};
+use desurface_engine::Sel;
+use desurface_engine::doc::expr::Kind as ValueKind;
+use desurface_engine::doc::frame::{self, MemberProfile};
+use desurface_engine::doc::{FeatureKind, ProfileSel};
 
 use crate::SolveApp;
 use crate::dialogs::{Kind, check, curves_sketch, form_row, profile_indices, put, shown_expr};

@@ -1,5 +1,5 @@
 use serde_json::json;
-use solidcraft_ui_egui::scenario::Harness;
+use desurface_ui_egui::scenario::Harness;
 
 /// Identical tool-first line fixtures, retaining optional connect and scenario frame timing.
 pub fn sketch_lines(points: &[[[i32; 2]; 2]], connect: Option<bool>) -> Harness {

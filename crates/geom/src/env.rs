@@ -1,17 +1,17 @@
-//! SolidCraft's environment variables, read in one place.
+//! DeSurface's environment variables, read in one place.
 //!
-//! Every variable is `SOLIDCRAFT_<NAME>`. Compatibility shim (see docs/compatibility.md): when
+//! Every variable is `DESURFACE_<NAME>`. Compatibility shim (see docs/compatibility.md): when
 //! it is unset, the same variable under the product's former prefix is read instead, so
 //! scripts and service files written for earlier releases keep working.
 
 use std::ffi::OsString;
 
 /// The current prefix.
-pub const PREFIX: &str = "SOLIDCRAFT_";
+pub const PREFIX: &str = "DESURFACE_";
 /// The former prefix, read only as a fallback.
 pub const LEGACY_PREFIX: &str = "SOLVECRAFT_";
 
-/// `SOLIDCRAFT_<name>`, else the legacy `SOLVECRAFT_<name>`. `name` is the part after the
+/// `DESURFACE_<name>`, else the legacy `SOLVECRAFT_<name>`. `name` is the part after the
 /// prefix, e.g. `"RECOVERY_DIR"`.
 pub fn var_os(name: &str) -> Option<OsString> {
     lookup(name, |k| std::env::var_os(k))
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn new_prefix_wins_over_legacy() {
-        let get = env(&[("SOLIDCRAFT_RECOVERY_DIR", "/new"), ("SOLVECRAFT_RECOVERY_DIR", "/old")]);
+        let get = env(&[("DESURFACE_RECOVERY_DIR", "/new"), ("SOLVECRAFT_RECOVERY_DIR", "/old")]);
         assert_eq!(lookup("RECOVERY_DIR", get), Some(OsString::from("/new")));
     }
 

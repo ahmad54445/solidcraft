@@ -29,7 +29,7 @@ SOURCE = ROOT / "environments/source/recipes.json"
 EXPORTS = ROOT / "environments/exports"
 MANIFEST = ROOT / "environments/manifest.json"
 REVIEW = REPO / "target/render-starter-review/environments"
-SCHEMA = "solidcraft.render-environment-recipes/1"
+SCHEMA = "desurface.render-environment-recipes/1"
 VERSION = "1.0.0"
 PRIMARIES = "0.64 0.33 0.30 0.60 0.15 0.06 0.3127 0.3290"
 MAX_SOURCE = 1024 * 1024
@@ -240,7 +240,7 @@ def encode_hdr(rgb: np.ndarray) -> bytes:
     height, width, _ = rgb.shape
     if width != height * 2 or not 8 <= width <= 2048 or height > 1024:
         raise ValueError("unsupported HDR dimensions")
-    header = (f"#?RADIANCE\n# Original SolidCraft analytic relative-radiance environment\n"
+    header = (f"#?RADIANCE\n# Original DeSurface analytic relative-radiance environment\n"
               f"FORMAT=32-bit_rle_rgbe\nEXPOSURE=1\nCOLORCORR=1 1 1\n"
               f"PRIMARIES={PRIMARIES}\nPIXASPECT=1\n\n-Y {height} +X {width}\n").encode("ascii")
     pixels = rgbe_pixels(rgb)
@@ -352,7 +352,7 @@ def make_manifest(doc: dict, raw: bytes) -> dict:
         if path.stat().st_size > MAX_ENCODED:
             raise ValueError(f"{path.name}: exceeds HDR byte limit")
         rows.append(item_record(item, path.read_bytes(), source_sha, generator_sha))
-    return {"schema": "solidcraft.render-environment-manifest/1", "version": VERSION,
+    return {"schema": "desurface.render-environment-manifest/1", "version": VERSION,
             "status": "authored_unbound", "runtime_ready": False,
             "recipe_source": "source/recipes.json", "recipe_sha256": source_sha,
             "generator": "../tools/environments.py", "generator_sha256": generator_sha,

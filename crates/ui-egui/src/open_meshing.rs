@@ -19,7 +19,7 @@ use crate::ui_kit::{Container, Surface};
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
-use solidcraft_engine::doc::ModelState;
+use desurface_engine::doc::ModelState;
 
 use crate::SolveApp;
 
@@ -46,7 +46,7 @@ pub(crate) struct Meshing {
     framed: Option<crate::Camera>,
     /// Draw the design's Home picture when all is meshed.
     remember: Option<String>,
-    /// When it started, and whether the first bodies have been shown (`SOLIDCRAFT_PROFILE_OPEN`).
+    /// When it started, and whether the first bodies have been shown (`DESURFACE_PROFILE_OPEN`).
     began: Option<f64>,
     first_shown: bool,
 }
@@ -68,7 +68,7 @@ impl Meshing {
         let job = (world.clone(), ready.clone(), done.clone(), stop.clone());
         let spawned = std::thread::Builder::new().name("open-meshing".into()).spawn(move || {
             let (world, ready, done, stop) = job;
-            solidcraft_engine::kernel::for_each_on_threads(&first, 16, |&i| {
+            desurface_engine::kernel::for_each_on_threads(&first, 16, |&i| {
                 if stop.load(Ordering::Relaxed) {
                     return;
                 }
@@ -82,7 +82,7 @@ impl Meshing {
                     }
                     if plans {
                         let _ = b.display_plan();
-                        let _ = b.plan_mesh_in_place_at(solidcraft_engine::doc::display_quality::current());
+                        let _ = b.plan_mesh_in_place_at(desurface_engine::doc::display_quality::current());
                     }
                 }
                 if let Ok(mut r) = ready.lock() {
@@ -198,7 +198,7 @@ pub(crate) fn tick(app: &mut SolveApp, ctx: &egui::Context) {
         }
         if profiling() {
             let ms = began.map_or(0.0, |t| (ctx.input(|i| i.time) - t) * 1000.0);
-            eprintln!("SolidCraft open meshing: all {} bodies shown after {ms:.0} ms", world.bodies.len());
+            eprintln!("DeSurface open meshing: all {} bodies shown after {ms:.0} ms", world.bodies.len());
         }
         // Framed from outlines and not moved since: frame the meshes.
         if framed == Some(app.cam) {
@@ -247,7 +247,7 @@ pub(crate) fn refresh(app: &mut SolveApp, now: f64) {
     if !m.first_shown && !st.bodies.is_empty() {
         m.first_shown = true;
         if profiling() {
-            eprintln!("SolidCraft open meshing: first {} bodies shown after {:.0} ms", st.bodies.len(), (now - began) * 1000.0);
+            eprintln!("DeSurface open meshing: first {} bodies shown after {:.0} ms", st.bodies.len(), (now - began) * 1000.0);
         }
     }
     m.shown = Some((done, Arc::new(st)));
@@ -255,5 +255,5 @@ pub(crate) fn refresh(app: &mut SolveApp, now: f64) {
 }
 
 fn profiling() -> bool {
-    solidcraft_engine::geom::env::var_os("PROFILE_OPEN").is_some()
+    desurface_engine::geom::env::var_os("PROFILE_OPEN").is_some()
 }

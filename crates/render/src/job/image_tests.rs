@@ -1,6 +1,6 @@
 use super::*;
 use crate::{Camera, ProductMesh, StandardView};
-use solidcraft_geom::{Aabb3, Mesh};
+use desurface_geom::{Aabb3, Mesh};
 use std::sync::Arc;
 
 fn request() -> ImageRequest {

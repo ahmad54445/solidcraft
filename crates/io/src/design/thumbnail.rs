@@ -2,7 +2,7 @@
 use super::*;
 pub const THUMBNAIL_SIZE: [usize; 2] = [240, 150];
 const MAX_BYTES: usize = 256 << 10;
-const FORMAT: &str = "solidcraft-thumbnail/1";
+const FORMAT: &str = "desurface-thumbnail/1";
 
 fn valid_header(bytes: &[u8]) -> bool {
     bytes.len() <= MAX_BYTES

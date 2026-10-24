@@ -364,7 +364,7 @@ where
         ))?;
         self.leader().fmt(curve_idx, f)?;
         self.surface0().fmt(surface0_idx, f)?;
-        // SolidCraft: the second surface was written at the first one's index (duplicate ids).
+        // DeSurface: the second surface was written at the first one's index (duplicate ids).
         self.surface1().fmt(surface1_idx, f)
     }
 }
@@ -748,7 +748,7 @@ impl<C> StepSurface for RevolutedCurve<C> {
 impl<C> DisplayByStep for Processor<RevolutedCurve<C>, Matrix4>
 where C: StepLength + Transformed<Matrix4> + DisplayByStep
 {
-    // SolidCraft: a transform that commutes with turning about the axis keeps the surface one of
+    // DeSurface: a transform that commutes with turning about the axis keeps the surface one of
     // revolution: the transformed profile revolved about the transformed axis. That holds for
     // uniform scales (the only case taken before) and also for a scale across the axis that
     // differs from the scale along it, which is how a shell or an offset moves a revolved
@@ -793,7 +793,7 @@ impl<C: StepLength> StepLength for Processor<RevolutedCurve<C>, Matrix4> {
     fn step_length(&self) -> usize { self.entity().step_length() }
 }
 
-// SolidCraft: the written surface revolves the transformed profile about the transformed
+// DeSurface: the written surface revolves the transformed profile about the transformed
 // axis; a mirroring transform reverses the turn, and with it the normal (was `!orientation`,
 // right only without mirroring). The STEP normal is the opposite of truck's (see above).
 impl<C> StepSurface for Processor<RevolutedCurve<C>, Matrix4> {
@@ -823,7 +823,7 @@ impl StepLength for ModelingSurface {
     }
 }
 
-// SolidCraft: was the default (`true`), which dropped an inverted revolution's orientation.
+// DeSurface: was the default (`true`), which dropped an inverted revolution's orientation.
 impl StepSurface for ModelingSurface {
     fn same_sense(&self) -> bool {
         match self {

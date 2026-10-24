@@ -51,7 +51,7 @@ function missing(title, body) {
 function askBody(asks) {
   if (asks.includes('paste')) {
     return [
-      'Thanks for the report! It arrived empty: when a report is too long for the link, SolidCraft copies it to the clipboard instead.',
+      'Thanks for the report! It arrived empty: when a report is too long for the link, DeSurface copies it to the clipboard instead.',
       'Please paste it here (or use **Report an Issue** again and paste before submitting).',
       '',
       `If we don't hear back within ${INFO_DAYS} days this is closed; reopen it any time.`,
@@ -60,9 +60,9 @@ function askBody(asks) {
   const lines = ['Thanks for the report! To reproduce it we need a little more:'];
   lines.push(
     '- **Steps to reproduce**: what you clicked or typed, in order. For a problem on a particular design, ' +
-      '`solidcraft-cli script design.solidcraft --out repro.json` turns its history into a script; attach that, or the design.',
+      '`desurface-cli script design.solidcraft --out repro.json` turns its history into a script; attach that, or the design.',
   );
-  if (asks.includes('version')) lines.push('- **SolidCraft version** (Help → About) and your OS.');
+  if (asks.includes('version')) lines.push('- **DeSurface version** (Help → About) and your OS.');
   lines.push(
     '',
     `Reply here or edit the issue and it goes back to the triage queue. If we don't hear back within ${INFO_DAYS} days it is closed; reopen it any time.`,

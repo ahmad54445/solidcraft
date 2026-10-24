@@ -6,13 +6,13 @@ Every platform and package. The links point at the latest release.
   Also for [ARM64][windows-arm64-msi] and [32-bit][windows-x86-msi] PCs, or as a
   [portable zip][windows-portable] that runs without installing.
   With [WinGet](https://learn.microsoft.com/windows/package-manager/winget/):
-  `winget install bherbruck.SolidCraft`.
-- **macOS:** open the [disk image][macos-dmg] and drag SolidCraft into Applications
+  `winget install bherbruck.DeSurface`.
+- **macOS:** open the [disk image][macos-dmg] and drag DeSurface into Applications
   (Apple silicon and Intel).
 - **Linux:** download the [AppImage][linux-appimage], allow it to run as a program and open it.
   Or install the [.deb][linux-deb] (Ubuntu, Debian, Mint) or [.rpm][linux-rpm] (Fedora,
   openSUSE), or use [Flatpak](https://docs.solidcraft.io/guide/getting-started.html#linux-flatpak).
-  With Snap: `sudo snap install solidcraft` ([Snap Store][snap-store], or the [.snap file][linux-snap]).
+  With Snap: `sudo snap install desurface` ([Snap Store][snap-store], or the [.snap file][linux-snap]).
   For ARM64: [AppImage][linux-arm64-appimage], [.deb][linux-arm64-deb], [.rpm][linux-arm64-rpm].
 - **Web:** [try it in your browser][web-app], no install.
 
@@ -26,11 +26,11 @@ below applies. macOS releases are being set up to be signed with an Apple Develo
 notarized by Apple.
 
 The downloads aren't signed yet. On Windows, if SmartScreen warns you, choose **More info**, then
-**Run anyway**. On macOS, the first time, right-click SolidCraft in Applications and choose **Open**.
+**Run anyway**. On macOS, the first time, right-click DeSurface in Applications and choose **Open**.
 
-**On SolidCraft 0.11 to 0.14?** Its **Update now** can't install 0.15.0 or later, because the
+**On DeSurface 0.11 to 0.14?** Its **Update now** can't install 0.15.0 or later, because the
 releases moved to a new address. Download the new version once from the links above; after that,
-updating from inside SolidCraft works again ([details](https://docs.solidcraft.io/guide/updates.html#updating-from-011-to-014)).
+updating from inside DeSurface works again ([details](https://docs.solidcraft.io/guide/updates.html#updating-from-011-to-014)).
 
 Older versions, checksums and other formats are on the [releases page](https://github.com/tangency-labs/solidcraft/releases).
 Install details, upgrading from earlier builds and building from source are in

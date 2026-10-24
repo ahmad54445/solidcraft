@@ -1,6 +1,6 @@
 //! Visible surface radiance only: no mesh-light sampling or neighboring illumination.
 use crate::job::{EmissionSides, SurfaceEmission};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 #[derive(Clone, Copy, Debug)]
 pub struct Emission {

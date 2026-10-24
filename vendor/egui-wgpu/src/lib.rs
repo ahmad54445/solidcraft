@@ -41,14 +41,14 @@ use std::sync::Arc;
 
 use epaint::mutex::RwLock;
 
-/// SolidCraft: what [`set_startup_hook`] is told before each step of getting the graphics
+/// DeSurface: what [`set_startup_hook`] is told before each step of getting the graphics
 /// device and the window's surface up, so a crash inside the driver (with no Rust panic) can
 /// still say which step it died in. `detail` is empty except for [`STEP_ADAPTER_CHOSEN`].
 pub type StartupHook = fn(step: &'static str, detail: &str);
 
 static STARTUP_HOOK: std::sync::OnceLock<StartupHook> = std::sync::OnceLock::new();
 
-/// SolidCraft: the steps [`StartupHook`] is told about, in order.
+/// DeSurface: the steps [`StartupHook`] is told about, in order.
 pub const STEP_INSTANCE: &str = "graphics instance";
 pub const STEP_SURFACE: &str = "window surface";
 pub const STEP_ADAPTER: &str = "adapter request";
@@ -59,7 +59,7 @@ pub const STEP_RENDERER: &str = "egui renderer (shader compile)";
 pub const STEP_SURFACE_CONFIGURE: &str = "surface configure";
 pub const STEP_FIRST_PRESENT: &str = "first frame (present)";
 
-/// SolidCraft: install the startup hook (once; later calls are ignored).
+/// DeSurface: install the startup hook (once; later calls are ignored).
 pub fn set_startup_hook(hook: StartupHook) {
     let _ = STARTUP_HOOK.set(hook);
 }
@@ -131,7 +131,7 @@ impl SurfaceConfig {
     };
 }
 
-/// SolidCraft: whether a device was lost (the driver reset it, Windows' TDR among others, #4172).
+/// DeSurface: whether a device was lost (the driver reset it, Windows' TDR among others, #4172).
 ///
 /// A lost device can't be used again. wgpu only learns of the loss when a call into the driver
 /// fails: from then on every call on the device fails quietly, and the device's lost callback
@@ -219,7 +219,7 @@ pub struct RenderState {
     /// Custom paint callbacks must use this, rather than the requested setting.
     pub msaa_samples: u32,
 
-    /// SolidCraft: the MSAA sample counts this device can render the target (and depth) format
+    /// DeSurface: the MSAA sample counts this device can render the target (and depth) format
     /// with, ascending, always starting with 1.
     pub msaa_supported: Vec<u32>,
 
@@ -231,7 +231,7 @@ pub struct RenderState {
     /// Update this to have the surface reconfigured on the next paint.
     pub surface_config: SurfaceConfig,
 
-    /// SolidCraft: the device was lost; the painter draws nothing more (#4172).
+    /// DeSurface: the device was lost; the painter draws nothing more (#4172).
     pub device_lost: DeviceLost,
 }
 
@@ -317,7 +317,7 @@ impl RenderState {
                 wgpu::Backends::all()
             };
 
-            startup_step(STEP_ADAPTER, ""); // SolidCraft
+            startup_step(STEP_ADAPTER, ""); // DeSurface
             instance.enumerate_adapters(backends).await
         };
 
@@ -349,7 +349,7 @@ impl RenderState {
                     }
                 }?;
 
-                // SolidCraft: name the adapter before the driver is asked for a device.
+                // DeSurface: name the adapter before the driver is asked for a device.
                 let info = adapter.get_info();
                 startup_step(
                     STEP_ADAPTER_CHOSEN,
@@ -375,7 +375,7 @@ impl RenderState {
                 queue,
             }) => (instance, adapter, device, queue),
         };
-        // SolidCraft: a device the driver loses stops the painter, not the app (#4172).
+        // DeSurface: a device the driver loses stops the painter, not the app (#4172).
         let device_lost = DeviceLost::watch(&device);
 
         log_adapter_info(&adapter.get_info());
@@ -389,7 +389,7 @@ impl RenderState {
         };
         let target_format = crate::preferred_framebuffer_format(&surface_formats)?;
 
-        // SolidCraft: the OpenGL resolve path can present an entirely black frame with MSAA
+        // DeSurface: the OpenGL resolve path can present an entirely black frame with MSAA
         // (notably Mesa/llvmpipe). Decide after selecting the real surface adapter,
         // before creating either pipelines or attachments; no second GPU probe.
         // A sample count the device doesn't support for the target or depth format fails
@@ -407,7 +407,7 @@ impl RenderState {
             msaa_samples,
             ..options
         };
-        startup_step(STEP_RENDERER, ""); // SolidCraft
+        startup_step(STEP_RENDERER, ""); // DeSurface
         let renderer = Renderer::new(&device, target_format, options);
 
         // On wasm, depending on feature flags, wgpu objects may or may not implement sync.
@@ -693,7 +693,7 @@ pub fn effective_msaa_samples(backend: wgpu::Backend, requested: u32) -> u32 {
     if backend == wgpu::Backend::Gl { 1 } else { requested.max(1) }
 }
 
-/// SolidCraft: the MSAA sample counts `device` can render `target_format` and
+/// DeSurface: the MSAA sample counts `device` can render `target_format` and
 /// `depth_stencil_format` with (ascending, always starting with 1). Without
 /// [`wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES`] the device allows only the counts
 /// WebGPU guarantees for a format (1 and 4), whatever the adapter could do.
@@ -734,7 +734,7 @@ fn msaa_counts(
         .collect()
 }
 
-/// SolidCraft: the largest of the `supported` sample counts that is at most `requested` (1 when
+/// DeSurface: the largest of the `supported` sample counts that is at most `requested` (1 when
 /// none is).
 pub fn clamp_msaa_samples(supported: &[u32], requested: u32) -> u32 {
     supported
@@ -777,7 +777,7 @@ mod msaa_tests {
     }
 }
 
-/// SolidCraft: run `f` with `device`'s errors captured, and the first error it caused. Uncaptured,
+/// DeSurface: run `f` with `device`'s errors captured, and the first error it caused. Uncaptured,
 /// an error goes to the device's handler, which panics by default: a surface the driver can't
 /// reconfigure (D3D12 "Failed to wait for GPU to come idle", #1935) crashed the app. Native error
 /// scopes resolve at once; on the web the scope still keeps the error from the handler.
@@ -802,10 +802,10 @@ pub fn capture_errors<T>(device: &wgpu::Device, f: impl FnOnce() -> T) -> (T, Op
     (value, failed)
 }
 
-/// SolidCraft: refused configures in a row after which the surface is recreated (#1935).
+/// DeSurface: refused configures in a row after which the surface is recreated (#1935).
 pub const SURFACE_RECREATE_AFTER: u32 = 3;
 
-/// SolidCraft: a surface's streak of refused configures (#1935) and when the next try is due.
+/// DeSurface: a surface's streak of refused configures (#1935) and when the next try is due.
 /// A refusal waits 16 ms, doubling with each refusal in a row up to 1 s, and every
 /// [`SURFACE_RECREATE_AFTER`] refusals the surface is recreated before the next try. Until the
 /// try is due, no configure or recreate happens however often the window repaints, so a device
@@ -819,7 +819,7 @@ pub struct ConfigureRetry {
     recreate: bool,
 }
 
-/// SolidCraft: what follows a refused configure ([`ConfigureRetry::refused`]).
+/// DeSurface: what follows a refused configure ([`ConfigureRetry::refused`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RetryPlan {
     /// Refusals in a row, this one included.
@@ -907,7 +907,7 @@ impl ConfigureRetry {
     }
 }
 
-/// SolidCraft: what came of [`ConfigureRetry::attempt`].
+/// DeSurface: what came of [`ConfigureRetry::attempt`].
 #[derive(Debug)]
 pub enum Attempt<E> {
     /// Not tried: the retry after a refusal is due in this long.
@@ -918,7 +918,7 @@ pub enum Attempt<E> {
     Refused(RetryPlan, E),
 }
 
-/// SolidCraft: the surface size for a window of `width` x `height` pixels on a device whose
+/// DeSurface: the surface size for a window of `width` x `height` pixels on a device whose
 /// textures are at most `max_side` on a side, and the scale it is drawn at. A window that fits is
 /// unchanged (scale 1); a larger one shrinks uniformly, keeping its aspect ratio, so the image
 /// the compositor stretches back over the window is not distorted. Never zero on a side.

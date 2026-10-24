@@ -1,5 +1,5 @@
 //! A design's history as a command script (#886): `timeline.export_script` writes the steps
-//! that rebuild the design (`solidcraft-cli eval` / `run` replay them), and `timeline.add`
+//! that rebuild the design (`desurface-cli eval` / `run` replay them), and `timeline.add`
 //! appends one recorded feature, as the design file holds it, so every feature kind replays
 //! exactly: same ids, names, parameter names and stored edge and face names. Trimming the
 //! script after a step gives the design as it was at that step.
@@ -7,7 +7,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value, json};
-use solidcraft_doc::{Document, Feature, FeatureKind, Param, expr};
+use desurface_doc::{Document, Feature, FeatureKind, Param, expr};
 
 use super::CommandSpec;
 use crate::params::{bad, str_};
@@ -20,14 +20,14 @@ pub static COMMANDS: &[CommandSpec] = &[
          dimensions use); the feature goes at the marker → feature, name, error, warning",
     ),
     CommandSpec::new("timeline.export_script", "Export Command Script", export_script).icon("export").noundo().doc_only().params(
-        "path?: write the script to this file → script: {commands: [...]} that rebuilds the design (solidcraft-cli eval/run), \
+        "path?: write the script to this file → script: {commands: [...]} that rebuilds the design (desurface-cli eval/run), \
          steps, omitted: what the script leaves out (appearances, folders, views, configurations); components and assemblies \
          are not supported yet",
     ),
 ];
 
 /// Most model parameters one `timeline.add` step may bring (a sketch's dimensions).
-const MAX_STEP_PARAMS: usize = solidcraft_sketch::MAX_CONSTRAINTS;
+const MAX_STEP_PARAMS: usize = desurface_sketch::MAX_CONSTRAINTS;
 
 fn add(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "timeline.add";
@@ -61,7 +61,7 @@ fn recorded_feature(cmd: &str, raw: &Map<String, Value>) -> Result<Feature> {
         Some(_) => return Err(bad(cmd, "`param_names` must be a list of names")),
     };
     let design = json!({
-        "format": solidcraft_doc::format::format_string(solidcraft_doc::format::FORMAT),
+        "format": desurface_doc::format::format_string(desurface_doc::format::FORMAT),
         "name": "",
         "params": [],
         "features": [Value::Object(raw)],
@@ -100,16 +100,16 @@ fn export_script(s: &mut Session, p: &Value) -> Result<Value> {
     let script = json!({
         "about": {
             "design": s.doc.name,
-            "format": solidcraft_doc::format::format_string(solidcraft_doc::format::FORMAT),
+            "format": desurface_doc::format::format_string(desurface_doc::format::FORMAT),
             "version": env!("CARGO_PKG_VERSION"),
-            "replay": "solidcraft-cli eval script.json (timeline.add steps need a build that reads this design format)",
+            "replay": "desurface-cli eval script.json (timeline.add steps need a build that reads this design format)",
         },
         "commands": commands,
     });
     let path = str_(p, "path");
     if let Some(path) = path {
         let text = serde_json::to_string_pretty(&script).map_err(|e| EngineError::Other(e.to_string()))?;
-        solidcraft_io::vfs::write(path, text.as_bytes()).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+        desurface_io::vfs::write(path, text.as_bytes()).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
     } else if p.get("path").is_some_and(|v| !v.is_null()) {
         return Err(bad(cmd, "`path` must be a file path"));
     }
@@ -160,7 +160,7 @@ pub(crate) fn script_steps(doc: &Document) -> Result<(Vec<Value>, Vec<String>)> 
     // Design properties, in one step. Keys `document.metadata.set` would refuse (a well-known
     // key holding something other than text, a key another tool wrote outside the rules) are
     // listed as left out instead of failing the replay.
-    let mut properties = solidcraft_doc::Metadata::default();
+    let mut properties = desurface_doc::Metadata::default();
     let mut odd = Vec::new();
     for (key, value) in &doc.metadata.0 {
         if properties.set(key, value.clone()).is_err() {

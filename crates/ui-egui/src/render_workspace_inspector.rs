@@ -3,7 +3,7 @@
 use super::{ImageMethod, cpu, library, materials, setups, studio};
 use crate::{SolveApp, theme::Tokens, ui_kit};
 use serde_json::{Value, json};
-use solidcraft_engine::doc::Document;
+use desurface_engine::doc::Document;
 use std::sync::{Arc, Weak};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -611,7 +611,7 @@ fn vector(ui: &mut egui::Ui, label: &str, value: &mut [f64; 3], range: std::ops:
         }
     });
 }
-fn apply_camera_draft(app: &mut SolveApp, camera: solidcraft_engine::render::Camera) -> Result<(), String> {
+fn apply_camera_draft(app: &mut SolveApp, camera: desurface_engine::render::Camera) -> Result<(), String> {
     app.run("render.camera.set", json!({"camera":camera}))?;
     app.follow_view_request(false);
     app.render_workspace.view.dirty = true;
@@ -637,7 +637,7 @@ fn camera_controls(app: &mut SolveApp, ui: &mut egui::Ui) {
     ui_kit::row(ui, &label, |ui| ui_kit::number_field(ui, &mut camera.distance, 0.000001..=1e9, 1.0, " mm"));
     let mut target = [camera.target.x, camera.target.y, camera.target.z];
     vector(ui, app.tr("render.camera_target"), &mut target, -1e9..=1e9, 1.0);
-    camera.target = solidcraft_engine::geom::Vec3::new(target[0], target[1], target[2]);
+    camera.target = desurface_engine::geom::Vec3::new(target[0], target[1], target[2]);
     for (key, value) in [("render.camera_yaw", &mut camera.yaw), ("render.camera_pitch", &mut camera.pitch), ("render.camera_roll", &mut camera.roll)]
     {
         let mut degrees = value.to_degrees();
@@ -854,7 +854,7 @@ fn apply_quality(app: &mut SolveApp, plan: &Value) -> Result<(), String> {
     let denoise = plan["gpu_options"]["denoise"].as_bool().ok_or("invalid native denoise setting")?;
     if !(1..=4096).contains(&samples)
         || !(1..=16).contains(&depth)
-        || solidcraft_engine::render::job::GPU_PATH_LIMITS.fit(u64::from(width), u64::from(height), None)
+        || desurface_engine::render::job::GPU_PATH_LIMITS.fit(u64::from(width), u64::from(height), None)
             != Some((u64::from(width), u64::from(height)))
     {
         return Err("quality projection exceeds native bounds".into());

@@ -1,5 +1,5 @@
 {
-  "schema": "solidcraft.render-environment-recipes/1",
+  "schema": "desurface.render-environment-recipes/1",
   "version": "1.0.0",
   "resolution": [
     1024,

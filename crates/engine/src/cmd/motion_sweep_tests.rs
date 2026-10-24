@@ -3,7 +3,7 @@
 //! linkage solved with circle intersections and a separating-axis test of the parts' outlines.
 
 use serde_json::{Value, json};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 use super::{four_bar, meet, occ, part, pin, run};
 use crate::Session;

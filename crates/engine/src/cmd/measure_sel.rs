@@ -5,7 +5,7 @@
 //! have a direction (planar faces, straight edges), the angle.
 
 use serde_json::{Value, json};
-use solidcraft_geom::{Mesh, UnitVec3, Vec3};
+use desurface_geom::{Mesh, UnitVec3, Vec3};
 
 use super::measure_shape::{Shape, Slot, add_round, centre};
 use crate::params::bad;
@@ -101,10 +101,10 @@ fn fit_circle(pts: &[Vec3], tol: f64) -> Option<(Vec3, UnitVec3, f64)> {
 
 /// The round shape of mesh edge `index` of body `b`: from the kernel's exact curve when it
 /// is the same edge (its ends on the polyline), else fitted to the polyline's points.
-fn edge_round(b: &solidcraft_doc::ModelBody, m: &Mesh, index: usize, whole: bool) -> Option<Shape> {
+fn edge_round(b: &desurface_doc::ModelBody, m: &Mesh, index: usize, whole: bool) -> Option<Shape> {
     let pts = m.edges.get(index)?;
     let tol = (m.bounds().diagonal().max(1.0) * 1e-6).max(1e-9);
-    let exact = solidcraft_kernel::edge_circle(&b.body, index).filter(|c| {
+    let exact = desurface_kernel::edge_circle(&b.body, index).filter(|c| {
         let ends = [pts.first(), pts.last()].into_iter().flatten().all(|p| p.dist(c.start).min(p.dist(c.end)) <= tol * 10.0);
         let on = pts.iter().all(|p| (p.dist(c.center) - c.radius).abs() <= tol * 10.0);
         ends && on
@@ -139,10 +139,10 @@ fn arc_points(center: Vec3, axis: UnitVec3, start: Vec3, angle: f64) -> Vec<Vec3
 /// sketch, else the last sketch with that id.
 fn sketch_of<'a>(
     s: &Session,
-    st: &'a solidcraft_doc::ModelState,
+    st: &'a desurface_doc::ModelState,
     sketch: Option<u64>,
-    has: impl Fn(&solidcraft_sketch::Sketch) -> bool,
-) -> Option<&'a solidcraft_doc::SolvedSketch> {
+    has: impl Fn(&desurface_sketch::Sketch) -> bool,
+) -> Option<&'a desurface_doc::SolvedSketch> {
     if let Some(id) = sketch {
         return st.sketch(id);
     }
@@ -152,8 +152,8 @@ fn sketch_of<'a>(
     st.sketches.iter().rev().map(|ss| &**ss).find(|ss| has(&ss.sketch))
 }
 
-fn sketch_curve(ss: &solidcraft_doc::SolvedSketch, id: &str) -> Option<Item> {
-    use solidcraft_sketch::CurveKind;
+fn sketch_curve(ss: &desurface_doc::SolvedSketch, id: &str) -> Option<Item> {
+    use desurface_sketch::CurveKind;
     let sk = &ss.sketch;
     let c = sk.curves.get(sk.curve_index(id)?)?;
     let at = |i: usize| sk.points.get(i).map(|p| ss.plane.to_world(p.pos));
@@ -198,8 +198,8 @@ fn sketch_curve(ss: &solidcraft_doc::SolvedSketch, id: &str) -> Option<Item> {
 
 /// A profile (closed region of a sketch): its area, and when it is a circle or a slot, its
 /// sizes.
-fn profile(ss: &solidcraft_doc::SolvedSketch, index: usize) -> Option<Item> {
-    use solidcraft_geom::{Seg2, Vec2};
+fn profile(ss: &desurface_doc::SolvedSketch, index: usize) -> Option<Item> {
+    use desurface_geom::{Seg2, Vec2};
     let pr = ss.profiles.get(index)?;
     let outline: Vec<Vec3> = pr.region.outer.polyline(1e-3).iter().map(|p| ss.plane.to_world(*p)).collect();
     let mut json = json!({"type": "profile", "area_mm2": pr.region.area()});
@@ -249,7 +249,7 @@ fn profile(ss: &solidcraft_doc::SolvedSketch, index: usize) -> Option<Item> {
 }
 
 /// A slot this cylindrical face is one end of, from the body's other faces.
-fn face_slot(b: &solidcraft_doc::ModelBody, m: &Mesh, shape: &Shape, pts: &[Vec3]) -> Option<Slot> {
+fn face_slot(b: &desurface_doc::ModelBody, m: &Mesh, shape: &Shape, pts: &[Vec3]) -> Option<Slot> {
     let faces = m.tri_face.iter().map(|f| *f as usize + 1).max().unwrap_or(0);
     if faces > 4000 {
         return None;
@@ -260,8 +260,8 @@ fn face_slot(b: &solidcraft_doc::ModelBody, m: &Mesh, shape: &Shape, pts: &[Vec3
             v.extend(tri);
         }
     }
-    let surfaces: Vec<(solidcraft_kernel::FaceSurface, Vec<Vec3>)> =
-        verts.into_iter().enumerate().filter_map(|(i, v)| Some((solidcraft_kernel::face_surface(&b.body, i)?, v))).collect();
+    let surfaces: Vec<(desurface_kernel::FaceSurface, Vec<Vec3>)> =
+        verts.into_iter().enumerate().filter_map(|(i, v)| Some((desurface_kernel::face_surface(&b.body, i)?, v))).collect();
     super::measure_shape::slot_from_faces(shape, pts, &surfaces)
 }
 
@@ -312,11 +312,11 @@ fn describe(s: &Session, sel: &Sel) -> Option<Item> {
             let planar = normals.first().copied().filter(|n0| normals.iter().all(|n| n.dot(*n0) > 1.0 - 1e-6));
             let mut json = json!({"type": "face", "area_mm2": area, "planar": planar.is_some()});
             let verts: Vec<Vec3> = tris.iter().flat_map(|t| t.iter().copied()).collect();
-            let shape = match solidcraft_kernel::face_surface(&b.body, *index) {
-                Some(solidcraft_kernel::FaceSurface::Cylinder { origin, axis, radius }) => {
+            let shape = match desurface_kernel::face_surface(&b.body, *index) {
+                Some(desurface_kernel::FaceSurface::Cylinder { origin, axis, radius }) => {
                     super::measure_shape::cylinder(origin, axis, radius, &verts).unwrap_or(Shape::Other)
                 }
-                Some(solidcraft_kernel::FaceSurface::Plane { normal, point }) if planar.is_some() => Shape::Plane { point, normal },
+                Some(desurface_kernel::FaceSurface::Plane { normal, point }) if planar.is_some() => Shape::Plane { point, normal },
                 None => match (planar, verts.first()) {
                     (Some(normal), Some(point)) => Shape::Plane { point: *point, normal },
                     _ => Shape::Other,

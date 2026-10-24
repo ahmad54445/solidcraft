@@ -183,7 +183,7 @@ mod light_union_lease_tests {
         })
     }
     fn scene() -> ProductScene {
-        ProductScene { meshes: Vec::new(), bounds: solidcraft_geom::Aabb3::EMPTY }
+        ProductScene { meshes: Vec::new(), bounds: desurface_geom::Aabb3::EMPTY }
     }
     #[test]
     fn normalized_union_uses_one_pool_and_keeps_record_lease_after_frame_eviction() {
@@ -977,7 +977,7 @@ impl ImageHost {
             let shared = Self::shared(pool);
             let worker_shared = shared.clone();
             let worker = std::thread::Builder::new()
-                .name("solidcraft-render".into())
+                .name("desurface-render".into())
                 .spawn(move || native_worker(worker_shared))
                 .map_err(|e| JobError::new(ErrorCode::HostUnavailable, format!("could not start CPU image worker: {e}")))?;
             Ok(Self(Arc::new(Owner { executor: None, shared, kind: HostKind::NativeWorker, running: Mutex::new(None), _worker: Some(worker) })))
@@ -1004,7 +1004,7 @@ impl ImageHost {
         let shared = Self::shared(limit);
         let worker_shared = shared.clone();
         let worker = std::thread::Builder::new()
-            .name("solidcraft-render".into())
+            .name("desurface-render".into())
             .spawn(move || native_worker(worker_shared))
             .map_err(|e| JobError::new(ErrorCode::HostUnavailable, format!("could not start image worker: {e}")))?;
         Ok(Self(Arc::new(Owner { executor: Some(executor), shared, kind: HostKind::NativeWorker, running: Mutex::new(None), _worker: Some(worker) })))
@@ -1459,7 +1459,7 @@ impl ImageHost {
             request: None,
             executor: None,
             environment: None,
-            scene: ProductScene { meshes: Vec::new(), bounds: solidcraft_geom::Aabb3::EMPTY },
+            scene: ProductScene { meshes: Vec::new(), bounds: desurface_geom::Aabb3::EMPTY },
             handle: handle.clone(),
             reservation,
         });
@@ -1586,9 +1586,9 @@ mod retained_request_tests {
         });
         request.raytrace.as_mut().unwrap().emissions = Some(values);
         let expected = retained_request_bytes(&request).unwrap();
-        let mesh = solidcraft_geom::Mesh {
-            positions: vec![solidcraft_geom::Vec3::ZERO, solidcraft_geom::Vec3::X, solidcraft_geom::Vec3::Y],
-            normals: vec![solidcraft_geom::Vec3::Z; 3],
+        let mesh = desurface_geom::Mesh {
+            positions: vec![desurface_geom::Vec3::ZERO, desurface_geom::Vec3::X, desurface_geom::Vec3::Y],
+            normals: vec![desurface_geom::Vec3::Z; 3],
             triangles: vec![[0, 1, 2]],
             tri_face: vec![0],
             ..Default::default()
@@ -1658,7 +1658,7 @@ mod retained_request_tests {
             .submit(
                 JobId { session: 99, serial: 1, generation: 1 },
                 1,
-                ProductScene { meshes: Vec::new(), bounds: solidcraft_geom::Aabb3::EMPTY },
+                ProductScene { meshes: Vec::new(), bounds: desurface_geom::Aabb3::EMPTY },
                 request,
             )
             .unwrap();
@@ -1710,7 +1710,7 @@ mod environment_metadata_lease_tests {
             .submit_with_environment(
                 JobId { session: 1693, serial: 7, generation: 1 },
                 1,
-                ProductScene { meshes: Vec::new(), bounds: solidcraft_geom::Aabb3::EMPTY },
+                ProductScene { meshes: Vec::new(), bounds: desurface_geom::Aabb3::EMPTY },
                 request,
                 Some(input),
             )
@@ -1733,7 +1733,7 @@ mod environment_metadata_lease_tests {
 #[cfg(all(test, feature = "raytrace-cpu", not(target_arch = "wasm32")))]
 mod surface_request_metadata_tests {
     use super::*;
-    use solidcraft_geom::{Aabb3, Mesh};
+    use desurface_geom::{Aabb3, Mesh};
     #[cfg(all(feature = "raytrace-cpu", not(target_arch = "wasm32")))]
     #[test]
     fn surface_request_lease_survives_completion_frame_eviction_and_held_handles() {
@@ -1771,7 +1771,7 @@ mod surface_request_metadata_tests {
                 bump_amplitude_mm: 0.0,
             });
         }
-        let scene = ProductScene { meshes, bounds: Aabb3 { min: solidcraft_geom::Vec3::ZERO, max: solidcraft_geom::Vec3::ZERO } };
+        let scene = ProductScene { meshes, bounds: Aabb3 { min: desurface_geom::Vec3::ZERO, max: desurface_geom::Vec3::ZERO } };
         let mut request = request();
         request.integrator = Integrator::Raytrace;
         request.raytrace = Some(super::super::RaytraceOptions { surface_effects: Some(effects), ..Default::default() });

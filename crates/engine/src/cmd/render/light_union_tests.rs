@@ -1,8 +1,8 @@
 use crate::Session;
 use serde_json::{Value, json};
 #[cfg(all(feature = "raytrace-cpu", not(target_arch = "wasm32")))]
-use solidcraft_render::job::RaytraceOptions;
-use solidcraft_render::job::{CpuHost, DirectionalLightOptions, PunctualLightOptions, RectangleLightOptions};
+use desurface_render::job::RaytraceOptions;
+use desurface_render::job::{CpuHost, DirectionalLightOptions, PunctualLightOptions, RectangleLightOptions};
 
 fn params() -> Value {
     let area = RectangleLightOptions {

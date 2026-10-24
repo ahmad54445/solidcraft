@@ -21,7 +21,7 @@ pub(super) trait SP<S>:
 }
 impl<S, F> SP<S> for F where F: Fn(&S, Point3, Option<(f64, f64)>, f64) -> Option<(f64, f64)> + Parallelizable {}
 
-/// SolidCraft: a parameter inside the surface's bounded, non-periodic ranges.
+/// DeSurface: a parameter inside the surface's bounded, non-periodic ranges.
 fn in_domain<S: ParametricSurface>(surface: &S, (u, v): (f64, f64)) -> bool {
     let ok = |x: f64, range: Option<(f64, f64)>, period: Option<f64>| {
         x.is_finite()
@@ -37,7 +37,7 @@ fn in_domain<S: ParametricSurface>(surface: &S, (u, v): (f64, f64)) -> bool {
     ok(u, ur, surface.u_period()) && ok(v, vr, surface.v_period())
 }
 
-/// SolidCraft: the parameter clamped into the surface's bounded, non-periodic ranges.
+/// DeSurface: the parameter clamped into the surface's bounded, non-periodic ranges.
 fn clamped<S: ParametricSurface>(surface: &S, (u, v): (f64, f64)) -> (f64, f64) {
     let c = |x: f64, range: Option<(f64, f64)>, period: Option<f64>| match (range, period) {
         (Some((a, b)), None) => x.clamp(a.min(b), a.max(b)),
@@ -47,7 +47,7 @@ fn clamped<S: ParametricSurface>(surface: &S, (u, v): (f64, f64)) -> (f64, f64) 
     (c(u, ur, surface.u_period()), c(v, vr, surface.v_period()))
 }
 
-/// SolidCraft: exact and nearest searches can run off a B-spline's domain, especially at a
+/// DeSurface: exact and nearest searches can run off a B-spline's domain, especially at a
 /// collapsed edge. Prefer a bounded equivalent within the existing spatial search tolerance;
 /// otherwise retain extrapolation only when it is closer (planes have a nominal unit range
 /// but extend for ever). At most four boundary candidates are evaluated, with no new search.
@@ -64,7 +64,7 @@ fn sane<S: ParametricSurface3D>(surface: &S, point: Point3, uv: (f64, f64)) -> (
         && (dc < error || (dc <= TOLERANCE2 && (collapsed(c, 0) || collapsed(c, 1)))) {
         (best, error) = (c, dc);
     }
-    // SolidCraft: at a collapsed boundary an exact search can return arbitrary,
+    // DeSurface: at a collapsed boundary an exact search can return arbitrary,
     // enormous parameters, or stop just inside the pole. Prefer an equivalent
     // in-domain point and the exact boundary when it improves the spatial fit.
     // A plane's nominal unit box must not clip genuinely unbounded geometry.
@@ -218,7 +218,7 @@ where
         .map(|v| (v.id(), v.mapped(Point3::clone)))
         .collect();
     let eset: HashMap<_, _> = shell.edge_par_iter().map(move |e| (e.id(), e)).collect();
-    // SolidCraft: the polylines first, so that the edges of a face crowded by the angle bound
+    // DeSurface: the polylines first, so that the edges of a face crowded by the angle bound
     // can be divided again before any face is meshed.
     let mut polys: HashMap<_, _> = eset
         .par_iter()
@@ -253,7 +253,7 @@ where
             .iter()
             .map(create_boundary)
             .collect();
-        // SolidCraft: a face is divided like the coarsest of its edges.
+        // DeSurface: a face is divided like the coarsest of its edges.
         let level = face
             .absolute_boundaries()
             .iter()
@@ -273,7 +273,7 @@ where
     shell.face_par_iter().map(create_face).collect()
 }
 
-/// SolidCraft: bounded work for the angle bound. A face bounded by more than
+/// DeSurface: bounded work for the angle bound. A face bounded by more than
 /// `Deflection::MAX_ANGLE_BOUNDARY` segments has its curved edges divided again at twice the
 /// angle, as often as it takes, down to the chord tolerance alone (a plate with a thousand
 /// small holes is not worth a hundred times the work to draw each hole round). `polys` holds
@@ -339,7 +339,7 @@ where
     use truck_base::entry_map::FxEntryMap as EntryMap;
     use truck_topology::Vertex as TVertex;
     let cap = face_cap(shell.len());
-    // SolidCraft: the polylines first (see `shell_tessellation`).
+    // DeSurface: the polylines first (see `shell_tessellation`).
     let mut polys: HashMap<_, _> = shell
         .edge_iter()
         .map(|edge| {
@@ -491,7 +491,7 @@ fn shell_create_polygon<S: PreMeshableSurface>(
         }
         Some(mesh)
     })();
-    // SolidCraft: faces with seam edges (a loop running along an edge both ways, as STEP
+    // DeSurface: faces with seam edges (a loop running along an edge both ways, as STEP
     // writes cylinders) are valid here; `debug_new` asserts simple loops in debug builds.
     let mut new_face = Face::new_unchecked(wires, polygon);
     if !orientation {
@@ -500,7 +500,7 @@ fn shell_create_polygon<S: PreMeshableSurface>(
     new_face
 }
 
-/// SolidCraft: a face's mesh puts every point where its own surface passes the point's
+/// DeSurface: a face's mesh puts every point where its own surface passes the point's
 /// parameters, and a boundary point's parameters are those its edge point projects to. An edge
 /// that lies on a surface only within tolerance (a sample of an intersection curve whose
 /// projection did not converge, an imported edge) then puts the point it shares with the next
@@ -561,7 +561,7 @@ impl PolyBoundaryPiece {
                 .into_iter()
                 .flat_map(|pt| {
                     let (mut u, mut v) = match sp(surface, pt, previous, accept) {
-                        // SolidCraft: validate exact and nearest results alike, once per
+                        // DeSurface: validate exact and nearest results alike, once per
                         // boundary point, including the bounded provisional preview.
                         Some(hint) => sane(surface, pt, hint),
                         None => return vec![None],
@@ -587,7 +587,7 @@ impl PolyBoundaryPiece {
                 })
                 .collect::<Option<Vec<Point2>>>()
         };
-        // SolidCraft: each point is searched from the one before it, but the first has no
+        // DeSurface: each point is searched from the one before it, but the first has no
         // hint, and a search without one can miss a point that lies on the surface (a corner of
         // a fillet strip on a surface extended past it, #882): the whole face was then left
         // unmeshed. When the walk fails, it is tried once more from the first point an unhinted
@@ -622,7 +622,7 @@ impl PolyBoundaryPiece {
     }
 }
 
-/// SolidCraft: `u` moved by whole periods `up` to within half a period of `u0`, however many
+/// DeSurface: `u` moved by whole periods `up` to within half a period of `u0`, however many
 /// periods away it is (on a tie, the lower one, as before). A hinted search on a revolved
 /// surface can return an angle millions of turns from its hint, the same point; moving it by two
 /// periods at most left a face's boundary loop spanning those turns, and the polyline that closes
@@ -635,7 +635,7 @@ fn get_mindiff(u: f64, u0: f64, up: f64) -> f64 {
     u0 + if d >= 0.5 * up { d - up } else { d }
 }
 
-/// SolidCraft: the second field holds each loop's parameter box, so `include` skips loops that
+/// DeSurface: the second field holds each loop's parameter box, so `include` skips loops that
 /// cannot hold the point (a face with hundreds of holes meshed in quadratic time). The third
 /// holds, for each loop, the box of each run of [`RUN`] segments in a row, so `include` tests
 /// only the runs its ray can meet (a long trim loop is otherwise crossed segment by segment
@@ -716,7 +716,7 @@ impl PolyBoundary {
     fn new(pieces: Vec<PolyBoundaryPiece>, surface: &impl PreMeshableSurface, tol: Deflection) -> Self {
         Self::with_steps(pieces, surface, tol, None)
     }
-    // SolidCraft: only the disposable preview supplies fixed seam subdivisions.
+    // DeSurface: only the disposable preview supplies fixed seam subdivisions.
     fn with_steps<S: PreMeshableSurface>(pieces: Vec<PolyBoundaryPiece>, surface: &S, tol: Deflection, steps: Option<usize>) -> Self {
         let polyline_on_surface = |surface: &S, p: Point2, q: Point2, tol| {
             if let Some(n) = steps {
@@ -838,7 +838,7 @@ impl PolyBoundary {
     fn include(&self, c: Point2) -> bool {
         let t = 2.0 * std::f64::consts::PI * HashGen::hash1(c);
         let r = Vector2::new(f64::cos(t), f64::sin(t));
-        // SolidCraft: a closed loop whose box is clear of `c` winds zero times around it, and
+        // DeSurface: a closed loop whose box is clear of `c` winds zero times around it, and
         // no crossing with it lies within the tolerance of `c`: it changes nothing here.
         let margin = 2.0 * TOLERANCE;
         let near = |bdb: &BoundingBox<Point2>| {
@@ -888,7 +888,7 @@ impl PolyBoundary {
         self.0.iter().flatten().map(|pt| triangulation.insert(scale.to_cdt(*pt)).ok()).collect()
     }
 
-    /// Adds the loops' segments between the vertices [`Self::insert_points`] gave. SolidCraft: a
+    /// Adds the loops' segments between the vertices [`Self::insert_points`] gave. DeSurface: a
     /// segment that crosses one already added is split where they meet (truck dropped it and
     /// joined across the face; #1648).
     fn add_constraints(&self, triangulation: &mut Cdt, poly2tri: &[Option<VertexId>]) {
@@ -915,7 +915,7 @@ impl PolyBoundary {
     }
 }
 
-/// SolidCraft: the (u, v) scale the triangulation works in, each parameter by the surface's mean
+/// DeSurface: the (u, v) scale the triangulation works in, each parameter by the surface's mean
 /// speed along it (a power of two, so exact both ways): Delaunay in raw parameters fans a
 /// stretched strip (a long loft side) across the surface.
 #[derive(Clone, Copy, Debug)]
@@ -979,7 +979,7 @@ where S: PreMeshableSurface {
     trimming_with_steps(surface, polyboundary, tol, cap, None)
 }
 
-/// Fixed-size SolidCraft preview path; regular tessellation retains its adaptive policy.
+/// Fixed-size DeSurface preview path; regular tessellation retains its adaptive policy.
 pub(super) fn preview_face<S: RobustMeshableSurface>(surface: &S, loops: &[Vec<Point3>], steps: usize) -> Option<PolygonMesh> {
     if !(1..=16).contains(&steps) || loops.is_empty()
         || loops.iter().any(|w| w.len() < 3)
@@ -1004,7 +1004,7 @@ pub(super) fn preview_face<S: RobustMeshableSurface>(surface: &S, loops: &[Vec<P
     Some(trimming_with_steps(surface, &boundary, Deflection::chord(1e-3), (steps + 1).pow(2), Some(steps)))
 }
 
-// SolidCraft: the normal entry point supplies None, preserving adaptive meshing.
+// DeSurface: the normal entry point supplies None, preserving adaptive meshing.
 fn trimming_with_steps<S: PreMeshableSurface>(surface: &S, polyboundary: &PolyBoundary, tol: Deflection, cap: usize, steps: Option<usize>) -> PolygonMesh {
     let mut triangulation = Cdt::new();
     // Display meshes only (see `Deflection::display`).
@@ -1027,7 +1027,7 @@ fn trimming_with_steps<S: PreMeshableSurface>(surface: &S, polyboundary: &PolyBo
         polyboundary,
         scale,
     );
-    // SolidCraft: a face that came out with no triangles at all, though its boundary encloses
+    // DeSurface: a face that came out with no triangles at all, though its boundary encloses
     // an area in space (a lens thinner than the tolerance: its two edges are different curves,
     // but sampled as they are, in the face's parameters they run along the same line), left a
     // hole in the shell's mesh. Its boundary points are triangulated as they are, so it still
@@ -1041,10 +1041,10 @@ fn trimming_with_steps<S: PreMeshableSurface>(surface: &S, polyboundary: &PolyBo
     mesh
 }
 
-/// SolidCraft: most points of a loop [`loop_triangles`] triangulates.
+/// DeSurface: most points of a loop [`loop_triangles`] triangulates.
 const MAX_LOOP_POINTS: usize = 256;
 
-/// SolidCraft: the triangles of a face's one boundary loop, taken in space on the plane the loop
+/// DeSurface: the triangles of a face's one boundary loop, taken in space on the plane the loop
 /// lies near and with no point added, for a face whose parameters give none (see
 /// [`trimming_with_steps`]). `None` when the face has several loops, too many points, or no
 /// area in space.
@@ -1088,7 +1088,7 @@ fn loop_triangles(surface: &impl ParametricSurface3D, polyline: &PolyBoundary) -
     ))
 }
 
-/// SolidCraft: twice the vector area of a closed polygon: the direction of its plane, as long as
+/// DeSurface: twice the vector area of a closed polygon: the direction of its plane, as long as
 /// it is large.
 fn newell_normal(points: &[Point3]) -> Vector3 {
     let next = points.iter().cycle().skip(1);
@@ -1097,12 +1097,12 @@ fn newell_normal(points: &[Point3]) -> Vector3 {
     })
 }
 
-/// SolidCraft: twice the signed area of the triangle `a b c`: positive when it turns left.
+/// DeSurface: twice the signed area of the triangle `a b c`: positive when it turns left.
 fn turn(a: [f64; 2], b: [f64; 2], c: [f64; 2]) -> f64 {
     (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
 }
 
-/// SolidCraft: whether two sides of the closed polygon that do not share a corner cross each other.
+/// DeSurface: whether two sides of the closed polygon that do not share a corner cross each other.
 /// Ears of a polygon that crosses itself overlap, so it is not triangulated.
 fn crosses_itself(points: &[[f64; 2]]) -> bool {
     let n = points.len();
@@ -1116,7 +1116,7 @@ fn crosses_itself(points: &[[f64; 2]]) -> bool {
     })
 }
 
-/// SolidCraft: the triangles of a simple polygon, as indices into its points, by clipping ears.
+/// DeSurface: the triangles of a simple polygon, as indices into its points, by clipping ears.
 /// `None` when no ear is left to clip (the polygon crosses itself) or it has no area.
 fn ear_clipping(points: &[[f64; 2]]) -> Option<Vec<[usize; 3]>> {
     if points.len() < 3 {
@@ -1151,7 +1151,7 @@ fn ear_clipping(points: &[[f64; 2]]) -> Option<Vec<[usize; 3]>> {
     Some(triangles)
 }
 
-/// Inserts parameter divisions into triangulation; SolidCraft: returns their vertices, row by row, for [`add_grid_constraints`].
+/// Inserts parameter divisions into triangulation; DeSurface: returns their vertices, row by row, for [`add_grid_constraints`].
 fn insert_surface(
     triangulation: &mut Cdt,
     surface: impl PreMeshableSurface,
@@ -1166,7 +1166,7 @@ fn insert_surface(
     if !(range.0 .0.is_finite() && range.0 .1.is_finite() && range.1 .0.is_finite() && range.1 .1.is_finite()) {
         return Vec::new();
     }
-    // SolidCraft: fixed preview grids skip both adaptive division and balancing.
+    // DeSurface: fixed preview grids skip both adaptive division and balancing.
     let (udiv, vdiv) = if let Some(n) = steps {
         let division = |(a, b): (f64, f64)| (0..=n).map(|i| a * (1. - i as f64 / n as f64) + b * (i as f64 / n as f64)).collect();
         (division(range.0), division(range.1))
@@ -1192,7 +1192,7 @@ fn insert_surface(
         .collect()
 }
 
-/// SolidCraft: joins neighbouring grid points [`insert_surface`] inserted, where no constraint
+/// DeSurface: joins neighbouring grid points [`insert_surface`] inserted, where no constraint
 /// is in the way (truck did this at the end of `insert_surface`).
 fn add_grid_constraints(triangulation: &mut Cdt, insert_res: &[Vec<Option<VertexId>>]) {
     insert_res.windows(2).for_each(|vec| {
@@ -1219,19 +1219,19 @@ fn add_grid_constraints(triangulation: &mut Cdt, insert_res: &[Vec<Option<Vertex
     });
 }
 
-/// SolidCraft: most grid points a face gets (keeps hostile or huge faces bounded).
+/// DeSurface: most grid points a face gets (keeps hostile or huge faces bounded).
 pub(super) const MAX_GRID: usize = 150_000;
-/// SolidCraft: grid points shared by all faces of one shell; many faces get fewer each.
+/// DeSurface: grid points shared by all faces of one shell; many faces get fewer each.
 pub(super) const SHELL_GRID_BUDGET: usize = 10_000_000;
-/// SolidCraft: most points on one edge's polyline.
+/// DeSurface: most points on one edge's polyline.
 const MAX_EDGE_POINTS: usize = 20_000;
 
-/// SolidCraft: the grid budget of each face of a shell with `faces` faces.
+/// DeSurface: the grid budget of each face of a shell with `faces` faces.
 pub(super) fn face_cap(faces: usize) -> usize {
     (SHELL_GRID_BUDGET / faces.max(1)).clamp(2_000, MAX_GRID)
 }
 
-/// SolidCraft: truck's curve division, bounded: at most `MAX_EDGE_POINTS` points and a
+/// DeSurface: truck's curve division, bounded: at most `MAX_EDGE_POINTS` points and a
 /// bisection depth of 24; a midpoint that does not evaluate (NaN) counts as flat (truck's
 /// version recursed on it 100 levels deep, which never finishes). A piece within the chord
 /// tolerance is still halved while it turns more than the deflection's angle.
@@ -1268,7 +1268,7 @@ pub(super) fn bounded_polyline<C: PolylineableCurve>(curve: &C, range: (f64, f64
     PolylineCurve(out)
 }
 
-/// SolidCraft: truck's surface division, bounded: stops refining when the grid would exceed
+/// DeSurface: truck's surface division, bounded: stops refining when the grid would exceed
 /// `cap` points or after 24 rounds; cells that do not evaluate (NaN) are not refined. A
 /// direction within the chord tolerance is still halved where a cell turns more than the
 /// deflection's angle along it, while the grid stays within `Deflection::MAX_ANGLE_GRID`.
@@ -1293,7 +1293,7 @@ pub(super) fn bounded_surface_division<S: PreMeshableSurface>(surface: &S, (ur, 
                 let pt10 = surface.subs(u[1], v[0]).to_vec();
                 let pt11 = surface.subs(u[1], v[1]).to_vec();
                 let pt = Point3::from_vec(pt00 * (1.0 - p) * (1.0 - q) + pt01 * (1.0 - p) * q + pt10 * p * (1.0 - q) + pt11 * p * q);
-                // SolidCraft (#1666): a cell is drawn as two triangles, not as the bilinear blend
+                // DeSurface (#1666): a cell is drawn as two triangles, not as the bilinear blend
                 // of its corners. A twisted cell (a bilinear patch is the blend exactly, so `pt`
                 // never tells) bows off its corners' plane by a quarter of its twist at the middle,
                 // across that plane: a cone's trapezoid between two rulings is flat and needs none.
@@ -1354,7 +1354,7 @@ pub(super) fn bounded_surface_division<S: PreMeshableSurface>(surface: &S, (ur, 
     (udiv, vdiv)
 }
 
-/// SolidCraft: refine the parameter grid so its cells are not much longer in one direction than
+/// DeSurface: refine the parameter grid so its cells are not much longer in one direction than
 /// the other. A ruled surface (cylinder, cone) needs no division along its rulings, and the
 /// triangles that then join a trimming loop to the far ends of the grid cut through the
 /// surface (a cylinder with a hole lost volume this way).
@@ -1413,10 +1413,10 @@ fn balanced_grid(surface: &impl PreMeshableSurface, udiv: Vec<f64>, vdiv: Vec<f6
     (thin(u2), thin(v2))
 }
 
-/// SolidCraft: most grid lines added for vertices on a ruling edge.
+/// DeSurface: most grid lines added for vertices on a ruling edge.
 const MAX_RULING_LINES: usize = 64;
 
-/// SolidCraft: `div` (the grid along coordinate `axis`, 0 for u and 1 for v) with a line through
+/// DeSurface: `div` (the grid along coordinate `axis`, 0 for u and 1 for v) with a line through
 /// every vertex that splits a boundary segment running along a ruling (a straight edge of a
 /// cylinder or cone split by a boolean). Without one, the triangulation fans out from such a
 /// vertex to the far ends of the face, and its triangles cut through the surface (the outer
@@ -1462,7 +1462,7 @@ fn with_ruling_vertices(div: Vec<f64>, polyline: &PolyBoundary, axis: usize, rul
     out
 }
 
-/// SolidCraft: `div` (the grid along coordinate `axis`, 0 for u and 1 for v) with a line through
+/// DeSurface: `div` (the grid along coordinate `axis`, 0 for u and 1 for v) with a line through
 /// every point of the face's boundary that lies inside the face along that axis: the points of a
 /// hole cut into a cylinder or a cone, or of a trim that crosses its rulings (an oblique plane
 /// through a cone's narrow chamfer). A ruled direction gets few lines (one cell along a cone's
@@ -1473,7 +1473,7 @@ fn with_ruling_vertices(div: Vec<f64>, polyline: &PolyBoundary, axis: usize, rul
 /// while the other does gets them (a plane, ruled both ways, maps to its uv space without
 /// stretching and needs none), only for a few such points (corners standing into the face, at
 /// most [`MAX_BOUNDARY_LINES`]), and while the grid stays within `cap`.
-/// SolidCraft: most boundary points inside a ruled face that get grid lines through them.
+/// DeSurface: most boundary points inside a ruled face that get grid lines through them.
 const MAX_BOUNDARY_LINES: usize = 16;
 
 fn with_boundary_lines(div: Vec<f64>, polyline: &PolyBoundary, axis: usize, ruled: bool, other: usize, cap: usize) -> Vec<f64> {
@@ -1562,7 +1562,7 @@ fn polyline_on_surface(
     vec.into_iter().map(|t| line.subs(t)).collect()
 }
 
-/// SolidCraft: `params` with every interval halved while the curve turns more over it than the
+/// DeSurface: `params` with every interval halved while the curve turns more over it than the
 /// deflection's angle (at most 12 times each, and `MAX_EDGE_POINTS` in all). Unchanged without
 /// an angle.
 fn halved_while_turning(curve: impl Fn(f64) -> Point3, params: Vec<f64>, d: Deflection) -> Vec<f64> {
@@ -1617,7 +1617,7 @@ fn par_bench() {
 /// `include` before the runs: kept to check the new one answers the same everywhere.
 ///
 /// Not part of the API. Built only for tests, or with the `test-hooks` feature, so the
-/// SolidCraft kernel tests can run this check in CI (this crate's own tests do not run there).
+/// DeSurface kernel tests can run this check in CI (this crate's own tests do not run there).
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub mod include_test_hooks {
@@ -1736,7 +1736,7 @@ pub mod include_test_hooks {
     }
 }
 
-/// SolidCraft: the fallback that triangulates a face's boundary loop when the face has no
+/// DeSurface: the fallback that triangulates a face's boundary loop when the face has no
 /// triangle, for kernel tests (the vendored crates' own tests do not run in CI).
 ///
 /// Not part of the API. Built only for tests, or with the `test-hooks` feature.

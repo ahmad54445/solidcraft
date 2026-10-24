@@ -70,7 +70,7 @@ def number(value, lower, upper, label):
 def validate_source(data):
     if not isinstance(data, dict):
         raise ValueError("source must be a JSON object")
-    if data.get("schema") != "solidcraft-authored-surfaces/1":
+    if data.get("schema") != "desurface-authored-surfaces/1":
         raise ValueError("unknown authoring schema")
     if data.get("generator_version") != VERSION:
         raise ValueError("generator version mismatch")
@@ -317,11 +317,11 @@ def build():
                 "encoding": ROLES[role][2], "minimum": int(array.min()), "maximum": int(array.max()),
                 "consumer": "authoring_only_requires_explicit_height_adapter" if role == "height" else "bounded_texture_input_compatible_not_runtime_bound"}
         records.append(record)
-    manifest = {"schema": "solidcraft-authored-surface-manifest/1", "generator_version": VERSION,
+    manifest = {"schema": "desurface-authored-surface-manifest/1", "generator_version": VERSION,
                 "source_path": RECIPES.relative_to(ROOT).as_posix(),
                 "source_sha256": digest(RECIPES.read_bytes()),
                 "generator_sha256": digest(Path(__file__).read_bytes()),
-                "license": "MIT OR Apache-2.0", "author": "Original SolidCraft contributor work",
+                "license": "MIT OR Apache-2.0", "author": "Original DeSurface contributor work",
                 "source_inputs": "Original numerical fields; no external imagery, material library, or commercial-product output.",
                 "items": records}
     MANIFEST.write_bytes((json.dumps(manifest, indent=2, allow_nan=False) + "\n").encode("utf-8"))
@@ -332,7 +332,7 @@ def build():
 def validate(reproduce=False):
     data = validate_source(load_json(RECIPES))
     manifest = load_json(MANIFEST)
-    if not isinstance(manifest, dict) or manifest.get("schema") != "solidcraft-authored-surface-manifest/1":
+    if not isinstance(manifest, dict) or manifest.get("schema") != "desurface-authored-surface-manifest/1":
         raise ValueError("unknown manifest schema")
     if manifest.get("source_sha256") != digest(RECIPES.read_bytes()):
         raise ValueError("source receipt mismatch")
@@ -423,7 +423,7 @@ def preview():
     rows = math.ceil(len(data["items"]) / columns)
     out = Image.new("RGB", (columns * (tile + gap) + gap, rows * (tile + label + gap) + 72), (19, 24, 32))
     draw = ImageDraw.Draw(out)
-    draw.text((12, 12), "SolidCraft | Authored surface data, v1", fill=(237, 240, 245))
+    draw.text((12, 12), "DeSurface | Authored surface data, v1", fill=(237, 240, 245))
     draw.text((12, 32), "Unlit base-color maps. No scene render or measured material claim.", fill=(171, 184, 201))
     for index, item in enumerate(data["items"]):
         x = gap + (index % columns) * (tile + gap)

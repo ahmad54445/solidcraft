@@ -1,7 +1,7 @@
 //! Operations on bodies: booleans and rigid transforms.
 
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 use truck_modeling as mt;
 
 use std::collections::HashMap;
@@ -51,7 +51,7 @@ pub fn compound_disjoint_extrusions(tools: &[Body]) -> Result<Option<Body>> {
             if sources.len() != tool.face_count() {
                 return Ok(None);
             }
-            let mut bb = solidcraft_geom::Aabb3::EMPTY;
+            let mut bb = desurface_geom::Aabb3::EMPTY;
             let mut points = Some(Vec::new());
             let mut directions = Vec::new();
             let mut caps = 0;
@@ -63,12 +63,12 @@ pub fn compound_disjoint_extrusions(tools: &[Body]) -> Result<Option<Body>> {
                         caps += 1;
                         // The bottom support is outward-facing, but its region retains
                         // the original sketch coordinates (see build::extrude).
-                        let plane = if *high { *plane } else { solidcraft_geom::Plane { y: -plane.y, ..*plane } };
+                        let plane = if *high { *plane } else { desurface_geom::Plane { y: -plane.y, ..*plane } };
                         for segment in &region.outer.segs {
                             let Some(left) = remaining.checked_sub(1) else { return Ok(None) };
                             remaining = left;
                             match *segment {
-                                solidcraft_geom::Seg2::Line { a, b } => {
+                                desurface_geom::Seg2::Line { a, b } => {
                                     let (a, b) = (plane.to_world(a), plane.to_world(b));
                                     bb.add(a);
                                     bb.add(b);
@@ -79,11 +79,11 @@ pub fn compound_disjoint_extrusions(tools: &[Body]) -> Result<Option<Body>> {
                                         directions.push(axis);
                                     }
                                 }
-                                solidcraft_geom::Seg2::Arc { center, radius, .. } => {
+                                desurface_geom::Seg2::Arc { center, radius, .. } => {
                                     points = None;
                                     for x in [-radius, radius] {
                                         for y in [-radius, radius] {
-                                            bb.add(plane.to_world(center + solidcraft_geom::Vec2::new(x, y)));
+                                            bb.add(plane.to_world(center + desurface_geom::Vec2::new(x, y)));
                                         }
                                     }
                                 }
@@ -211,7 +211,7 @@ fn halton(mut i: usize, b: usize) -> f64 {
 
 /// Fraction of sample points where `result` disagrees with `op` applied to `a` and `b`
 /// (membership by ray parity). Samples cover the overlap box densely and the union box lightly.
-fn mismatch(a: &solidcraft_geom::Mesh, b: &solidcraft_geom::Mesh, result: &solidcraft_geom::Mesh, op: BoolOp) -> Option<f64> {
+fn mismatch(a: &desurface_geom::Mesh, b: &desurface_geom::Mesh, result: &desurface_geom::Mesh, op: BoolOp) -> Option<f64> {
     if a.triangles.len() + b.triangles.len() + result.triangles.len() > 60_000 {
         return None;
     }
@@ -224,7 +224,7 @@ fn mismatch(a: &solidcraft_geom::Mesh, b: &solidcraft_geom::Mesh, result: &solid
     // operands' boundaries, where ray parity cannot classify membership reliably.
     let gap = all.diagonal().max(1.0) * 1e-9;
     if hi.x - lo.x > gap && hi.y - lo.y > gap && hi.z - lo.z > gap {
-        boxes.push((solidcraft_geom::Aabb3 { min: lo, max: hi }, 900));
+        boxes.push((desurface_geom::Aabb3 { min: lo, max: hi }, 900));
     }
     let (ia_idx, ib_idx, ir_idx) = (a.inside_index(), b.inside_index(), result.inside_index());
     let (mut n, mut bad) = (0usize, 0usize);
@@ -250,12 +250,12 @@ fn mismatch(a: &solidcraft_geom::Mesh, b: &solidcraft_geom::Mesh, result: &solid
 /// How one body sits relative to another, from sample points: (fraction of `b`'s samples
 /// inside `a`, fraction of `a`'s samples inside `b`).
 fn overlap(
-    a: &solidcraft_geom::Mesh,
-    b: &solidcraft_geom::Mesh,
-    ia: &solidcraft_geom::InsideIndex,
-    ib: &solidcraft_geom::InsideIndex,
+    a: &desurface_geom::Mesh,
+    b: &desurface_geom::Mesh,
+    ia: &desurface_geom::InsideIndex,
+    ib: &desurface_geom::InsideIndex,
 ) -> Option<(f64, f64)> {
-    let frac = |inner: &solidcraft_geom::Mesh, inner_i: &solidcraft_geom::InsideIndex, outer_i: &solidcraft_geom::InsideIndex| -> Option<f64> {
+    let frac = |inner: &desurface_geom::Mesh, inner_i: &desurface_geom::InsideIndex, outer_i: &desurface_geom::InsideIndex| -> Option<f64> {
         let bx = inner.bounds();
         let s = bx.size();
         let (mut n, mut hit) = (0usize, 0usize);
@@ -284,12 +284,12 @@ fn overlap(
 /// Points for which `ignored` holds, asked with the point and the facet's face (`u32::MAX`
 /// where the mesh has none), are no evidence either.
 fn under_surface(
-    m: &solidcraft_geom::Mesh,
-    own: &solidcraft_geom::InsideIndex,
-    other: &solidcraft_geom::InsideIndex,
+    m: &desurface_geom::Mesh,
+    own: &desurface_geom::InsideIndex,
+    other: &desurface_geom::InsideIndex,
     depth: f64,
     inside: bool,
-    within: Option<&solidcraft_geom::Aabb3>,
+    within: Option<&desurface_geom::Aabb3>,
     ignored: &dyn Fn(Vec3, u32) -> bool,
 ) -> bool {
     m.triangles.iter().enumerate().filter_map(|(i, t)| Some((m.tri(t)?, m.tri_face.get(i).copied().unwrap_or(u32::MAX)))).any(|([p, q, r], face)| {
@@ -308,8 +308,8 @@ fn under_surface(
 /// those faces or one of them and an end face across its axis, nor material under such an end
 /// face's facets at the cylinder (`shared`, asked only when the facetings disagree).
 fn contradicted(
-    (ma, ia): (&solidcraft_geom::Mesh, &solidcraft_geom::InsideIndex),
-    (mb, ib): (&solidcraft_geom::Mesh, &solidcraft_geom::InsideIndex),
+    (ma, ia): (&desurface_geom::Mesh, &desurface_geom::InsideIndex),
+    (mb, ib): (&desurface_geom::Mesh, &desurface_geom::InsideIndex),
     (disjoint, b_in_a, a_in_b): (bool, bool, bool),
     tol: f64,
     shared: &dyn Fn() -> SharedCylinders,
@@ -400,7 +400,7 @@ impl SharedCylinders {
 /// The cylinders on which both `a` and `b` have faces: axes parallel and within `same` of each
 /// other, radii within `same` (a pin a hair off its hole's axis shares a crescent, which this
 /// tolerance leaves far below any volume worth reporting). Spans from the meshes `ma`, `mb`.
-fn shared_cylinders(a: &Body, b: &Body, ma: &solidcraft_geom::Mesh, mb: &solidcraft_geom::Mesh, same: f64) -> SharedCylinders {
+fn shared_cylinders(a: &Body, b: &Body, ma: &desurface_geom::Mesh, mb: &desurface_geom::Mesh, same: f64) -> SharedCylinders {
     let cylinders = |body: &Body| -> Vec<(usize, Vec3, Vec3, f64)> {
         (0..body.face_count())
             .filter_map(|i| match crate::face_surface(body, i)? {
@@ -416,7 +416,7 @@ fn shared_cylinders(a: &Body, b: &Body, ma: &solidcraft_geom::Mesh, mb: &solidcr
         return SharedCylinders::default();
     }
     // Where a face's facets reach along an axis.
-    let span = |m: &solidcraft_geom::Mesh, face: usize, origin: Vec3, axis: Vec3| -> Option<(f64, f64)> {
+    let span = |m: &desurface_geom::Mesh, face: usize, origin: Vec3, axis: Vec3| -> Option<(f64, f64)> {
         let (mut lo, mut hi) = (f64::INFINITY, f64::NEG_INFINITY);
         for (t, f) in m.triangles.iter().zip(&m.tri_face) {
             if *f as usize != face {
@@ -431,12 +431,12 @@ fn shared_cylinders(a: &Body, b: &Body, ma: &solidcraft_geom::Mesh, mb: &solidcr
         (lo <= hi).then_some((lo, hi))
     };
     // A face's facets.
-    fn facets(m: &solidcraft_geom::Mesh, face: usize) -> impl Iterator<Item = [Vec3; 3]> + '_ {
+    fn facets(m: &desurface_geom::Mesh, face: usize) -> impl Iterator<Item = [Vec3; 3]> + '_ {
         m.triangles.iter().zip(&m.tri_face).filter(move |(_, f)| **f as usize == face).filter_map(|(t, _)| m.tri(t))
     }
     // How near to and far from an axis a face's facets reach (nearest on their edges), and
     // whether its material is inside the cylinder there (its normals point away from the axis).
-    let reach = |m: &solidcraft_geom::Mesh, face: usize, origin: Vec3, axis: Vec3| -> (f64, f64, bool) {
+    let reach = |m: &desurface_geom::Mesh, face: usize, origin: Vec3, axis: Vec3| -> (f64, f64, bool) {
         let radial = |p: Vec3| {
             let v = p - origin;
             v - axis * v.dot(axis)
@@ -479,7 +479,7 @@ fn shared_cylinders(a: &Body, b: &Body, ma: &solidcraft_geom::Mesh, mb: &solidcr
             let ((na, _, boss_a), (nb, _, boss_b)) = (reach(ma, fa, oa, xa), reach(mb, fb, oa, xa));
             let error = 2.0 * (ra - na).max(ra - nb).max(0.0) + same;
             // End faces across the axis that keep to their body's side of the cylinder.
-            let caps = |m: &solidcraft_geom::Mesh, planes: &[(usize, Vec3)], boss: bool| -> Vec<usize> {
+            let caps = |m: &desurface_geom::Mesh, planes: &[(usize, Vec3)], boss: bool| -> Vec<usize> {
                 planes
                     .iter()
                     .filter(|(_, n)| n.dot(xa).abs() >= 1.0 - 1e-6)
@@ -509,8 +509,8 @@ fn trivial(
     a: &Body,
     b: &Body,
     op: BoolOp,
-    ma: &solidcraft_geom::Mesh,
-    mb: &solidcraft_geom::Mesh,
+    ma: &desurface_geom::Mesh,
+    mb: &desurface_geom::Mesh,
     counts: &[(usize, usize)],
     tol: f64,
 ) -> Option<(Option<Body>, bool)> {
@@ -561,7 +561,7 @@ mod shortcut_tests {
 
     #[test]
     fn seam_roundoff_is_not_a_thin_meeting_but_real_thin_solids_are() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
 
         // This circle's seams lie on the X axis: its cylinder's vertex box is flat in Y.
         let region = Region2 { outer: Loop2::circle(Vec2::ZERO, 8.0), holes: vec![] };
@@ -574,7 +574,7 @@ mod shortcut_tests {
 
     #[test]
     fn rotated_extrusion_bounds_use_exact_cap_separation_and_keep_sources() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let rectangle = |angle: f64, offset: f64| {
             let (c, s) = (angle.cos(), angle.sin());
             Region2 {
@@ -612,7 +612,7 @@ mod shortcut_tests {
 
     #[test]
     fn compound_span_does_not_relax_full_face_seam_tolerance() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let mut target = crate::box_solid(Vec3::new(0., 0., -3.), Vec3::new(100., 2., -2.)).unwrap();
         for x in [0., 98.] {
             let boss = crate::box_solid(Vec3::new(x, 0., -2.), Vec3::new(x + 2., 2., 0.)).unwrap();
@@ -633,7 +633,7 @@ mod shortcut_tests {
 
     #[test]
     fn extrusion_compound_requires_separated_construction_bounds() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let rectangle = |x: f64| Region2 {
             outer: Loop2::polygon(&[Vec2::new(x, 0.0), Vec2::new(x + 2.0, 0.0), Vec2::new(x + 2.0, 2.0), Vec2::new(x, 2.0)]),
             holes: vec![],
@@ -646,7 +646,7 @@ mod shortcut_tests {
         assert!((crate::measure(&compound).unwrap().volume - 48.0).abs() < 1e-8);
         assert!(compound.validity().is_empty());
         for x in [1.0, 2.0, 2.000_000_1] {
-            let touching = crate::extrude(&solidcraft_geom::Plane::XY, &[rectangle(0.0), rectangle(x)], 0.0, 5.0).unwrap();
+            let touching = crate::extrude(&desurface_geom::Plane::XY, &[rectangle(0.0), rectangle(x)], 0.0, 5.0).unwrap();
             assert!(compound_disjoint_extrusions(&touching).unwrap().is_none());
         }
         let unsupported = [crate::sphere(Vec3::ZERO, 1.0).unwrap(), crate::sphere(Vec3::new(10.0, 0.0, 0.0), 1.0).unwrap()];
@@ -655,7 +655,7 @@ mod shortcut_tests {
 
     #[test]
     fn extrusion_compound_includes_arc_extrema_between_seam_vertices() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let circle = |x| Region2 { outer: Loop2::circle(Vec2::new(x, 0.0), 2.0), holes: vec![] };
         let separated = crate::extrude(&Plane::XY, &[circle(0.0), circle(8.0)], 0.0, 5.0).unwrap();
         assert!(compound_disjoint_extrusions(&separated).unwrap().is_some());
@@ -689,7 +689,7 @@ mod shortcut_tests {
     /// the tube: answered at once, without the boolean's retries.
     #[test]
     fn a_pin_in_a_bore_of_its_size_is_clear_of_it_whatever_the_facets() {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let rect = |x1: f64, y0: f64, y1: f64| Region2 {
             outer: Loop2::polygon(&[Vec2::new(0.0, y0), Vec2::new(x1, y0), Vec2::new(x1, y1), Vec2::new(0.0, y1)]),
             holes: vec![],
@@ -726,7 +726,7 @@ mod shortcut_tests {
     /// size (its wall in two), the pin's end inside the bore: turned about the pin's axis and
     /// the pair placed and tilted.
     fn pin_in_plate_bore(radius: f64, turn: f64, (to, axis, angle): (Vec3, Vec3, f64)) -> (Body, Body) {
-        use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+        use desurface_geom::{Loop2, Plane, Region2, Vec2};
         let profile = Region2 {
             outer: Loop2::polygon(&[Vec2::new(0.0, -2.35), Vec2::new(radius, -2.35), Vec2::new(radius, 9.65), Vec2::new(0.0, 9.65)]),
             holes: vec![],
@@ -1079,10 +1079,10 @@ fn cut_around_voids(a: &Body, b: &Body, whole: &dyn Fn(&Body, &Body, BoolOp) -> 
     let tb = tm.bounds();
     // Clear of the tool by more than both meshes' deflection.
     let gap = 4.0 * tol + (b.size() * 1e-3).max(1e-3);
-    let inside = |x: &solidcraft_geom::Aabb3| {
+    let inside = |x: &desurface_geom::Aabb3| {
         x.min.x >= ob.min.x && x.min.y >= ob.min.y && x.min.z >= ob.min.z && x.max.x <= ob.max.x && x.max.y <= ob.max.y && x.max.z <= ob.max.z
     };
-    let clear = |x: &solidcraft_geom::Aabb3| {
+    let clear = |x: &desurface_geom::Aabb3| {
         x.max.x + gap < tb.min.x
             || tb.max.x + gap < x.min.x
             || x.max.y + gap < tb.min.y
@@ -1147,7 +1147,7 @@ fn with_hollow_tool(a: &Body, b: &Body, op: BoolOp) -> Option<Option<Body>> {
     let r = by_outer_and_voids(a, b, parts, op).ok()?;
     let mr = match &r {
         Some(r) => r.tessellate_with(t, true).ok()?,
-        None => solidcraft_geom::Mesh::default(),
+        None => desurface_geom::Mesh::default(),
     };
     mismatch(&a.tessellate_with(t, true).ok()?, &b.tessellate_with(t, true).ok()?, &mr, op).is_some_and(|f| f < 0.004).then_some(r)
 }
@@ -1213,7 +1213,7 @@ fn planar_surfaces_match(a: &Body, b: &Body, result: &Body) -> bool {
 /// Smallest side of the box where the bodies' vertex boxes overlap (infinite when they don't).
 fn meeting_size(a: &Body, b: &Body) -> f64 {
     let bbox = |x: &Body| {
-        let mut bb = solidcraft_geom::Aabb3::EMPTY;
+        let mut bb = desurface_geom::Aabb3::EMPTY;
         for v in x.solid.vertex_iter() {
             bb.add(from_p3(v.point()));
         }
@@ -1231,7 +1231,7 @@ fn meeting_size(a: &Body, b: &Body) -> f64 {
 /// Smallest side of the box where the bounds of two meshes overlap (infinite when they don't).
 /// Unlike [`meeting_size`], this follows curved faces: a cylinder's vertices are only the points
 /// on its seam, so its vertex box says nothing about where its side reaches.
-fn mesh_meeting_size(a: &solidcraft_geom::Mesh, b: &solidcraft_geom::Mesh) -> f64 {
+fn mesh_meeting_size(a: &desurface_geom::Mesh, b: &desurface_geom::Mesh) -> f64 {
     let (ba, bb) = (a.bounds(), b.bounds());
     let s = ba.intersection(&bb).size();
     if s.x > 0.0 && s.y > 0.0 && s.z > 0.0 { s.x.min(s.y).min(s.z) } else { f64::INFINITY }
@@ -1572,7 +1572,7 @@ where
             let s = ba.intersection(&bb).size();
             // The thinner operand's thickness (twice its volume over its area: a plate's
             // thickness, a rod's radius) bounds what the tolerance must resolve as well.
-            let thickness = |m: &solidcraft_geom::Mesh| {
+            let thickness = |m: &desurface_geom::Mesh| {
                 let x = m.measure();
                 if x.area > 0.0 { 2.0 * x.volume.abs() / x.area } else { f64::INFINITY }
             };
@@ -1918,7 +1918,7 @@ where
 fn pushed_walls_cut(
     a: &Body,
     b: &Body,
-    target: &solidcraft_geom::Mesh,
+    target: &desurface_geom::Mesh,
     by: f64,
     size: f64,
     keep: &[Vec<Vec3>],
@@ -2366,7 +2366,7 @@ pub fn transform(body: &Body, translate: Vec3, origin: Vec3, axis: Vec3, angle: 
 
 /// Split a body with a plane: the parts on the positive and the negative side of the plane
 /// (only the non-empty ones).
-pub fn split_by_plane(body: &Body, plane: &solidcraft_geom::Plane) -> Result<Vec<Body>> {
+pub fn split_by_plane(body: &Body, plane: &desurface_geom::Plane) -> Result<Vec<Body>> {
     let mut out = Vec::new();
     for positive in [true, false] {
         out.extend(half_space(body, plane, positive)?.0);
@@ -2378,7 +2378,7 @@ pub fn split_by_plane(body: &Body, plane: &solidcraft_geom::Plane) -> Result<Vec
 /// cut with: the part is the body's intersection with [`half_box`] (the tool), whose history it
 /// carries, over the body and the box. The box's face in the plane, the part's cut face, is its
 /// start cap on the positive side and its end cap on the negative side.
-pub fn half_space(body: &Body, plane: &solidcraft_geom::Plane, positive: bool) -> Result<(Option<Body>, Body)> {
+pub fn half_space(body: &Body, plane: &desurface_geom::Plane, positive: bool) -> Result<(Option<Body>, Body)> {
     // The box's own construction roles describe no face of the design: the cut face has none.
     let tool = half_box(body, plane, positive)?.with_face_sources(None);
     let (part, report) = capture_boolean_diagnostics(|| boolean(body, &tool, BoolOp::Intersect));
@@ -2413,7 +2413,7 @@ pub fn half_space(body: &Body, plane: &solidcraft_geom::Plane, positive: bool) -
 /// `body` with its planar faces lying in `plane` moved off it, a thousandth of the body's size,
 /// to the side a split's part on the `positive` side leaves out. `None` when no face lies there
 /// or moving them doesn't give a sound body.
-pub(crate) fn off_plane(body: &Body, plane: &solidcraft_geom::Plane, positive: bool) -> Option<Body> {
+pub(crate) fn off_plane(body: &Body, plane: &desurface_geom::Plane, positive: bool) -> Option<Body> {
     let m = plane.normal().normalized()?;
     let keep = if positive { m } else { -m };
     let size = body.size();
@@ -2465,21 +2465,21 @@ pub(crate) fn off_plane(body: &Body, plane: &solidcraft_geom::Plane, positive: b
 }
 
 /// A box covering everything of `body` on one side of a plane, its start cap in the plane.
-pub(crate) fn half_box(body: &Body, plane: &solidcraft_geom::Plane, positive: bool) -> Result<Body> {
+pub(crate) fn half_box(body: &Body, plane: &desurface_geom::Plane, positive: bool) -> Result<Body> {
     body.require_brep("split")?;
     let size = body.size();
-    let mut bb = solidcraft_geom::Aabb3::EMPTY;
+    let mut bb = desurface_geom::Aabb3::EMPTY;
     for v in body.solid.vertex_iter() {
         bb.add(crate::body::from_p3(v.point()));
     }
     let reach = (bb.diagonal() + plane.origin.dist(bb.center())) * 2.0 + size;
     let c = plane.to_local(bb.center());
-    let sq = solidcraft_geom::Region2 {
-        outer: solidcraft_geom::Loop2::polygon(&[
-            solidcraft_geom::Vec2::new(c.x - reach, c.y - reach),
-            solidcraft_geom::Vec2::new(c.x + reach, c.y - reach),
-            solidcraft_geom::Vec2::new(c.x + reach, c.y + reach),
-            solidcraft_geom::Vec2::new(c.x - reach, c.y + reach),
+    let sq = desurface_geom::Region2 {
+        outer: desurface_geom::Loop2::polygon(&[
+            desurface_geom::Vec2::new(c.x - reach, c.y - reach),
+            desurface_geom::Vec2::new(c.x + reach, c.y - reach),
+            desurface_geom::Vec2::new(c.x + reach, c.y + reach),
+            desurface_geom::Vec2::new(c.x - reach, c.y + reach),
         ]),
         holes: vec![],
     };

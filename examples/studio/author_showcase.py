@@ -19,7 +19,7 @@ def write(name, data):
 # centres and quantized to RGBE. No sun disk is baked into this environment.
 width, height = 512, 256
 zenith, horizon, ground = (.16,.32,.7), (.8,.9,1.), (.12,.1,.08)
-encoded = bytearray(b"#?RADIANCE\n# Original SolidCraft analytic gradient, no external imagery\nFORMAT=32-bit_rle_rgbe\nPRIMARIES=0.64 0.33 0.30 0.60 0.15 0.06 0.3127 0.3290\n\n-Y 256 +X 512\n")
+encoded = bytearray(b"#?RADIANCE\n# Original DeSurface analytic gradient, no external imagery\nFORMAT=32-bit_rle_rgbe\nPRIMARIES=0.64 0.33 0.30 0.60 0.15 0.06 0.3127 0.3290\n\n-Y 256 +X 512\n")
 for row in range(height):
     z = math.cos(math.pi * (row + .5) / height)
     blend = math.sqrt(abs(z))

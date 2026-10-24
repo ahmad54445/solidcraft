@@ -2,22 +2,22 @@
 //! a face stays hidden however large the design and however far the camera, and whatever lies on
 //! a face (its edges, a thin label) draws over it at any angle. Each check runs with the depth the
 //! device draws with (a 32-bit float buffer, reversed, where it has one) and with the 24-bit
-//! fallback. Skipped, with the reason printed, without a GPU adapter (`SOLIDCRAFT_REQUIRE_GPU=1`
+//! fallback. Skipped, with the reason printed, without a GPU adapter (`DESURFACE_REQUIRE_GPU=1`
 //! makes that a failure).
 
 use serde_json::json;
-use solidcraft_engine::Session;
-use solidcraft_engine::geom::{Mesh, Vec3};
-use solidcraft_engine::render::{Camera, Rgb, Scene, SceneLine, SceneMesh, StandardView};
-use solidcraft_engine::view::{self, Guides};
-use solidcraft_gpu::GpuError;
-use solidcraft_gpu::capture::{self, Capturer};
+use desurface_engine::Session;
+use desurface_engine::geom::{Mesh, Vec3};
+use desurface_engine::render::{Camera, Rgb, Scene, SceneLine, SceneMesh, StandardView};
+use desurface_engine::view::{self, Guides};
+use desurface_gpu::GpuError;
+use desurface_gpu::capture::{self, Capturer};
 use std::sync::{Arc, OnceLock};
 
 fn or_skip(c: Result<&'static Capturer, &'static GpuError>) -> Option<&'static Capturer> {
     match c {
         Ok(c) => Some(c),
-        Err(e @ GpuError::NoAdapter(_)) if std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none() => {
+        Err(e @ GpuError::NoAdapter(_)) if std::env::var_os("DESURFACE_REQUIRE_GPU").is_none() => {
             eprintln!("skipping: {e}");
             None
         }
@@ -27,7 +27,7 @@ fn or_skip(c: Result<&'static Capturer, &'static GpuError>) -> Option<&'static C
 
 /// The device's own depth, then the 24-bit fallback (the same device kind, its own instance).
 fn capturers() -> Vec<(&'static str, &'static Capturer)> {
-    static FALLBACK: OnceLock<solidcraft_gpu::Result<Capturer>> = OnceLock::new();
+    static FALLBACK: OnceLock<desurface_gpu::Result<Capturer>> = OnceLock::new();
     let Some(own) = or_skip(capture::shared()) else { return Vec::new() };
     let Some(fallback) = or_skip(FALLBACK.get_or_init(|| Capturer::headless_with_depth(wgpu::TextureFormat::Depth24PlusStencil8)).as_ref()) else {
         return Vec::new();
@@ -37,7 +37,7 @@ fn capturers() -> Vec<(&'static str, &'static Capturer)> {
 }
 
 fn reversed(c: &Capturer) -> bool {
-    solidcraft_gpu::view::reversed_depth(Some(c.depth_format()))
+    desurface_gpu::view::reversed_depth(Some(c.depth_format()))
 }
 
 /// RGBA pixels as `[r, g, b, a]`.
@@ -207,7 +207,7 @@ fn the_device_draws_with_float_depth_where_it_has_it() {
     eprintln!("GPU: {}, depth {:?}", c.adapter_name(), c.depth_format());
     let float = c.depth_format() == wgpu::TextureFormat::Depth32FloatStencil8;
     assert_eq!(float, reversed(c));
-    if std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_some() {
+    if std::env::var_os("DESURFACE_REQUIRE_GPU").is_some() {
         assert!(float, "a desktop GPU without Depth32FloatStencil8: {:?}", c.depth_format());
     }
 }

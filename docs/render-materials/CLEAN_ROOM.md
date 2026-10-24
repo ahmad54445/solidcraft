@@ -2,7 +2,7 @@
 
 ## This contribution
 
-All catalog descriptions, selection criteria, preset numbers, UX flows, analytic fixtures, validation tooling and implementation plans were authored for this SolidCraft contribution from the user's requirements, general rendering and engineering principles, public specifications, scientific facts and the project's own public contracts. Their provenance identifier is `ORIGINAL-2026-10-CATALOG`.
+All catalog descriptions, selection criteria, preset numbers, UX flows, analytic fixtures, validation tooling and implementation plans were authored for this DeSurface contribution from the user's requirements, general rendering and engineering principles, public specifications, scientific facts and the project's own public contracts. Their provenance identifier is `ORIGINAL-2026-10-CATALOG`.
 
 No material library, texture, HDR panorama, template, shader implementation, help passage, screenshot, icon, font or UI artwork was extracted from a commercial CAD or rendering product. No commercial CAD application was driven or automated. No GPL, LGPL or AGPL implementation was read, copied, linked or used as an implementation reference. Product comparison names describe the intended quality bar; they do not authorize borrowing their implementations or content.
 
@@ -14,12 +14,12 @@ The user's original v7 SELENE model repository remains a pinned historical refer
 
 The continuation adds original numerical appearance recipes, an analytic-box swatch script, scene/role/shot specifications and native geometry and mechanism authoring tools under `assets/render/selene/`. Tangency's own public mechanism documentation and PR discussions explain the improved variant's documented behavior. Published demonstration media remain reference material and are not copied into this package. The supplied native source has its own pinned identity and retained notices; each separately named derivative must record its own hash and runtime evidence.
 
-The UI continuation uses SolidCraft's own implemented shell, UI kit, theme and accepted SVGs as its design authority. It records a read-only comparison between the fixed integration base and upstream `728f753b8094e1a54c5cc8b7e453982afa028023` in `ui-integration.json`. Original integration prose and metadata are added; no icon master, palette, acceptance hash, commercial reference or application UI implementation is copied or changed. Temporary previews of existing project icons stay outside the shipped resource package.
+The UI continuation uses DeSurface's own implemented shell, UI kit, theme and accepted SVGs as its design authority. It records a read-only comparison between the fixed integration base and upstream `728f753b8094e1a54c5cc8b7e453982afa028023` in `ui-integration.json`. Original integration prose and metadata are added; no icon master, palette, acceptance hash, commercial reference or application UI implementation is copied or changed. Temporary previews of existing project icons stay outside the shipped resource package.
 
 ## What was inspected
 
-- SolidCraft's own `AGENTS.md`, `CONTRIBUTING.md`, architecture, render settings, render workspace, render backend and physical-material-card documentation at the pinned integration base.
-- SolidCraft's own attribution, asset validation and CI selection rules to place this contribution correctly.
+- DeSurface's own `AGENTS.md`, `CONTRIBUTING.md`, architecture, render settings, render workspace, render backend and physical-material-card documentation at the pinned integration base.
+- DeSurface's own attribution, asset validation and CI selection rules to place this contribution correctly.
 - SELENE's README, attribution, model statistics and `models/Rover-v7.solidcraft` at the pinned source revision.
 - Tangency Labs' own mechanism reference and public showcase, motion export and motion analysis discussions, identified in the prepared source lock.
 - The owner-supplied `SELENE-showcase.solidcraft`, its matching author-published Git blob, retained font notice, and official authoring-runtime identity, as recorded in the native package's source lock.

@@ -16,7 +16,7 @@ def main():
     root = materials.ROOT
     try:
         data = materials.load_json(pack / "pack.json")
-        if data.get("schema") != "solidcraft-authored-render-resources/1":
+        if data.get("schema") != "desurface-authored-render-resources/1":
             raise ValueError("unknown pack schema")
         if data.get("runtime_ready") is not False or data.get("native_library_format") is not False:
             raise ValueError("unsupported runtime/library availability claim")

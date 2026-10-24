@@ -40,7 +40,7 @@ The source lock preserves the earlier bounded public search as historical eviden
 
 ## Authorship and notices
 
-The [original rover attribution](https://github.com/0xlillith/solidcraft-rover/blob/b32437915372d32b71419dc8f5143fe22ff1e869/ATTRIBUTION.md) offers the original model under **MIT OR Apache-2.0** and credits the SolidCraft emblem to SolidCraft contributors. The original modeled lettering follows **Ubuntu Light** outlines by Canonical Ltd., under the **Ubuntu Font Licence 1.0**. Its exact notice is retained in [licenses/UFL.txt](licenses/UFL.txt). No font binary is added.
+The [original rover attribution](https://github.com/0xlillith/solidcraft-rover/blob/b32437915372d32b71419dc8f5143fe22ff1e869/ATTRIBUTION.md) offers the original model under **MIT OR Apache-2.0** and credits the DeSurface emblem to SolidCraft contributors. The original modeled lettering follows **Ubuntu Light** outlines by Canonical Ltd., under the **Ubuntu Font Licence 1.0**. Its exact notice is retained in [licenses/UFL.txt](licenses/UFL.txt). No font binary is added.
 
 SychPL is credited for the improved assembly, helper geometry and showcase study.
 On 2026-10-23T22:13:37Z, [SychPL explicitly licensed their additions](https://github.com/tangency-labs/solidcraft/pull/5494#issuecomment-6375788360)
@@ -54,13 +54,13 @@ New procedural geometry, English documentation and command generators in this de
 
 ## Authoring runtime and format compatibility
 
-The reconstruction workflow selects the official **SolidCraft v0.18.2 Linux x86_64 CLI**. Its [published release](https://github.com/tangency-labs/solidcraft/releases/tag/v0.18.2) identifies source commit `4927214976ff20758fde35af03bd6b2d6cf73e18`. The release archive SHA-256 is `9d0c922ac72204f34ad22ca7a171be78016ab002e304ace3c07d34d187d830ff`; the extracted CLI SHA-256 is `e50fe78292d569c36052b24f46f1732bc4e43d1ecdac6a64092aa1cee3b97086`. The executor is an external development dependency and is not bundled as a model asset.
+The reconstruction workflow selects the official **DeSurface v0.18.2 Linux x86_64 CLI**. Its [published release](https://github.com/tangency-labs/solidcraft/releases/tag/v0.18.2) identifies source commit `4927214976ff20758fde35af03bd6b2d6cf73e18`. The release archive SHA-256 is `9d0c922ac72204f34ad22ca7a171be78016ab002e304ace3c07d34d187d830ff`; the extracted CLI SHA-256 is `e50fe78292d569c36052b24f46f1732bc4e43d1ecdac6a64092aa1cee3b97086`. The executor is an external development dependency and is not bundled as a model asset.
 
 This runtime writes **`solidcraft/28`**, which the personal render branch's format-29 reader can migrate. The unchanged source remains in format 23. The newer official v0.19.0 writes format 30, beyond that render branch's reader, so its isolated component fixtures remain development evidence rather than the authoritative final build. Final acceptance must name the actual executor and final model hash; success in a different runtime does not replace that run. No native format marker is rewritten by these tools.
 
 ## Reproducibility boundaries
 
-- Keep the pinned source unchanged. Author geometry, appearances, components, joints and studies through SolidCraft commands into a separately named derivative.
+- Keep the pinned source unchanged. Author geometry, appearances, components, joints and studies through DeSurface commands into a separately named derivative.
 - Record the executor version and binary hash with each native build. A newer native format is not backwards compatible merely because geometry looks similar. Do not edit a file's format marker to bypass this restriction.
 - Bind exact evaluated body names and component identities. Feature declarations alone are not a body inventory.
 - Verify joint movement and followers against independent calculations. A successful command without actual movement is not a successful mechanism test.

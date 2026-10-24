@@ -1,7 +1,7 @@
 //! Device execution for layered weathering and nondestructive presentation.
 use super::*;
 use serde_json::json;
-use solidcraft_render::job::{
+use desurface_render::job::{
     JobId, Phase,
     aging::{AgingKind, AgingLayer, AgingStack, BodyName, BodyTarget},
     finishing::Finishing,
@@ -13,7 +13,7 @@ use solidcraft_render::job::{
 fn saved_targeted_aging_reaches_preflight_and_start_after_cold_reopen() {
     let Some(executor) = executor() else { return };
     assert!(executor.supports_aging());
-    let mut session = solidcraft_engine::Session::default();
+    let mut session = desurface_engine::Session::default();
     session.execute("solid.box", &json!({"body_name":"Decoy","length":1,"width":1,"height":1})).unwrap();
     session.execute("solid.box", &json!({"body_name":"Target panel","length":20,"width":15,"height":6})).unwrap();
     let state = session.model.state();
@@ -31,8 +31,8 @@ fn saved_targeted_aging_reaches_preflight_and_start_after_cold_reopen() {
             }}),
         )
         .unwrap();
-    let native = solidcraft_io::write_design_container(&session.doc).unwrap();
-    session = solidcraft_engine::Session::new(solidcraft_io::read_design(&native).unwrap());
+    let native = desurface_io::write_design_container(&session.doc).unwrap();
+    session = desurface_engine::Session::new(desurface_io::read_design(&native).unwrap());
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();
     session.register_render_job_host(host.clone()).unwrap();
     let document = session.doc.clone();
@@ -170,7 +170,7 @@ fn weathering_reference(@builtin(global_invocation_id) gid:vec3<u32>){
         seen.push(pixels);
         stack.move_layer(0, 1).unwrap();
     }
-    let expected = dust.color_srgb.map(solidcraft_render::surface::srgb8_to_linear);
+    let expected = dust.color_srgb.map(desurface_render::surface::srgb8_to_linear);
     for (actual, expected) in seen[0][0][..3].iter().zip(expected) {
         assert!((f64::from(*actual) - expected).abs() < 1e-6);
     }
@@ -225,7 +225,7 @@ fn photographic_and_ordered_colour_effects_change_png_not_raw_master_and_regrade
     assert_ne!(base.0, photo.0);
     assert_eq!(base.1, photo.1);
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();
-    let mut session = solidcraft_engine::Session::default();
+    let mut session = desurface_engine::Session::default();
     session.register_render_job_host(host).unwrap();
     session.execute("solid.box", &json!({"length":20,"width":15,"height":6})).unwrap();
     let request =
@@ -253,7 +253,7 @@ fn photographic_and_ordered_colour_effects_change_png_not_raw_master_and_regrade
 /// not by a raster-backed test double claiming an unsupported capability.
 #[test]
 fn saved_aging_identity_reaches_real_gpu_after_cold_reopen() {
-    use solidcraft_engine::{Session, doc, io};
+    use desurface_engine::{Session, doc, io};
     let Some(executor) = executor() else { return };
     assert!(executor.supports_aging());
     let host = ImageHost::with_executor(Arc::new(executor)).unwrap();

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Export chosen reference materials through a trusted card-capable SolidCraft CLI.
+"""Export chosen reference materials through a trusted card-capable DeSurface CLI.
 
 A fresh command-line session creates no geometry or body assignments. The native
 application owns library-v2 serialization and content revisions. All output stays
@@ -50,11 +50,11 @@ def selection(ids: list[str] | None, acknowledge: bool) -> dict:
                          'extended_property_ids': [row['id'] for row in native['not_projected']]})
     p.require(selected, "No selected reference has a supported point density")
     p.require(before == input_pins(), "Source revision changed during plan preparation")
-    return {'schema': 'solidcraft-physical-library-plan/1', 'executed': False,
+    return {'schema': 'desurface-physical-library-plan/1', 'executed': False,
             'reference_selection_required': True, 'assigns_bodies': False,
             'id': PACK_ID, 'input_sha256': before, 'materials': selected, 'omitted': omitted,
             'preserve_extended_profiles': True,
-            'required_contract': 'material.create physical_card, material.inspect, solidcraft-library/2'}
+            'required_contract': 'material.create physical_card, material.inspect, desurface-library/2'}
 
 
 def registry_check(registry: object) -> None:
@@ -67,7 +67,7 @@ def registry_check(registry: object) -> None:
     p.require(all(isinstance(commands[name].get('params'), str) for name in ('material.create', 'library.export')), 'Malformed native parameter documentation')
     p.require('physical_card' in commands['material.create'].get('params', ''),
               "This executable cannot preserve physical cards; scalar material creation is refused")
-    p.require('solidcraft-library/2' in commands['library.export'].get('params', ''),
+    p.require('desurface-library/2' in commands['library.export'].get('params', ''),
               "Native library-v2 export is required; scalar export would lose engineering data")
 
 
@@ -83,7 +83,7 @@ def invoke(cli: Path, arguments: list[str]) -> object:
 
 
 def verify_catalog(catalog: object, plan: dict) -> None:
-    p.require(isinstance(catalog, dict) and catalog.get('format') == 'solidcraft-library/2', "Native export did not produce library v2")
+    p.require(isinstance(catalog, dict) and catalog.get('format') == 'desurface-library/2', "Native export did not produce library v2")
     p.require(catalog.get('id') == PACK_ID, "Wrong native library identity")
     entries = catalog.get('entries')
     p.require(isinstance(entries, list) and len(entries) == len(plan['materials']), "Missing or extra native materials")
@@ -111,7 +111,7 @@ def verify_catalog(catalog: object, plan: dict) -> None:
 def library_command(path: Path) -> dict:
     return {'command': 'library.export', 'params': {
         'path': str(path), 'id': PACK_ID, 'name': 'Physical references - select grade and conditions',
-        'format': 'solidcraft-library/2', 'overwrite': False,
+        'format': 'desurface-library/2', 'overwrite': False,
         'provenance': {'license': 'MIT OR Apache-2.0', 'author': 'SolidCraft contributors',
                        'source_url': 'https://github.com/0xlillith/solidcraft/tree/assets/material-physical-properties/assets/render/physical'}}}
 
@@ -148,7 +148,7 @@ def export(cli: Path, plan: dict) -> dict:
     verify_catalog(restored, plan)
     p.require(restored == catalog, "Cold reopen changed the native material library")
     p.require(before == input_pins(), "Source revision changed during library export")
-    receipt = {'schema': 'solidcraft-physical-library-export-receipt/1', 'status': 'pass',
+    receipt = {'schema': 'desurface-physical-library-export-receipt/1', 'status': 'pass',
                'cli_sha256': p.sha(cli), 'input_sha256': before, 'library_sha256': p.sha(output),
                'material_count': len(plan['materials']), 'omitted': plan['omitted'],
                'native_inspection': True, 'cold_reopen': True, 'body_assignment': False,

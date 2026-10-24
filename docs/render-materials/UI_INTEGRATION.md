@@ -1,8 +1,8 @@
-# Render UI integration with the SolidCraft redesign
+# Render UI integration with the DeSurface redesign
 
 ## Decision and design authority
 
-Render will use the implemented SolidCraft shell, tab language, approved icons and shared controls. The aim is a visually coherent workspace in which a useful image starts with a scene and quality choice, while precise optical and rendering controls remain available in context.
+Render will use the implemented DeSurface shell, tab language, approved icons and shared controls. The aim is a visually coherent workspace in which a useful image starts with a scene and quality choice, while precise optical and rendering controls remain available in context.
 
 This document is an **implementation specification**. It adds no runtime UI, screenshots of new behavior, icon artwork or registered command. [ui-integration.json](ui-integration.json) records the source revisions, identifiers, layout roles and acceptance cases. [UX.md](UX.md) explains the broader product workflows; [ux.json](ux.json) retains the 56 stable requirement IDs.
 
@@ -202,4 +202,4 @@ For any new common control, extend `ui_kit`, its documented tokens, `gallery::EL
 
 Actual implementation acceptance needs repository gates, native/WASM checks where relevant, real application captures in both themes/layouts and the interaction cases above. Source inspection, the icon contact sheet and JSON validation establish preparation only. [VALIDATION.md](VALIDATION.md) records what has actually run.
 
-All content here is original planning based on SolidCraft's own public code and design rules. No commercial CAD interface, artwork, material library or GPL implementation was consulted. Existing assets remain in their original locations with their original acceptance records.
+All content here is original planning based on DeSurface's own public code and design rules. No commercial CAD interface, artwork, material library or GPL implementation was consulted. Existing assets remain in their original locations with their original acceptance records.

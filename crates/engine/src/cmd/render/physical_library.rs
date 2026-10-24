@@ -3,7 +3,7 @@
 use crate::{Result, Session, params::bad};
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_doc::{
+use desurface_doc::{
     physical_material::{PropertyData, ValidatedCard},
     render_resources::HdrId,
 };

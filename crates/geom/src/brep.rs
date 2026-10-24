@@ -1,4 +1,4 @@
-//! SolidCraft-owned portable B-rep data, independent of a modelling backend.
+//! DeSurface-owned portable B-rep data, independent of a modelling backend.
 //! Millimetres, radians, right-handed Z-up. See docs/native-brep.md for semantics.
 //! Validation checks structure and resource budgets, not geometric equivalence or trust.
 use serde::{Deserialize, Serialize};

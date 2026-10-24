@@ -2,7 +2,7 @@
 use super::*;
 use crate::job::{ReflectionBody, ReflectionMode, ReflectionOptions};
 use crate::{ProductMesh, StandardView};
-use solidcraft_geom::{Aabb3, Mesh};
+use desurface_geom::{Aabb3, Mesh};
 use std::sync::Arc;
 
 fn progressive_fixture(samples: u32, seed: u32, left: Option<bool>, exposure: f64) -> ImageTask {

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Validate the SolidCraft v0.2 concept package using Python 3.11 stdlib only.
+"""Validate the DeSurface v0.2 concept package using Python 3.11 stdlib only.
 
 Usage: python3 validate_catalog.py [CATALOG_DIRECTORY] [--json]
 
 This is a read-only data lint and analytic planning check. Passing does not bind
 presets, run a renderer, certify physical accuracy, or prove runtime support.
-Current-command limits are taken from SolidCraft docs/render-settings.md and
+Current-command limits are taken from DeSurface docs/render-settings.md and
 the associated Rust settings types; future authoring presets use separate rules.
 Both flat v0.2 envelopes and normalized {metadata: {...}, items: [...]} envelopes
 are accepted so the same validator can run before and after package assembly.
@@ -1168,7 +1168,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False))
     else:
-        print("PASS" if report["valid"] else "FAIL", "— SolidCraft v0.2 catalog validation")
+        print("PASS" if report["valid"] else "FAIL", "— DeSurface v0.2 catalog validation")
         for filename, count in report["counts"].items():
             print(f"  {filename}: {count}")
         for level in ("errors", "warnings"):

@@ -1,7 +1,7 @@
 //! Temporary visual review: rasterise the app's actual egui meshes without WindowServer.
 use egui::{ColorImage, TextureId, pos2, vec2};
 use serde_json::json;
-use solidcraft_ui_egui::{
+use desurface_ui_egui::{
     dialogs::Kind,
     scenario::{self, Harness},
 };
@@ -107,7 +107,7 @@ fn capture() {
     let crashes = format!("{root}/crashes");
     let id = "20261018-210412-bb60791ed6692f1d";
     std::fs::create_dir_all(format!("{crashes}/{id}")).unwrap();
-    std::fs::write(format!("{crashes}/{id}/report.json"),json!({"format":"solidcraft-crash/1","id":id,"kind":"command_panic","count":3,"first_seen":"2026-10-18T21:04:12Z","message":"The radius produced a degenerate face while rebuilding Fillet2.","command":{"command":"solid.fillet","params":{"radius":2}},"backtrace":[],"app":{"version":"0.16.1"},"system":{}}).to_string()).unwrap();
+    std::fs::write(format!("{crashes}/{id}/report.json"),json!({"format":"desurface-crash/1","id":id,"kind":"command_panic","count":3,"first_seen":"2026-10-18T21:04:12Z","message":"The radius produced a degenerate face while rebuilding Fillet2.","command":{"command":"solid.fillet","params":{"radius":2}},"backtrace":[],"app":{"version":"0.16.1"},"system":{}}).to_string()).unwrap();
     std::fs::write(format!("{crashes}/{id}/replay.json"), "{}").unwrap();
     for dark in [false, true] {
         for mode in ["crash", "appearance", "params", "config", "prefs"] {
@@ -132,13 +132,13 @@ fn capture() {
             } else {
                 h.app.run("solid.box", json!({"length":10,"width":10,"height":10})).unwrap();
                 h.app.run("appearance.assign", json!({"bodies":["Body1"],"color":"#ccd0d6","appearance":"Aluminum - Satin","opacity":1.0})).unwrap();
-                h.app.session.selection = vec![solidcraft_engine::Sel::Body { name: "Body1".into() }];
+                h.app.session.selection = vec![desurface_engine::Sel::Body { name: "Body1".into() }];
                 let path = format!("{root}/review-library.json");
                 h.app.run("library.export", json!({"path":path,"overwrite":true})).unwrap();
                 h.app.start("appearance.assign");
                 let Kind::Appearance(k) = &mut h.app.dialog.as_mut().unwrap().kind else { panic!() };
                 k.local.path = path.clone();
-                k.local.catalog = Some(solidcraft_engine::io::catalog::Catalog::read(&path).unwrap());
+                k.local.catalog = Some(desurface_engine::io::catalog::Catalog::read(&path).unwrap());
                 k.local.selected = k.local.catalog.as_ref().and_then(|c| c.entries.first()).map(|e| e.id.clone());
                 k.note = Some("Appearance applied".into());
                 if mode == "pbr" {
@@ -147,7 +147,7 @@ fn capture() {
                 }
             }
             h.ctx = egui::Context::default();
-            solidcraft_ui_egui::fonts::setup_fonts(&h.ctx);
+            desurface_ui_egui::fonts::setup_fonts(&h.ctx);
             let mut textures = HashMap::new();
             for _ in 0..6 {
                 paint(&mut h, &mut textures, vec![]);

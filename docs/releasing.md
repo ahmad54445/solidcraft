@@ -1,4 +1,4 @@
-# Releasing SolidCraft
+# Releasing DeSurface
 
 Releases are deliberate operations that an agent can complete end to end. Development lands
 on `main`; pushing the selected commit to `release` builds all packages and creates a **draft**
@@ -8,16 +8,16 @@ version bump and no patch release for every merge.
 
 ## Names and deployment
 
-Every release asset, binary, installer product name and package uses the SolidCraft name
-(`solidcraft-<version>-linux-<arch>.AppImage`, `SolidCraft-<version>-windows-x64.exe`,
-`solidcraft-cli` archives, …). The old name survives only in the shims listed in
+Every release asset, binary, installer product name and package uses the DeSurface name
+(`desurface-<version>-linux-<arch>.AppImage`, `DeSurface-<version>-windows-x64.exe`,
+`desurface-cli` archives, …). The old name survives only in the shims listed in
 [compatibility.md](compatibility.md) (the end-of-life Flatpak refs of the old Linux app ID, the legacy `.zsync` and `.flatpakrepo`
 copies, the deprecated old-name CLI alias); keep them until that document says they can go. Do not
 rewrite published assets, checksums, tags or historical release notes of earlier versions.
 
 The main installers (`.msi`, portable `.zip`, `.dmg`, `.AppImage`, `.deb`, `.rpm`, `.flatpak`, `.snap`) are
-also attached without the version in their names, for example `solidcraft-windows-x64.msi` and
-`solidcraft-linux-x86_64.AppImage`, and listed in `SHA256SUMS.txt`. The README's Download section
+also attached without the version in their names, for example `desurface-windows-x64.msi` and
+`desurface-linux-x86_64.AppImage`, and listed in `SHA256SUMS.txt`. The README's Download section
 links to `https://github.com/bherbruck/solidcraft/releases/latest/download/<name>`, which follows
 the release marked latest; nightlies never are. Keep these names stable: renaming one breaks the
 README links and the in-app update check, which picks them by name (`crates/ui-egui/src/update.rs`;
@@ -28,9 +28,9 @@ repository under `/solidcraft/`. Do not add a separate owner-site publisher or p
 old-name Pages/Flatpak aliases. GitHub repository redirects are separate from Pages hosting;
 verify the new project URLs after deployment.
 
-The browser app keeps itself for offline use (`apps/solidcraft-web/sw.js`). Browsers keep that
+The browser app keeps itself for offline use (`apps/desurface-web/sw.js`). Browsers keep that
 service worker after the code that registered it is gone, so to switch it off deploy
-`apps/solidcraft-web/sw.js` unbuilt (as `trunk serve` builds do): it deletes what it kept and
+`apps/desurface-web/sw.js` unbuilt (as `trunk serve` builds do): it deletes what it kept and
 unregisters. A site without `build.json` is also safe: launches then go to the network.
 
 ## Nightly prereleases
@@ -70,7 +70,7 @@ deployment. The stable Flatpak repository is not automatically updated with nigh
    `cargo update --workspace --offline` to refresh the workspace packages' versions in
    `Cargo.lock` (it changes only our own crates, never dependency versions, and needs no
    network). Inspect the diff: only `version = ` lines of workspace crates should change.
-   SolidCraft does not currently implement `cargo xtask version set`.
+   DeSurface does not currently implement `cargo xtask version set`.
 3. Fix the design format number: run `scripts/fold-format-pending.sh`. It moves the pending
    format changes (`crates/doc/src/format/pending/*.rs`) into the next `crates/doc/src/format/v<N>/`
    folder, so the release writes and reads that number for good, and does nothing when nothing
@@ -101,7 +101,7 @@ fast-forward fails, inspect and resolve the divergence through the normal review
 Find the `release.yml` Actions run for the recorded SHA and `release` branch, and monitor that
 specific run. The workflow builds Linux (both architectures, including Flatpak), macOS,
 Windows, FreeBSD, and web packages. Once every required job succeeds it creates a draft
-`SolidCraft v<version>` with the artifacts, `SHA256SUMS.txt`, install notes, and generated changes.
+`DeSurface v<version>` with the artifacts, `SHA256SUMS.txt`, install notes, and generated changes.
 
 A second push with the same untagged version can rebuild and replace that draft's complete
 asset set. Existing release notes are preserved on rebuild; refresh their changes section if
@@ -164,7 +164,7 @@ erase the package repository.
 
 ## Snap package and Snap Store
 
-Every release and nightly attaches `solidcraft-<version>-linux-<arch>.snap` for x86_64 and
+Every release and nightly attaches `desurface-<version>-linux-<arch>.snap` for x86_64 and
 aarch64 (`packaging/linux/snap-pack.sh`, manifest `packaging/linux/snap/snapcraft.yaml`). Like the
 Flatpak, it repackages the Linux job's tarball. The `snap` job installs it with `--dangerous`,
 starts the confined app on headless X11 and Wayland (`packaging/linux/snap-smoke.py`), models a
@@ -183,22 +183,22 @@ without it they are skipped and the `.snap` files are still attached to the rele
 To enable the Snap Store once (owner):
 
 1. Sign in at <https://snapcraft.io> with an Ubuntu One account and register the name at
-   <https://snapcraft.io/register-snap> (or `snapcraft login` then `snapcraft register solidcraft`).
+   <https://snapcraft.io/register-snap> (or `snapcraft login` then `snapcraft register desurface`).
 2. On a machine with snapcraft (`sudo snap install snapcraft --classic`), export upload-only
    credentials for this snap:
 
    ```sh
-   snapcraft export-login --snaps=solidcraft \
+   snapcraft export-login --snaps=desurface \
      --channels=edge,candidate,stable \
      --acls=package_access,package_push,package_update,package_release \
-     --expires=2027-10-01 solidcraft-store-credentials.txt
+     --expires=2027-10-01 desurface-store-credentials.txt
    ```
 
 3. Store them as the repository secret and delete the file:
 
    ```sh
-   gh secret set SNAPCRAFT_STORE_CREDENTIALS -R bherbruck/solidcraft < solidcraft-store-credentials.txt
-   rm solidcraft-store-credentials.txt
+   gh secret set SNAPCRAFT_STORE_CREDENTIALS -R bherbruck/solidcraft < desurface-store-credentials.txt
+   rm desurface-store-credentials.txt
    ```
 
 4. Optional: fill in the store listing at <https://snapcraft.io/solidcraft/listing> (the icon,
@@ -209,16 +209,16 @@ To enable the Snap Store once (owner):
 
 Renew the credentials before `--expires` by repeating steps 2 and 3. The snap uses strict
 confinement and only plugs that connect automatically, apart from `removable-media`, which users
-connect with `sudo snap connect solidcraft:removable-media` (getting-started.md).
+connect with `sudo snap connect desurface:removable-media` (getting-started.md).
 
 ## WinGet (Windows Package Manager)
 
-SolidCraft is in [winget-pkgs](https://github.com/microsoft/winget-pkgs) as
-`bherbruck.SolidCraft` (`winget install bherbruck.SolidCraft`). Publishing a non-prerelease
+DeSurface is in [winget-pkgs](https://github.com/microsoft/winget-pkgs) as
+`bherbruck.DeSurface` (`winget install bherbruck.DeSurface`). Publishing a non-prerelease
 GitHub release runs `winget.yml`, which uses [Komac](https://github.com/russellbanks/Komac)
 (a pinned, checksum-verified binary) to open a pull request at microsoft/winget-pkgs from the
 owner's fork `bherbruck/winget-pkgs`. It submits the three versioned MSIs
-(`solidcraft-<version>-windows-{x64,x86,arm64}.msi`, never the fixed-name copies), reads their
+(`desurface-<version>-windows-{x64,x86,arm64}.msi`, never the fixed-name copies), reads their
 product codes, links the release notes and keeps the other fields from the previous version's
 manifest. The winget-pkgs bots validate it and a moderator merges it, usually within a day or two.
 
@@ -231,7 +231,7 @@ To enable it once (owner):
 
 1. Create a **classic** personal access token at <https://github.com/settings/tokens/new>
    (Settings > Developer settings > Personal access tokens > Tokens (classic)): note
-   "solidcraft winget", an expiry such as one year, and only the **`public_repo`** scope.
+   "desurface winget", an expiry such as one year, and only the **`public_repo`** scope.
    Fine-grained tokens can't open pull requests on microsoft/winget-pkgs.
 2. Store it as the repository secret (paste the token when asked):
 
@@ -253,7 +253,7 @@ matches the release's `SHA256SUMS.txt`, fetched over HTTPS. That protects agains
 tampered downloads in transit, but not against someone who can upload release assets. Signing
 the checksum list closes that gap: once `PUBLIC_KEY` in `crates/ui-egui/src/update/install.rs`
 is set, the app also requires `SHA256SUMS.txt.minisig`, a [minisign](https://jedisct1.github.io/minisign/)
-signature by that key whose trusted comment names the release (`SolidCraft v<version>`), and
+signature by that key whose trusted comment names the release (`DeSurface v<version>`), and
 refuses to update in place otherwise. The release workflow signs the list when the
 `UPDATE_SIGNING_KEY` secret exists, and fails when the app expects signatures but the secret is
 missing.
@@ -264,17 +264,17 @@ To turn it on once (owner):
    `winget install minisign`), make a key pair without a password (the workflow can't type one):
 
    ```sh
-   minisign -G -W -p solidcraft-update.pub -s solidcraft-update.key
+   minisign -G -W -p desurface-update.pub -s desurface-update.key
    ```
 
 2. Store the secret key as the repository secret and keep an offline backup of it (a lost key
    means a new key and an app release that carries it; a leaked key means the same, quickly):
 
    ```sh
-   gh secret set UPDATE_SIGNING_KEY -R bherbruck/solidcraft < solidcraft-update.key
+   gh secret set UPDATE_SIGNING_KEY -R bherbruck/solidcraft < desurface-update.key
    ```
 
-3. Put the public key (the second line of `solidcraft-update.pub`, starting with `RW`) into
+3. Put the public key (the second line of `desurface-update.pub`, starting with `RW`) into
    `crates/ui-egui/src/update/install.rs`:
 
    ```rust
@@ -283,7 +283,7 @@ To turn it on once (owner):
 
    and land that through a PR. Builds from then on refuse unsigned updates; releases built
    from then on carry `SHA256SUMS.txt.minisig`.
-4. Delete `solidcraft-update.key` from the machine once the backup is safe.
+4. Delete `desurface-update.key` from the machine once the backup is safe.
 
 Older builds without the key keep updating with the SHA-256 check alone.
 

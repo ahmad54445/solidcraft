@@ -3,8 +3,8 @@
 //! profile.
 
 use serde_json::{Value, json};
-use solidcraft_geom::Vec2;
-use solidcraft_sketch::{CurveKind, Sketch};
+use desurface_geom::Vec2;
+use desurface_sketch::{CurveKind, Sketch};
 
 use crate::Session;
 
@@ -19,7 +19,7 @@ fn sketch(s: &Session) -> Sketch {
     s.doc.sketch(s.active_sketch.unwrap()).unwrap().clone()
 }
 
-fn curve<'a>(sk: &'a Sketch, id: &str) -> &'a solidcraft_sketch::Curve {
+fn curve<'a>(sk: &'a Sketch, id: &str) -> &'a desurface_sketch::Curve {
     sk.curves.get(sk.curve_index(id).unwrap()).unwrap()
 }
 
@@ -67,7 +67,7 @@ fn it_is_saved_and_a_line_without_it_reads_finite() {
     run(&mut s, "sketch.line", json!({"points": [[0, 10], [10, 15]], "ids": ["b"]}));
     run(&mut s, "sketch.infinite", json!({"curves": ["a"]}));
     let text = s.doc.to_json();
-    let back = solidcraft_doc::Document::from_json(&text).unwrap();
+    let back = desurface_doc::Document::from_json(&text).unwrap();
     let sk = back.sketch(s.active_sketch.unwrap()).unwrap();
     assert!(curve(sk, "a").infinite);
     assert!(!curve(sk, "b").infinite);

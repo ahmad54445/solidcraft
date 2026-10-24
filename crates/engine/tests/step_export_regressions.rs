@@ -2,8 +2,8 @@
 //! must export, and read back as the same solid.
 
 use serde_json::{Value, json};
-use solidcraft_engine::Session;
-use solidcraft_kernel::{measure, step_export, step_import};
+use desurface_engine::Session;
+use desurface_kernel::{measure, step_export, step_import};
 
 fn run(s: &mut Session, script: Value) {
     for c in script.as_array().into_iter().flatten() {

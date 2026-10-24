@@ -38,7 +38,7 @@ python3 docs/render-materials/validate_catalog.py --json
 
 Checks include unique IDs and names, expected series and counts, required data fields, finite numbers, capability/provenance/source references, roadmap dependency cycles, sample and path-depth bounds, output capabilities, light geometry, passive modifiers, unit declarations, physical-vacuum environment rules, scene dependency unions, ground/rock role references and solar-source ownership.
 
-The six current-contract examples were checked against the pinned `docs/render-settings.md`: command/field shape, backend/mode/format, setup names, dimensions, pixel product, color bytes and exposure/environment bounds. They were not executed in a SolidCraft application. Preflight against a real document must also account for existing setup names and the 32-setup total limit.
+The six current-contract examples were checked against the pinned `docs/render-settings.md`: command/field shape, backend/mode/format, setup names, dimensions, pixel product, color bytes and exposure/environment bounds. They were not executed in a DeSurface application. Preflight against a real document must also account for existing setup names and the 32-setup total limit.
 
 Analytic fixture expectations were recomputed for constant-gravity flight, millimeter/SI conversion including inertia and torque, offset release velocity, principal-inertia admissibility and sample mass bookkeeping. These checks validate the specification's arithmetic; they do not test an implemented physics solver.
 

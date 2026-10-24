@@ -2,7 +2,7 @@
 //! Colours are linear sRGB; intensity is relative radiance, not watts or illuminance.
 //! Visibility is supplied separately for every light by the ray-tracing consumer.
 
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 use crate::surface::{OpaqueSurface, unit_direction};
 

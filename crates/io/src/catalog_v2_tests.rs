@@ -1,10 +1,10 @@
 use super::*;
 use serde_json::{Value, json};
-use solidcraft_doc::{pbr_appearance::PbrParameters, physical_material::ValidatedCard};
+use desurface_doc::{pbr_appearance::PbrParameters, physical_material::ValidatedCard};
 
 // Exact bytes and revisions captured from the pre-v2 writer at 75e66eea.
 const V1: &str = r#"{
-  "format": "solidcraft-library/1",
+  "format": "desurface-library/1",
   "id": "user.test",
   "name": "Original v1 fixture",
   "entries": [

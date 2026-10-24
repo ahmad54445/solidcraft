@@ -1,5 +1,5 @@
 //! The Help menu (the ? button on the application bar): Documentation (the online book), About
-//! SolidCraft (version, commit, build date, licences, attributions, fonts), the keyboard shortcuts
+//! DeSurface (version, commit, build date, licences, attributions, fonts), the keyboard shortcuts
 //! (read only), Messages (every status message of the run, #2763), and Report an Issue, which
 //! opens a local editable report draft.
 
@@ -8,12 +8,12 @@ use crate::ui_kit;
 use crate::ui_kit::{Container, Surface};
 
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
-pub const COMMIT: &str = env!("SOLIDCRAFT_COMMIT");
-pub const BUILD_DATE: &str = env!("SOLIDCRAFT_BUILD_DATE");
+pub const COMMIT: &str = env!("DESURFACE_COMMIT");
+pub const BUILD_DATE: &str = env!("DESURFACE_BUILD_DATE");
 /// The user and developer guide (docs/book, published by .github/workflows/pages.yml).
 pub const DOCS_URL: &str = "https://docs.solidcraft.io/";
 const ATTRIBUTION: &str = include_str!("../../../ATTRIBUTION.md");
-use solidcraft_engine::licences::{LICENSE_APACHE, LICENSE_MIT, NOTICE, THIRD_PARTY};
+use desurface_engine::licences::{LICENSE_APACHE, LICENSE_MIT, NOTICE, THIRD_PARTY};
 
 #[derive(Default)]
 pub struct HelpState {
@@ -27,7 +27,7 @@ pub struct HelpState {
 pub fn diagnostics(app: &SolveApp) -> String {
     let renderer = if app.viewport.gpu.is_some() { "GPU" } else { "CPU" };
     format!(
-        "SolidCraft {VERSION} ({COMMIT}, built {BUILD_DATE})\nOS: {} {}\nRenderer: {renderer}{}\nWindow: {}\nDesign: {} ({} features, {} bodies)",
+        "DeSurface {VERSION} ({COMMIT}, built {BUILD_DATE})\nOS: {} {}\nRenderer: {renderer}{}\nWindow: {}\nDesign: {} ({} features, {} bodies)",
         std::env::consts::OS,
         std::env::consts::ARCH,
         app.help.gpu.as_ref().map(|g| format!(", {g}")).unwrap_or_default(),
@@ -72,7 +72,7 @@ pub fn show(app: &mut SolveApp, ctx: &egui::Context, anchor: egui::Pos2) {
                 crate::context_menu::menu_frame(ui, |ui| {
                     for (id, label, icon) in [
                         ("docs", "Documentation", "library"),
-                        ("about", "About SolidCraft", "help"),
+                        ("about", "About DeSurface", "help"),
                         ("shortcuts", "Keyboard Shortcuts", "list"),
                         ("messages", "Messages…", "list"),
                         ("report", "Report an Issue…", "bug_report"),
@@ -103,7 +103,7 @@ fn about(app: &mut SolveApp, ctx: &egui::Context) {
     if !app.help.about {
         return;
     }
-    let (closed, action) = ui_kit::Window::new(egui::Id::new("sc_about"), "help", crate::i18n::tr_label("About SolidCraft"))
+    let (closed, action) = ui_kit::Window::new(egui::Id::new("sc_about"), "help", crate::i18n::tr_label("About DeSurface"))
         .cards(2.0)
         .actions("", "Close", None)
         .show(ctx, true, |ui| {
@@ -139,7 +139,7 @@ fn about(app: &mut SolveApp, ctx: &egui::Context) {
                     }
                     ui_kit::section(ui, "third_party", crate::i18n::tr("help.third_party"), false, |ui| {
                         if ui_kit::button(ui, crate::i18n::tr_label("Copy all licences"), ui_kit::Button::Normal).clicked() {
-                            ctx.copy_text(solidcraft_engine::licences::all());
+                            ctx.copy_text(desurface_engine::licences::all());
                         }
                         ui_kit::text_lines(ui, "sc_third_party", THIRD_PARTY);
                     });
@@ -159,7 +159,7 @@ mod tests {
     fn about_knows_its_build_and_diagnostics_say_where_it_runs() {
         assert!(!COMMIT.is_empty() && BUILD_DATE.len() == 10, "{COMMIT} {BUILD_DATE}");
         assert!(ATTRIBUTION.contains("ATTRIBUTION") || ATTRIBUTION.contains("Attribution"));
-        let app = SolveApp::new(solidcraft_engine::Session::default(), Default::default());
+        let app = SolveApp::new(desurface_engine::Session::default(), Default::default());
         let d = diagnostics(&app);
         assert!(d.contains(VERSION) && d.contains(std::env::consts::OS) && d.contains("Renderer: CPU"), "{d}");
     }

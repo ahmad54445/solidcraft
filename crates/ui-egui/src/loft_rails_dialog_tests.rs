@@ -4,8 +4,8 @@ use crate::dialogs::Kind;
 use crate::dialogs_surface::Surf;
 use crate::scenario::Harness;
 use serde_json::json;
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::{FeatureKind, RailFit, SketchId, SweepRail};
+use desurface_engine::Sel;
+use desurface_engine::doc::{FeatureKind, RailFit, SketchId, SweepRail};
 
 /// Circles `Base` (z = 0) and `Top` (z = 40) and in `R` on XZ a rail `out` from (10, 0, 0) out to
 /// x = 15 halfway and back to (10, 0, 40); the circles' and the rail's sketch ids.

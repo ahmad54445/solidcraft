@@ -4,12 +4,12 @@
 #
 # Exports:
 #   ROOT                    workspace root
-#   VERSION                 [workspace.package] version from Cargo.toml (override: SOLIDCRAFT_VERSION)
+#   VERSION                 [workspace.package] version from Cargo.toml (override: DESURFACE_VERSION)
 #
-# Every SOLIDCRAFT_* override also accepts the pre-rename SOLVECRAFT_* name when the new one is
+# Every DESURFACE_* override also accepts the pre-rename SOLVECRAFT_* name when the new one is
 # unset (compatibility shim, see docs/compatibility.md).
 #   DIST                    output directory for release artifacts (default: $ROOT/dist/release)
-#   SOLIDCRAFT_BUILD_DATE   UTC build date, YYYY-MM-DD
+#   DESURFACE_BUILD_DATE   UTC build date, YYYY-MM-DD
 #   CARGO_TARGET_DIR        cargo's target dir (default: $ROOT/target)
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,7 +23,7 @@ workspace_version() {
   ' "$ROOT/Cargo.toml"
 }
 
-VERSION="${SOLIDCRAFT_VERSION:-${SOLVECRAFT_VERSION:-$(workspace_version)}}"
+VERSION="${DESURFACE_VERSION:-${SOLVECRAFT_VERSION:-$(workspace_version)}}"
 if [ -z "$VERSION" ]; then
   echo "error: could not read [workspace.package] version from $ROOT/Cargo.toml" >&2
   exit 1
@@ -35,7 +35,7 @@ mkdir -p "$DIST"
 DIST="$(cd "$DIST" && pwd)"
 export DIST
 
-export SOLIDCRAFT_BUILD_DATE="${SOLIDCRAFT_BUILD_DATE:-${SOLVECRAFT_BUILD_DATE:-$(date -u +%Y-%m-%d)}}"
+export DESURFACE_BUILD_DATE="${DESURFACE_BUILD_DATE:-${SOLVECRAFT_BUILD_DATE:-$(date -u +%Y-%m-%d)}}"
 export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/target}"
 # The reverse-DNS id: Flatpak app id, desktop, metainfo and MIME file names, icon name and the
 # window's Wayland app_id / X11 class. Releases before 0.8 used ai.storyteller.solvecraft; the
@@ -49,7 +49,7 @@ warn() {
 }
 
 # Copy the licence, notice and readme files into a package directory. The programs also carry
-# them (Help > About > Licences, `solidcraft-cli licences`).
+# them (Help > About > Licences, `desurface-cli licences`).
 copy_docs() {
   local dest="$1" f
   for f in README.md LICENSE-MIT LICENSE-APACHE NOTICE THIRD-PARTY-LICENSES.txt; do
@@ -64,5 +64,5 @@ make_icons() {
     mkdir -p "$out/hicolor/${s}x${s}/apps"
     cp "$ROOT/assets/icons/app/linux/exports/hicolor/${s}x${s}/apps/$APP_ID.png" "$out/hicolor/${s}x${s}/apps/$APP_ID.png" || return
   done
-  cp "$ROOT/assets/icons/app/windows/exports/solidcraft.ico" "$out/solidcraft.ico"
+  cp "$ROOT/assets/icons/app/windows/exports/desurface.ico" "$out/desurface.ico"
 }

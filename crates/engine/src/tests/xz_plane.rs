@@ -63,7 +63,7 @@ fn positive_extrude_from_xz_goes_plus_y() {
 
 #[test]
 fn format_5_xz_design_opens_where_it_was_saved() {
-    let dir = std::env::temp_dir().join(format!("solidcraft-xz78-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-xz78-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join("old-xz.solidcraft");
     let mut s = Session::default();
@@ -90,7 +90,7 @@ fn format_5_xz_design_opens_where_it_was_saved() {
     let resaved = dir.join("resaved.solidcraft");
     run(&mut old, "file.save_as", json!({"path": resaved.to_string_lossy(), "format": "json"}));
     let text = std::fs::read_to_string(&resaved).unwrap();
-    assert!(text.contains(&format!("\"solidcraft/{}\"", solidcraft_doc::format::FORMAT)), "resaved at the current format");
+    assert!(text.contains(&format!("\"solidcraft/{}\"", desurface_doc::format::FORMAT)), "resaved at the current format");
     let mut again = Session::default();
     run(&mut again, "doc.open", json!({"path": resaved.to_string_lossy()}));
     expect(&bodies(&mut again), &want);

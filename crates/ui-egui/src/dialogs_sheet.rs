@@ -7,11 +7,11 @@ use crate::dialogs::put;
 use crate::ui_kit::{choice_row, expr_row, hint_row};
 use egui::{Align2, Color32, FontId, Pos2, Rect, RichText, Stroke, pos2, vec2};
 use serde_json::{Map, Value, json};
-use solidcraft_engine::Sel;
-use solidcraft_engine::doc::expr::Kind as ValueKind;
-use solidcraft_engine::doc::sheet::SheetRule;
-use solidcraft_engine::doc::{FeatureKind, ProfileSel};
-use solidcraft_engine::geom::{Vec2, Vec3};
+use desurface_engine::Sel;
+use desurface_engine::doc::expr::Kind as ValueKind;
+use desurface_engine::doc::sheet::SheetRule;
+use desurface_engine::doc::{FeatureKind, ProfileSel};
+use desurface_engine::geom::{Vec2, Vec3};
 
 use crate::SolveApp;
 use crate::dialogs::{Dialog, Kind, edge_sel, face_sel, form_row, profile_indices};
@@ -907,26 +907,26 @@ pub fn overlay(app: &mut SolveApp, painter: &egui::Painter, rect: Rect, d: &Dial
 /// y up, millimetres), so the shared navigation moves it like any other camera. The Design
 /// camera is left alone while this has the viewport.
 pub struct FlatView {
-    pub cam: solidcraft_engine::render::Camera,
+    pub cam: desurface_engine::render::Camera,
     /// The camera frames the pattern; cleared by Fit and Home, and whenever the dialog is closed.
     pub fitted: bool,
     /// Flat centres stay out of the command JSON and are reused while navigating.
-    perforation_key: Option<(std::sync::Weak<solidcraft_engine::doc::ModelState>, String)>,
+    perforation_key: Option<(std::sync::Weak<desurface_engine::doc::ModelState>, String)>,
     perforations: Vec<(Vec2, f64)>,
 }
 
 impl Default for FlatView {
     fn default() -> Self {
-        let mut cam = solidcraft_engine::render::Camera::default();
-        cam.set_view(solidcraft_engine::render::StandardView::Top);
+        let mut cam = desurface_engine::render::Camera::default();
+        cam.set_view(desurface_engine::render::StandardView::Top);
         cam.fov = 0.0;
-        cam.up = solidcraft_engine::render::UpAxis::Z;
+        cam.up = desurface_engine::render::UpAxis::Z;
         FlatView { cam, fitted: false, perforation_key: None, perforations: Vec::new() }
     }
 }
 
 impl FlatView {
-    fn cache_perforations(&mut self, session: &solidcraft_engine::Session, body: &str) {
+    fn cache_perforations(&mut self, session: &desurface_engine::Session, body: &str) {
         let state = session.world_state();
         let state_key = std::sync::Arc::downgrade(&state);
         if self.perforation_key.as_ref().is_some_and(|(cached, name)| cached.ptr_eq(&state_key) && name == body) {

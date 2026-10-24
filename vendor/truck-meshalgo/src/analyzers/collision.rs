@@ -306,7 +306,7 @@ fn collide_triangles_test() {
 /// cloned: kept to check the new search finds the same collisions in the same order.
 ///
 /// Not part of the API. Built only for tests, or with the `test-hooks` feature, so the
-/// SolidCraft kernel tests can run these checks in CI (this crate's own tests do not run there).
+/// DeSurface kernel tests can run these checks in CI (this crate's own tests do not run there).
 #[cfg(any(test, feature = "test-hooks"))]
 #[doc(hidden)]
 pub mod test_hooks {

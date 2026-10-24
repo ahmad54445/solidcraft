@@ -11,7 +11,7 @@
 use std::path::{Component as PathPart, Path, PathBuf};
 
 use serde_json::{Value, json};
-use solidcraft_doc::{DesignLink, Document, FeatureKind};
+use desurface_doc::{DesignLink, Document, FeatureKind};
 
 use super::CommandSpec;
 use crate::params::{bad, str_, vec3};
@@ -125,7 +125,7 @@ pub(super) fn rebased(doc: &Document, from: Option<&str>, to: &str) -> std::coll
 
 /// The bodies of a linked design: its name, the Import feature that holds them and the names
 /// the design gives their faces (`Feature::link_faces`).
-type Linked = (String, solidcraft_io::StepFeature, Vec<Vec<String>>);
+type Linked = (String, desurface_io::StepFeature, Vec<Vec<String>>);
 
 /// The solid bodies of the design at `file`, evaluated, as an Import feature.
 fn linked_bodies(file: &Path, own: Option<&str>) -> Result<Linked> {
@@ -133,8 +133,8 @@ fn linked_bodies(file: &Path, own: Option<&str>) -> Result<Linked> {
     if own.is_some_and(|o| absolute(Path::new(o)) == absolute(file)) {
         return Err(EngineError::Other(format!("{shown}: a design can't be linked into itself")));
     }
-    let bytes = solidcraft_io::vfs::read(&shown, solidcraft_io::MAX_DESIGN_BYTES).map_err(|e| EngineError::Other(format!("{shown}: {e}")))?;
-    let doc = solidcraft_io::read_design(&bytes).map_err(|e| EngineError::Other(format!("{shown}: {e}")))?;
+    let bytes = desurface_io::vfs::read(&shown, desurface_io::MAX_DESIGN_BYTES).map_err(|e| EngineError::Other(format!("{shown}: {e}")))?;
+    let doc = desurface_io::read_design(&bytes).map_err(|e| EngineError::Other(format!("{shown}: {e}")))?;
     session_bodies(&Session::new(doc), &shown)
 }
 
@@ -149,15 +149,15 @@ fn session_bodies(part: &Session, shown: &str) -> Result<Linked> {
     if solids.is_empty() {
         return Err(EngineError::Other(format!("{shown}: the design has no solid bodies to link")));
     }
-    let step = solidcraft_io::export(&part.doc.painted(&world), &solids, solidcraft_io::Format::Step, &name)
+    let step = desurface_io::export(&part.doc.painted(&world), &solids, desurface_io::Format::Step, &name)
         .map_err(|e| EngineError::Other(format!("{shown}: {e}")))?;
-    let mut feature = solidcraft_io::step_import_feature(&step, shown).map_err(|e| EngineError::Other(format!("{shown}: {e}")))?;
+    let mut feature = desurface_io::step_import_feature(&step, shown).map_err(|e| EngineError::Other(format!("{shown}: {e}")))?;
     if world.bodies.len() > solids.len() {
         feature.warnings.push(format!("{} mesh bodies of {shown} are not linked", world.bodies.len() - solids.len()));
     }
     // The STEP text keeps no face names: carry the design's own, so references into the linked
     // bodies follow them as they do inside the design (#3330).
-    let faces = solidcraft_doc::naming::carried_face_names(&world, &feature.import.bodies);
+    let faces = desurface_doc::naming::carried_face_names(&world, &feature.import.bodies);
     Ok((name, feature, faces))
 }
 
@@ -174,7 +174,7 @@ fn insert_design(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "component.insert_design";
     let given = str_(p, "path").filter(|x| !x.trim().is_empty() && x.len() < 4096).ok_or_else(|| bad(cmd, "`path` is required"))?;
     let translate = match p.get("translate") {
-        None => solidcraft_geom::Vec3::ZERO,
+        None => desurface_geom::Vec3::ZERO,
         Some(v) => vec3(v).filter(|t| t.is_finite() && t.len() < 1e9).ok_or_else(|| bad(cmd, "`translate` must be [x, y, z] in mm"))?,
     };
     let file = absolute(Path::new(given));
@@ -285,7 +285,7 @@ fn update_links(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // A reference whose face the design no longer has says so here, not only in the joint list.
     if !updated.is_empty() {
-        let sol = solidcraft_doc::joints::solve(&s.doc, &s.model.state());
+        let sol = desurface_doc::joints::solve(&s.doc, &s.model.state());
         warnings.extend(sol.errors.iter().chain(&sol.conflicts).map(|(_, name, why)| format!("joint {name}: {why}")));
     }
     Ok(json!({"updated": updated, "unchanged": unchanged, "warnings": warnings}))
@@ -296,9 +296,9 @@ fn update_links(s: &mut Session, p: &Value) -> Result<Value> {
 /// an update can give to another face.
 fn numbered_references(s: &Session, comp: u64, feature: u64) -> Vec<String> {
     let numbered = format!("F{feature}:face:");
-    let on = |o: &solidcraft_doc::joints::JointOrigin| {
+    let on = |o: &desurface_doc::joints::JointOrigin| {
         s.doc.occurrences.iter().any(|x| x.id == o.occurrence && x.component == comp)
-            && o.snap.face_names().iter().any(|n| n.trim_start_matches(solidcraft_doc::naming::LEGACY_MARK).starts_with(&numbered))
+            && o.snap.face_names().iter().any(|n| n.trim_start_matches(desurface_doc::naming::LEGACY_MARK).starts_with(&numbered))
     };
     let joints = s.doc.assembly.joints.iter().filter(|j| on(&j.a) || on(&j.b)).map(|j| format!("joint {}", j.name));
     let origins = s.doc.assembly.origins.iter().filter(|o| on(&o.origin)).map(|o| format!("joint origin {}", o.name));
@@ -356,7 +356,7 @@ fn relink(s: &mut Session, p: &Value) -> Result<Value> {
     }
     // Report the solver's diagnostics. A resolved joint can still describe the wrong
     // connection after a source edit; the reminder above does not depend on solve errors.
-    let sol = solidcraft_doc::joints::solve(&s.doc, &s.model.state());
+    let sol = desurface_doc::joints::solve(&s.doc, &s.model.state());
     let diagnostics =
         |rows: &[(u64, String, String)]| rows.iter().map(|(id, name, why)| json!({"joint": id, "name": name, "why": why})).collect::<Vec<_>>();
     for (_, name, why) in sol.errors.iter().chain(&sol.conflicts) {
@@ -432,7 +432,7 @@ mod tests {
 
     #[test]
     fn a_saved_assembly_reopens_with_its_link_updates_it_and_breaks_it() {
-        let dir = std::env::temp_dir().join(format!("solidcraft-link-reopen-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-link-reopen-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("parts")).unwrap();
         std::fs::create_dir_all(dir.join("asm")).unwrap();
         let part = dir.join("parts").join("plate.solidcraft");
@@ -472,7 +472,7 @@ mod tests {
     #[test]
     fn inserting_a_missing_file_or_bad_parameters_changes_nothing() {
         let mut s = Session::default();
-        let missing = std::env::temp_dir().join(format!("solidcraft-no-such-part-{}.solidcraft", std::process::id()));
+        let missing = std::env::temp_dir().join(format!("desurface-no-such-part-{}.solidcraft", std::process::id()));
         assert!(s.execute("component.insert_design", &json!({"path": missing})).is_err());
         assert!(s.execute("component.insert_design", &json!({})).is_err());
         assert!(s.execute("component.insert_design", &json!({"path": "x.solidcraft", "translate": [1, "a", 2]})).is_err());
@@ -528,7 +528,7 @@ mod tests {
     /// size that takes the first one's place in the file.
     #[test]
     fn joints_on_a_linked_part_follow_its_faces_through_update_links() {
-        let dir = std::env::temp_dir().join(format!("solidcraft-link-names-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-link-names-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("plate.solidcraft");
         let hx = |part: &mut Session, x: &str| {
@@ -573,7 +573,7 @@ mod tests {
     /// say so instead of moving the joint to another hole of the same size.
     #[test]
     fn a_joint_whose_linked_face_is_gone_is_reported_not_moved() {
-        let dir = std::env::temp_dir().join(format!("solidcraft-link-gone-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-link-gone-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("plate.solidcraft");
         let mut part = plate(&path);
@@ -594,7 +594,7 @@ mod tests {
     /// place in the file: Update Links says it can't vouch for it, and keeps the names from then on.
     #[test]
     fn update_links_warns_about_joints_on_faces_named_by_their_place() {
-        let dir = std::env::temp_dir().join(format!("solidcraft-link-numbered-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-link-numbered-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("plate.solidcraft");
         let mut part = plate(&path);

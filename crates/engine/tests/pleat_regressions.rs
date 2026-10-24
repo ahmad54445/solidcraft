@@ -2,7 +2,7 @@
 //! to the case's far end, and the same features built directly there.
 
 use serde_json::{Value, json};
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 fn replay(script: &str) -> Session {
     let mut s = Session::default();
@@ -12,7 +12,7 @@ fn replay(script: &str) -> Session {
 }
 
 fn volume(s: &Session, body: &str) -> f64 {
-    s.model.state().body(body).map(|b| solidcraft_kernel::measure(&b.body).unwrap().volume).unwrap_or(0.0)
+    s.model.state().body(body).map(|b| desurface_kernel::measure(&b.body).unwrap().volume).unwrap_or(0.0)
 }
 
 /// #1669: an Extrude Cut whose profile stops 0.25 mm short of the far face of a 3.75 mm wall

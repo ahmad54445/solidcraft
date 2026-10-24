@@ -6,8 +6,8 @@
 
 use std::collections::BTreeMap;
 
-use solidcraft_geom::Vec3;
-use solidcraft_kernel::CylinderFace;
+use desurface_geom::Vec3;
+use desurface_kernel::CylinderFace;
 
 use super::{Snap, XRef, component_bodies};
 use crate::history_names::Match;
@@ -54,7 +54,7 @@ impl NamedFace<'_> {
 
     /// The face as a cylinder, in the body's own coordinates (`None`: not a cylinder).
     fn own_cylinder(&self) -> Option<CylinderFace> {
-        solidcraft_kernel::cylinder_face(&self.body.body, &self.body.mesh(), self.face)
+        desurface_kernel::cylinder_face(&self.body.body, &self.body.mesh(), self.face)
     }
 
     /// The face as a cylinder, in the component's coordinates.
@@ -140,7 +140,7 @@ fn nearer_end(c: &CylinderFace, pick: Vec3) -> (f64, f64) {
 fn end_by_pick(nf: &NamedFace, own: &CylinderFace) -> (f64, f64) {
     let pick = nf.local(nf.point);
     let [start, end] = ends(own);
-    match solidcraft_kernel::cylinder_face_at(&nf.body.body, pick).filter(|k| k.axis.dot(own.axis).abs() > 0.5) {
+    match desurface_kernel::cylinder_face_at(&nf.body.body, pick).filter(|k| k.axis.dot(own.axis).abs() > 0.5) {
         Some(k) => {
             let s = (pick - k.axis_point).dot(k.axis);
             let out = if (s - k.start).abs() <= (k.end - s).abs() { -k.axis } else { k.axis };
@@ -241,10 +241,10 @@ pub fn face_name_at(doc: &Document, st: &ModelState, component: u64, pick: Vec3,
             continue;
         }
         for (f, d) in near.into_iter().filter(|(_, d)| *d <= nearest + tol) {
-            let (off, cylinder) = match solidcraft_kernel::face_surface(&b.body, f) {
-                Some(solidcraft_kernel::FaceSurface::Plane { normal, point }) => (d.min((p - point).dot(normal).abs()), false),
-                Some(solidcraft_kernel::FaceSurface::Cylinder { .. }) => {
-                    (solidcraft_kernel::cylinder_face(&b.body, &mesh, f).map_or(d, |c| d.min(c.off(p))), true)
+            let (off, cylinder) = match desurface_kernel::face_surface(&b.body, f) {
+                Some(desurface_kernel::FaceSurface::Plane { normal, point }) => (d.min((p - point).dot(normal).abs()), false),
+                Some(desurface_kernel::FaceSurface::Cylinder { .. }) => {
+                    (desurface_kernel::cylinder_face(&b.body, &mesh, f).map_or(d, |c| d.min(c.off(p))), true)
                 }
                 _ => (d, false),
             };
@@ -272,7 +272,7 @@ pub fn round_end_at(doc: &Document, st: &ModelState, component: u64, centre: Vec
         let mesh = b.mesh();
         let tol = (b.body.size() * 1e-3).max(1e-3);
         for f in 0..b.body.face_count() {
-            let Some(c) = solidcraft_kernel::cylinder_face(&b.body, &mesh, f) else { continue };
+            let Some(c) = desurface_kernel::cylinder_face(&b.body, &mesh, f) else { continue };
             let v = p - c.axis_point;
             let along = v.dot(c.axis);
             for (at, _) in ends(&c) {

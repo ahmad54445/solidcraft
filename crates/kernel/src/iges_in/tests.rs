@@ -1,6 +1,6 @@
 use super::*;
 use crate::{Body, BoolOp, ExportBody, StepHeader, boolean, box_solid, cylinder, fillet, iges_export_bodies, measure, sphere, torus};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 fn rel(a: f64, b: f64) -> f64 {
     (a - b).abs() / b.abs().max(1e-9)
@@ -365,7 +365,7 @@ fn surfaces_in_separate_groups_remain_separate_parts() {
 fn a_drill_point_round_trips_through_iges() {
     // A blind hole with a cone tip: the tip's face closes at its apex (its seam runs out to the
     // apex and straight back).
-    use solidcraft_geom::{Loop2, Plane, Region2, Vec2};
+    use desurface_geom::{Loop2, Plane, Region2, Vec2};
     let plate = box_solid(Vec3::new(-20.0, -15.0, 0.0), Vec3::new(20.0, 15.0, 10.0)).unwrap();
     let profile =
         Region2 { outer: Loop2::polygon(&[Vec2::new(0.0, 2.0), Vec2::new(4.0, 5.0), Vec2::new(4.0, 11.0), Vec2::new(0.0, 11.0)]), holes: vec![] };
@@ -556,6 +556,6 @@ fn a_curve_over_a_tiny_knot_span_still_bounds_its_faces() {
 #[test]
 fn the_global_sections_native_system_becomes_the_originating_system() {
     let imp = round_trip(&box_solid(Vec3::ZERO, Vec3::new(10.0, 20.0, 30.0)).unwrap());
-    assert_eq!(imp.system, "SolidCraft");
-    assert_eq!(imp.preprocessor, "SolidCraft IGES");
+    assert_eq!(imp.system, "DeSurface");
+    assert_eq!(imp.preprocessor, "DeSurface IGES");
 }

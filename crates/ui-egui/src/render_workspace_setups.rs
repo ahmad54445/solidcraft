@@ -1,7 +1,7 @@
 //! Saved-job adapters. HDR payloads are captured by the engine; paths and body identities stay local.
-use solidcraft_engine::doc::render_resources::{CpuHdrEnvironment, GpuHdrEnvironment};
-use solidcraft_engine::doc::render_settings::{CpuJob, GpuJob, RenderJob, RenderSetup, SkyEnvironment};
-use solidcraft_engine::render::job::{AreaLights, RaytraceEnvironmentOptions, RaytraceOptions, StudioLighting};
+use desurface_engine::doc::render_resources::{CpuHdrEnvironment, GpuHdrEnvironment};
+use desurface_engine::doc::render_settings::{CpuJob, GpuJob, RenderJob, RenderSetup, SkyEnvironment};
+use desurface_engine::render::job::{AreaLights, RaytraceEnvironmentOptions, RaytraceOptions, StudioLighting};
 
 use super::{ImageMethod, cpu, hdr, materials, studio};
 use crate::SolveApp;

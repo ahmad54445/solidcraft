@@ -8,7 +8,7 @@
   "items": [
     {
       "id": "ORIGINAL-2026-10-CATALOG",
-      "name": "Original SolidCraft catalog contribution",
+      "name": "Original DeSurface catalog contribution",
       "license": "MIT OR Apache-2.0",
       "author": "SolidCraft contributors",
       "authorship": "Original AI-assisted specification and developer tooling prepared for the repository owner.",
@@ -16,7 +16,7 @@
       "commercial_product_extraction": false,
       "gpl_implementation_reference": false,
       "sources": [
-        "SRC-SOLIDCRAFT-BASE",
+        "SRC-DESURFACE-BASE",
         "SRC-SETTINGS",
         "SRC-SELENE-V7",
         "SRC-SELENE-ATTRIBUTION",
@@ -35,8 +35,8 @@
   ],
   "sources": [
     {
-      "id": "SRC-SOLIDCRAFT-BASE",
-      "name": "SolidCraft personal integration base",
+      "id": "SRC-DESURFACE-BASE",
+      "name": "DeSurface personal integration base",
       "url": "https://github.com/0xlillith/solidcraft/tree/93a2922c5ee272fb605703ae84c05825b4a74607",
       "use": "Own-project rules and documented architecture.",
       "accessed": "2026-10-21",
@@ -132,7 +132,7 @@
     },
     {
       "id": "SRC-SELENE-MECHANISMS",
-      "name": "Pinned SolidCraft mechanism reference",
+      "name": "Pinned DeSurface mechanism reference",
       "url": "https://github.com/tangency-labs/solidcraft/blob/463cea0615a22be2f7d6c30512211f9eda97ff28/skills/solidcraft-mechanisms/reference.md",
       "use": "Project command conventions and documented actuator planning geometry.",
       "accessed": "2026-10-21",

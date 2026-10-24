@@ -2,7 +2,7 @@
 use crate::dialogs::Kind;
 use crate::scenario::Harness;
 use serde_json::{Value, json};
-use solidcraft_engine::Sel;
+use desurface_engine::Sel;
 
 fn result(h: &Harness) -> &Value {
     match &h.app.dialog.as_ref().unwrap().kind {

@@ -1693,9 +1693,9 @@ mod tests {
 
     #[test]
     fn empty_discovery_explains_flatpak_permissions() {
-        const CHILD: &str = "SOLIDCRAFT_TEST_FLATPAK_MESSAGE";
+        const CHILD: &str = "DESURFACE_TEST_FLATPAK_MESSAGE";
         if let Ok(case) = std::env::var(CHILD) {
-            let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+            let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
             app.agent_chat.detection = Some(discover::Detection::default());
             assert!(agents::entries(&app).is_empty());
             let message = no_agents_message();
@@ -1749,7 +1749,7 @@ mod tests {
 
     #[test]
     fn the_shortcut_shows_folds_and_hides() {
-        let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+        let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
         toggle(&mut app);
         assert!(app.agent_chat.open);
         app.preferences.agent_chat_minimized = true;
@@ -1766,7 +1766,7 @@ mod tests {
             for width in [280.0, 440.0, 760.0] {
                 let ctx = crate::fonts::test_context();
                 crate::theme::apply(&ctx);
-                let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+                let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
                 app.agent_chat.detection = Some(discover::Detection::default());
                 app.agent_chat.picking = Some(false);
                 app.agent_chat.state = Some(State::Ready);
@@ -1806,7 +1806,7 @@ mod tests {
     fn assistant_permissions_keep_provider_choices_and_responsive_approval_actions() {
         for width in [280.0, 440.0, 760.0] {
             let ctx = crate::fonts::test_context();
-            let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+            let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
             app.agent_chat.items.push(Item::Permission {
                 key: 4,
                 title: "Run solid.fillet".into(),
@@ -1839,7 +1839,7 @@ mod tests {
     #[test]
     fn assistant_agent_mode_and_model_wrap_without_escaping_narrow_width() {
         let ctx = crate::fonts::test_context();
-        let mut app = SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default());
+        let mut app = SolveApp::new(desurface_engine::Session::default(), crate::Services::default());
         app.agent_chat.state = Some(State::Ready);
         app.agent_chat.detection = Some(discover::Detection::default());
         app.agent_chat.agent_id = Some("fixture".into());

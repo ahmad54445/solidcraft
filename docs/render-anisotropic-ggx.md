@@ -33,9 +33,9 @@ https://jcgt.org/published/0007/04/01/. No external implementation was adapted.
 ## Reproduce the focused checks
 
 ```sh
-cargo test --profile ci -p solidcraft-render --lib anisotropic_surface
-cargo clippy --profile ci -p solidcraft-render --all-targets -- -D warnings
-cargo check --target wasm32-unknown-unknown -p solidcraft-render
+cargo test --profile ci -p desurface-render --lib anisotropic_surface
+cargo clippy --profile ci -p desurface-render --all-targets -- -D warnings
+cargo check --target wasm32-unknown-unknown -p desurface-render
 ```
 
 Analytic and deterministic quadrature tests cover hostile inputs, orthonormality,

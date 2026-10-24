@@ -4,7 +4,7 @@ Date: 2026-10-21. Parent catalog checkpoint:
 `10ada1b45a4eb285ce752ac72f9aaa968ff8b5c4`.
 
 This record covers authoring inputs, numerical invariants, format decoding and
-reproduction. It does not claim a rendered SolidCraft scene or application-ready
+reproduction. It does not claim a rendered DeSurface scene or application-ready
 library. The independent renderer implementation remains a separate delivery.
 
 ## Submitted payload
@@ -69,7 +69,7 @@ executes the installed FFmpeg program without reading or shipping its source.
 
 The unlit material sheet, HDR field sheet and numerical Lambert-sphere sheet were
 inspected from ignored `target/render-starter-review/`. These are diagnostic
-visualizations, not SolidCraft renderer output. The wood, cork and regolith
+visualizations, not DeSurface renderer output. The wood, cork and regolith
 resources remain visibly procedural approximations; no photorealism or calibrated
 species/location identification is inferred from those images.
 

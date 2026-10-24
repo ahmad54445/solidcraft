@@ -2,7 +2,7 @@
 
 ## Scope of this contribution
 
-This PR provides English planning content under `docs/render-materials/` and native SELENE authoring resources plus development tools under `assets/render/selene/`, with exact attribution rows. It changes no application command, shader, renderer backend or native document format. The SELENE continuation reconstructs geometry, assemblies and appearances in a derivative through existing SolidCraft commands; the broader catalog remains a specification backlog. The integration base is the user's `lab/render-materials` branch at the recorded revision. Do not replace it with a newer upstream snapshot as a side effect of integrating this package.
+This PR provides English planning content under `docs/render-materials/` and native SELENE authoring resources plus development tools under `assets/render/selene/`, with exact attribution rows. It changes no application command, shader, renderer backend or native document format. The SELENE continuation reconstructs geometry, assemblies and appearances in a derivative through existing DeSurface commands; the broader catalog remains a specification backlog. The integration base is the user's `lab/render-materials` branch at the recorded revision. Do not replace it with a newer upstream snapshot as a side effect of integrating this package.
 
 ## Immediate implementation tasks
 
@@ -45,7 +45,7 @@ Preserve the old ID ranges when moving from the previous planning inventory. Use
 
 ## Prepared files available now
 
-Use [assets/render/selene](../../assets/render/selene/README.md) as the prepared resource authority. It contains 48 original recipes with current opaque PBR projections and separate advanced intent, one executable 48-swatch command script, 33 semantic roles, 10 stages and 12 shot recipes. These are authoring resources; do not advertise them as a validated production library or import the pack as scalar `solidcraft-library/1` data.
+Use [assets/render/selene](../../assets/render/selene/README.md) as the prepared resource authority. It contains 48 original recipes with current opaque PBR projections and separate advanced intent, one executable 48-swatch command script, 33 semantic roles, 10 stages and 12 shot recipes. These are authoring resources; do not advertise them as a validated production library or import the pack as scalar `desurface-library/1` data.
 
 `tools/prepare.py` inspects native identity and assembly metadata, makes an unreviewed body-role template, and compiles an opaque overlay only after source and target review. It emits the documented `appearance.assign` envelope, preserving physical materials. `tools/validate_prepared.py` checks the prepared package. Both are Python development tools, not application dependencies.
 

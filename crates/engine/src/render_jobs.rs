@@ -1,7 +1,7 @@
 //! Per-document, transient render ownership. Captured scenes remain immutable when CAD edits
 //! continue; callers get the captured revision and must never present it as a newer scene.
 
-use solidcraft_render::{
+use desurface_render::{
     ExecutorDescriptor,
     job::{CpuHost, ErrorCode, HostKind, Integrator, JobError, JobHandle, JobId, JobStatus, Phase, RenderFrame},
 };
@@ -33,9 +33,9 @@ fn owner() -> u64 {
 }
 
 pub(crate) struct Execution {
-    pub executor: solidcraft_render::ExecutorId,
-    pub options: solidcraft_render::job::JobOptions,
-    pub environment: Option<solidcraft_render::lighting::environment_input::EnvironmentInput>,
+    pub executor: desurface_render::ExecutorId,
+    pub options: desurface_render::job::JobOptions,
+    pub environment: Option<desurface_render::lighting::environment_input::EnvironmentInput>,
 }
 
 pub(crate) struct Jobs {
@@ -79,12 +79,12 @@ impl Drop for Jobs {
 }
 
 impl Jobs {
-    pub(crate) fn host_for(&self, executor: &solidcraft_render::ExecutorId) -> Option<&CpuHost> {
+    pub(crate) fn host_for(&self, executor: &desurface_render::ExecutorId) -> Option<&CpuHost> {
         if executor.as_str() == "cpu-raytrace" {
             return self
                 .host
                 .as_ref()
-                .filter(|host| host.descriptor_for(solidcraft_render::job::Integrator::Raytrace).is_ok_and(|d| &d.id == executor));
+                .filter(|host| host.descriptor_for(desurface_render::job::Integrator::Raytrace).is_ok_and(|d| &d.id == executor));
         }
         if self.descriptor.as_ref().is_some_and(|d| &d.id == executor) {
             return self.host.as_ref();
@@ -123,8 +123,8 @@ impl Jobs {
     pub(crate) fn start_with_environment(
         &mut self,
         revision: u64,
-        scene: solidcraft_render::ProductScene,
-        request: solidcraft_render::job::ImageRequest,
+        scene: desurface_render::ProductScene,
+        request: desurface_render::job::ImageRequest,
         replace: bool,
         execution: Execution,
     ) -> Result<JobStatus, JobError> {
@@ -172,7 +172,7 @@ impl Jobs {
     pub(crate) fn regrade(
         &mut self,
         source_id: JobId,
-        presentation: solidcraft_render::job::presentation::Presentation,
+        presentation: desurface_render::job::presentation::Presentation,
     ) -> Result<JobStatus, JobError> {
         self.collect()?;
         let source = self.handle(source_id)?;
@@ -225,7 +225,7 @@ impl Jobs {
         self.history.iter().find(|s| s.job == id).cloned().ok_or_else(|| JobError::new(ErrorCode::UnknownJob, "render job is no longer retained"))
     }
 
-    pub(crate) fn pin(&mut self, id: Option<JobId>) -> Result<Option<solidcraft_render::job::FrameInfo>, JobError> {
+    pub(crate) fn pin(&mut self, id: Option<JobId>) -> Result<Option<desurface_render::job::FrameInfo>, JobError> {
         let Some(id) = id else {
             self.pinned = None;
             return Ok(None);
@@ -264,15 +264,15 @@ impl crate::Session {
         if let Some(raytrace) = cpu_raytrace_descriptor(host.as_ref()) {
             backend.executors.push(raytrace);
         }
-        solidcraft_render::resolve_request(
+        desurface_render::resolve_request(
             &[backend],
-            &solidcraft_render::RenderRequest {
+            &desurface_render::RenderRequest {
                 backend: None,
-                mode: solidcraft_render::RenderMode::Preview,
-                operation: solidcraft_render::RenderOperation::Image,
+                mode: desurface_render::RenderMode::Preview,
+                operation: desurface_render::RenderOperation::Image,
                 width: 1,
                 height: 1,
-                format: Some(solidcraft_render::RenderFormat::Png),
+                format: Some(desurface_render::RenderFormat::Png),
                 features: Vec::new(),
                 policy: Default::default(),
             },
@@ -288,7 +288,7 @@ impl crate::Session {
 
     /// Add an executor without replacing CPU jobs or their ownership. Applications share
     /// this host across document sessions; descriptor IDs must be unique in the registry.
-    pub fn register_render_job_host(&mut self, host: solidcraft_render::job::ImageHost) -> crate::Result<()> {
+    pub fn register_render_job_host(&mut self, host: desurface_render::job::ImageHost) -> crate::Result<()> {
         let descriptor = host.descriptor().map_err(job_error)?;
         if descriptor.id.as_str() == "cpu-raytrace" {
             return Err(crate::EngineError::Other("cpu-raytrace is reserved for the native CPU raytrace integrator".into()));
@@ -296,20 +296,20 @@ impl crate::Session {
         if self.render_jobs.additional.iter().any(|(old, _)| old.same_host(&host)) {
             return Ok(());
         }
-        if descriptor.profiles.iter().any(|p| p.operation != solidcraft_render::RenderOperation::Image) {
+        if descriptor.profiles.iter().any(|p| p.operation != desurface_render::RenderOperation::Image) {
             return Err(crate::EngineError::Other("image host must only register image profiles".into()));
         }
         let mut registry = self.render_backend();
         registry.executors.push(descriptor.clone());
-        solidcraft_render::resolve_request(
+        desurface_render::resolve_request(
             &[registry],
-            &solidcraft_render::RenderRequest {
+            &desurface_render::RenderRequest {
                 backend: None,
-                mode: solidcraft_render::RenderMode::Preview,
-                operation: solidcraft_render::RenderOperation::Image,
+                mode: desurface_render::RenderMode::Preview,
+                operation: desurface_render::RenderOperation::Image,
                 width: 1,
                 height: 1,
-                format: Some(solidcraft_render::RenderFormat::Png),
+                format: Some(desurface_render::RenderFormat::Png),
                 features: Vec::new(),
                 policy: Default::default(),
             },

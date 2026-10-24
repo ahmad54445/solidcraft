@@ -1,7 +1,7 @@
 //! HDR selection is local until the engine captures its verified bytes into the design.
 use serde::Deserialize;
 use serde_json::{Value, json};
-use solidcraft_engine::doc::render_resources::HdrId;
+use desurface_engine::doc::render_resources::HdrId;
 
 use super::{ImageMethod, cpu, studio};
 use crate::{SolveApp, ui_kit};
@@ -188,7 +188,7 @@ pub(super) fn controls(app: &mut SolveApp, ui: &mut egui::Ui, target: Target) {
     }
     if let Some(metadata) = metadata(app, target) {
         ui.label(format!("{} × {} px · {:.2} MiB", metadata.width, metadata.height, metadata.encoded_bytes as f64 / 1_048_576.0));
-        let primaries = if metadata.primaries == Some(solidcraft_engine::doc::render_resources::SRGB_D65_PRIMARIES) {
+        let primaries = if metadata.primaries == Some(desurface_engine::doc::render_resources::SRGB_D65_PRIMARIES) {
             "render.hdr_primaries_srgb"
         } else if metadata.primaries.is_some() {
             "render.hdr_primaries_declared"

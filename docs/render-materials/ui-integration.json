@@ -9,7 +9,7 @@
     "readable_specification": "UI_INTEGRATION.md",
     "runtime_ready": false
   },
-  "id": "SOLIDCRAFT-RENDER-UI-001",
+  "id": "DESURFACE-RENDER-UI-001",
   "source_snapshots": {
     "integration_base": {
       "repository": "0xlillith/solidcraft",

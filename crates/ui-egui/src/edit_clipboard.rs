@@ -15,7 +15,7 @@ use std::sync::Mutex;
 
 use egui::Pos2;
 use serde_json::{Value, json};
-use solidcraft_engine::Sel;
+use desurface_engine::Sel;
 
 use crate::SolveApp;
 
@@ -56,7 +56,7 @@ pub fn copy_design(app: &mut SolveApp) -> bool {
         return false;
     };
     app.linked_design_clipboard = Some(path);
-    leave_text(format!("SolidCraft linked design: {}", app.session.doc.name));
+    leave_text(format!("DeSurface linked design: {}", app.session.doc.name));
     app.set_status("Copied design: switch to the assembly and paste to insert a linked component", false);
     true
 }
@@ -76,7 +76,7 @@ pub fn copy(app: &mut SolveApp) -> bool {
         app.linked_design_clipboard = None;
         let n = out.get("curves").and_then(Value::as_u64).unwrap_or(0) + out.get("points").and_then(Value::as_u64).unwrap_or(0);
         let k = out.get("constraints").and_then(Value::as_u64).unwrap_or(0);
-        let text = format!("SolidCraft sketch geometry: {n} entities, {k} constraints and dimensions");
+        let text = format!("DeSurface sketch geometry: {n} entities, {k} constraints and dimensions");
         app.set_status(format!("Copied {n} sketch entities with {k} constraints and dimensions"), false);
         leave_text(text);
         return true;
@@ -90,7 +90,7 @@ pub fn copy(app: &mut SolveApp) -> bool {
     app.linked_design_clipboard = None;
     let names: Vec<&str> = out.get("copied").and_then(Value::as_array).map(|a| a.iter().filter_map(Value::as_str).collect()).unwrap_or_default();
     app.set_status(format!("Copied {}", names.join(", ")), false);
-    leave_text(format!("SolidCraft features: {}", names.join(", ")));
+    leave_text(format!("DeSurface features: {}", names.join(", ")));
     true
 }
 
@@ -109,7 +109,7 @@ pub fn cut(app: &mut SolveApp) -> bool {
     app.linked_design_clipboard = None;
     let n = out.get("curves").and_then(Value::as_u64).unwrap_or(0) + out.get("points").and_then(Value::as_u64).unwrap_or(0);
     app.set_status(format!("Cut {n} sketch entities"), false);
-    leave_text(format!("SolidCraft sketch geometry: {n} entities"));
+    leave_text(format!("DeSurface sketch geometry: {n} entities"));
     true
 }
 
@@ -166,7 +166,7 @@ pub fn paste(app: &mut SolveApp, at: Option<Pos2>) -> bool {
 /// Place the copied design's origin on the pointed solid surface, otherwise its parent's
 /// XY plane. With no viewport point or a parallel/behind-camera ray, use the parent origin.
 fn paste_placement(app: &SolveApp, at: Option<Pos2>) -> (Vec<u64>, [f64; 3]) {
-    use solidcraft_engine::{doc, geom::Vec3};
+    use desurface_engine::{doc, geom::Vec3};
     let path = app.session.active_occurrence_path.clone().unwrap_or_else(|| app.session.doc.first_path(app.session.active_component));
     let frame = app.session.occurrence_placement(&path).map(|p| p.world).unwrap_or(doc::IDENTITY);
     let origin = doc::apply_point(&frame, Vec3::ZERO);

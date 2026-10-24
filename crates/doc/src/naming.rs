@@ -17,7 +17,7 @@
 
 use std::sync::{Arc, OnceLock};
 
-use solidcraft_geom::{Aabb3, Mesh, Seg2, Vec2, Vec3};
+use desurface_geom::{Aabb3, Mesh, Seg2, Vec2, Vec3};
 
 use crate::history_names::Names;
 use crate::lineage::Lineage;
@@ -291,7 +291,7 @@ pub(crate) fn warm_names<'a>(bodies: impl Iterator<Item = &'a ModelBody>) {
         [body] => {
             let _ = names(body);
         }
-        _ => solidcraft_kernel::for_each_on_threads(&bodies, 16, |b| {
+        _ => desurface_kernel::for_each_on_threads(&bodies, 16, |b| {
             let _ = names(b);
         }),
     }
@@ -613,7 +613,7 @@ pub(crate) fn along_spread(cs: Vec<(usize, Vec3)>) -> Vec<usize> {
     // the centre is the mean of a tessellated boundary, and that depends on where the loop's
     // polyline starts, which can differ between processes. Comparing the keys with a tolerance
     // makes those pieces equal, so the stable sort keeps the order they arrived in and a name
-    // keeps its number across runs (solidcraft#569).
+    // keeps its number across runs (desurface#569).
     let tol = ext.x.max(ext.y).max(ext.z).max(1.0) * 1e-9;
     let bucket = |c: Vec3| {
         let k = key(c);
@@ -862,7 +862,7 @@ pub fn face_name_at_body(body: &ModelBody, point: Vec3) -> Option<String> {
 /// most of its faces lie on, face by face: the same geometry, so a point well inside a face lies
 /// on the face it was written from (and on a face of another solid only where two touch). Of
 /// solids that hold as many (two alike in one place), the one the file names it after.
-pub fn carried_face_names(part: &ModelState, imported: &[solidcraft_kernel::ImportedBody]) -> Vec<Vec<String>> {
+pub fn carried_face_names(part: &ModelState, imported: &[desurface_kernel::ImportedBody]) -> Vec<Vec<String>> {
     let solids: Vec<&ModelBody> = part.bodies.iter().filter(|b| !b.body.is_mesh()).collect();
     let indices: Vec<OnceLock<Option<FaceIndex>>> = solids.iter().map(|_| OnceLock::new()).collect();
     imported
@@ -903,7 +903,7 @@ pub fn carried_face_names(part: &ModelState, imported: &[solidcraft_kernel::Impo
 #[derive(Clone, Copy, Debug)]
 pub struct FaceSpot {
     pub point: Vec3,
-    pub surface: Option<solidcraft_kernel::FaceSurface>,
+    pub surface: Option<desurface_kernel::FaceSurface>,
 }
 
 /// The incentre and inradius of the roomiest triangle (greatest inradius) of each face of a mesh,
@@ -939,7 +939,7 @@ fn roomiest(m: &Mesh, only: Option<usize>) -> Vec<Option<(f64, Vec3)>> {
 /// of a curved face lies inside it by its sag), as far as that stays well inside the triangle.
 fn spot(b: &ModelBody, index: usize, roomiest: Option<(f64, Vec3)>) -> Option<FaceSpot> {
     let (radius, centre) = roomiest?;
-    let surface = solidcraft_kernel::face_surface(&b.body, index);
+    let surface = desurface_kernel::face_surface(&b.body, index);
     let point = surface.and_then(|s| s.nearest(centre)).filter(|q| q.dist(centre) <= radius * 0.5).unwrap_or(centre);
     Some(FaceSpot { point, surface })
 }
@@ -995,7 +995,7 @@ mod tests {
     }
 
     fn lookup_bodies() -> ModelState {
-        let body = solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(4., 2., 1.)).unwrap();
+        let body = desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(4., 2., 1.)).unwrap();
         let mut st = ModelState::default();
         st.bodies = (0..13).map(|i| ModelBody::new(format!("Part{i}"), body.clone(), i + 1)).collect();
         st
@@ -1064,7 +1064,7 @@ mod tests {
     /// Pieces lying almost level along the sort axis must keep the order they arrived in, whatever
     /// the low bits of their centres do. The centre is the mean of a tessellated boundary, so those
     /// bits depend on where the loop's polyline starts and can differ between processes — which is
-    /// how a name's number used to swap between runs (solidcraft#569).
+    /// how a name's number used to swap between runs (desurface#569).
     #[test]
     fn level_pieces_keep_their_input_order() {
         let piece = |dx: f64| vec![Vec3::new(10.0 + dx, 0.0, 0.0), Vec3::new(10.0 + dx, 0.0, 5.0)];
@@ -1118,7 +1118,7 @@ mod tests {
 
     #[test]
     fn merged_face_votes_collectively_for_pieces_of_one_source() {
-        let body = ModelBody::new("Input".into(), solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(4., 1., 1.)).unwrap(), 1);
+        let body = ModelBody::new("Input".into(), desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(4., 1., 1.)).unwrap(), 1);
         let mut mesh = Mesh::default();
         let mut points = Vec::new();
         for i in 0..3u32 {
@@ -1138,7 +1138,7 @@ mod tests {
 
     #[cfg(not(target_arch = "wasm32"))]
     fn release_fixture(count: usize) -> (Arc<ModelState>, Vec<std::sync::Weak<ModelState>>) {
-        let body = ModelBody::new("Original release fixture".into(), solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(1., 1., 1.)).unwrap(), 1);
+        let body = ModelBody::new("Original release fixture".into(), desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(1., 1., 1.)).unwrap(), 1);
         let feature: Feature = serde_json::from_value(serde_json::json!({
             "id":1,"name":"Original naming boundary","type":"body_transfer","bodies":[],
             "from":0,"to":1,"transform":crate::IDENTITY
@@ -1172,7 +1172,7 @@ mod tests {
     #[cfg(not(target_arch = "wasm32"))]
     #[test]
     fn long_placed_copy_chain_reclaims_every_source_on_a_small_stack() {
-        let mut body = ModelBody::new("Original copied fixture".into(), solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(1., 1., 1.)).unwrap(), 1);
+        let mut body = ModelBody::new("Original copied fixture".into(), desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(1., 1., 1.)).unwrap(), 1);
         let mut weak = Vec::new();
         for _ in 0..20_000 {
             let names = NameCell::same(&body);

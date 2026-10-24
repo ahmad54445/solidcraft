@@ -197,7 +197,7 @@
     "viewport_top": "#11111b",
     "warning": "#f9e2af"
   },
-  "format": "solidcraft-theme/1",
+  "format": "desurface-theme/1",
   "name": "Catppuccin Mocha",
   "icon_palette": {
     "ink": "#181825",

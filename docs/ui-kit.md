@@ -1,4 +1,4 @@
-# SolidCraft UI kit
+# DeSurface UI kit
 
 `crates/ui-egui/src/ui_kit/` contains the tokenised controls used by feature dialogs,
 preferences, manager cards, prompts, context menus and the sketch palette. Import through
@@ -160,7 +160,7 @@ sketch-pattern children, drag reordering and command JSON retain their existing 
 `history_icons`, `history_names`, `history_marker` and the `history_seam_rest/hover/drag` states
 have light/dark gallery references. The CPU
 board test captures both strip widths with expanded and collapsed browsers
-(`SOLIDCRAFT_HISTORY_EVIDENCE`).
+(`DESURFACE_HISTORY_EVIDENCE`).
 
 `text(ui, text, options)` supports the existing text behaviors and the new error band:
 
@@ -369,7 +369,7 @@ The new palette entries (fill / ink / soft) are:
 | Sheet Metal | `#1E6F96` / `#1E6F96` / `#E1F0F7` | `#2A7FA8` / `#4FB3D9` / `#1F3A47` |
 | Render | `#A8326E` / `#A8326E` / `#F8E6EF` | `#C8588F` / `#E074AE` / `#402336` |
 
-Each key is supported by `solidcraft-theme/1` import/export, including
+Each key is supported by `desurface-theme/1` import/export, including
 `tab_on_fill_dark` (`#000000` in both themes). `TabAccent::on_fill` uses `on_accent`
 (white in the built-in palettes) when it reaches 4.5:1, otherwise that dark ink.
 The fallback is black because the board's dark ink does not reach 4.5:1 on several
@@ -393,7 +393,7 @@ The menu gallery includes normal, hovered, open, disabled, checked/unchecked,
 swatch and danger rows, a submenu and rename. Radial geometry tests measure the
 actual side endpoints at both radii and sample all four rounded corners. Optional
 CPU-rendered menu evidence can be produced without a window with
-`SOLIDCRAFT_MENU_EVIDENCE=/tmp/menus cargo test -p solidcraft-ui-egui --lib menu_board_in_both_themes`.
+`DESURFACE_MENU_EVIDENCE=/tmp/menus cargo test -p desurface-ui-egui --lib menu_board_in_both_themes`.
 Desktop interaction and visual acceptance still require a reviewer capture.
 
 Command search uses the ribbon field itself (`sc_sbox_text`); `ribbon:search`,
@@ -409,7 +409,7 @@ rule. Ranking, command mode and keyboard routing remain with the caller.
 
 Generate CPU-rendered evidence of all five search states and the actual ribbon's
 closed/opening/open/closing transition in both themes with
-`SOLIDCRAFT_SEARCH_EVIDENCE=/tmp/search cargo test -p solidcraft-ui-egui --lib command_search`.
+`DESURFACE_SEARCH_EVIDENCE=/tmp/search cargo test -p desurface-ui-egui --lib command_search`.
 
 ### Compact workspace composition
 
@@ -462,7 +462,7 @@ neutral `file_image_tint`; icon and text colours do not change their pixels.
 Spacing, dimensions, fonts and radii come from `theme::Tokens`.
 
 Gallery and geometry tests cover these components. To capture the actual File
-view using public temporary fixtures, set `SOLIDCRAFT_FILE_EVIDENCE` to an output
+view using public temporary fixtures, set `DESURFACE_FILE_EVIDENCE` to an output
 directory and run `file_view_application_evidence_in_both_themes_and_widths` with
 `--ignored`. It produces desktop and 420 pt narrow PNGs in both themes.
 
@@ -506,7 +506,7 @@ Focus, selection, active commands, errors, recovery warnings and status keep the
 semantic strokes. Icon artwork, example mouse diagrams, plots, model edges, manipulator
 geometry and the compass are content; structural border roles do not recolour them.
 
-`solidcraft-theme/1` optionally accepts `borders`. Each role has a `width` (finite 0–4
+`desurface-theme/1` optionally accepts `borders`. Each role has a `width` (finite 0–4
 logical UI points; zero hides the stroke) and a `color` (`#rrggbb` or `#rrggbbaa`).
 `primary_inset` also requires `gap` (finite 0–12 points of clear distance inside the
 primary border). This companion is painted inside panel/ribbon/window/menu chrome,
@@ -525,7 +525,7 @@ circular compass and native widget-owned tooltip content, does not acquire an in
 ```
 
 Those are Blueprint's settings: a single primary outline and dotted secondary rules. Secondary roles optionally accept `pattern`: `solid` (default) or `dotted`; this pattern follows horizontal/vertical section rules. Container outlines remain solid, as do the other roles. Themes without border settings retain their previous appearance.
-SolidCraft 95 uses silver surfaces and directional two-band bevels: light top/left
+DeSurface 95 uses silver surfaces and directional two-band bevels: light top/left
 edges and dark bottom/right edges for raised panels and buttons, reversed for
 recessed fields and pressed buttons. Inputs use the `field` colour independently
 of the neutral button face. Disabled controls fade their bevel; focus, selection

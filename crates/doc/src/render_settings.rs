@@ -3,8 +3,8 @@
 use std::collections::BTreeMap;
 
 use serde::{Deserialize, Serialize};
-use solidcraft_geom::Vec3;
-use solidcraft_render::{BackendId, Camera, RenderFormat, RenderLimits, RenderMode, UpAxis};
+use desurface_geom::Vec3;
+use desurface_render::{BackendId, Camera, RenderFormat, RenderLimits, RenderMode, UpAxis};
 
 pub use crate::render_job::{CpuJob, GpuJob, RenderJob, SkyEnvironment};
 use crate::{DocError, Result};
@@ -35,8 +35,8 @@ pub struct RenderSetup {
     pub surfaces: crate::render_surface::SurfaceBindings,
     #[serde(skip_serializing_if = "crate::render_optics::OpticalBindings::is_empty")]
     pub optics: crate::render_optics::OpticalBindings,
-    #[serde(skip_serializing_if = "solidcraft_render::stage::Stage::is_empty")]
-    pub stage: solidcraft_render::stage::Stage,
+    #[serde(skip_serializing_if = "desurface_render::stage::Stage::is_empty")]
+    pub stage: desurface_render::stage::Stage,
 }
 
 // Reuse Camera's representation and defaults, but reject misspelled saved fields. A remote
@@ -60,7 +60,7 @@ impl Default for RenderSetup {
     fn default() -> Self {
         // The built-in descriptor owns the canonical default backend identifier.
         Self {
-            backend: solidcraft_render::builtin_backend().id,
+            backend: desurface_render::builtin_backend().id,
             mode: RenderMode::Preview,
             camera: Camera::default(),
             width: 1024,
@@ -82,7 +82,7 @@ impl RenderSetup {
     pub fn validate(&self) -> Result<()> {
         let limits = match &self.job {
             Some(RenderJob::CpuRaytrace { options }) => options.budget.image_limits(options.progressive.is_some()),
-            Some(RenderJob::GpuPath { .. }) => solidcraft_render::job::GPU_PATH_LIMITS,
+            Some(RenderJob::GpuPath { .. }) => desurface_render::job::GPU_PATH_LIMITS,
             _ => RenderLimits::default(),
         };
         self.validate_with_limits(limits)
@@ -90,14 +90,14 @@ impl RenderSetup {
 
     /// Runtime CPU lowering has already moved typed options out of this setup.
     /// Saving still uses validate(), so a legacy setup cannot smuggle a large profile.
-    pub fn validate_for_cpu(&self, budget: solidcraft_render::job::CpuBudget) -> Result<()> {
+    pub fn validate_for_cpu(&self, budget: desurface_render::job::CpuBudget) -> Result<()> {
         budget.validate_image(self.width, self.height, None).map_err(|e| DocError::Invalid(e.to_string()))?;
         self.validate_with_limits(budget.image_limits(false))
     }
 
     /// Typed GPU options have already been lowered; retain their dimension envelope.
     pub fn validate_for_gpu(&self) -> Result<()> {
-        self.validate_with_limits(solidcraft_render::job::GPU_PATH_LIMITS)
+        self.validate_with_limits(desurface_render::job::GPU_PATH_LIMITS)
     }
 
     fn validate_with_limits(&self, limits: RenderLimits) -> Result<()> {
@@ -259,22 +259,22 @@ mod tests {
             }
         }
         for coordinate in [-5e9, 5e9, 1e9_f64.next_up()] {
-            let mut point: solidcraft_render::job::PunctualLightOptions = serde_json::from_value(json!({
+            let mut point: desurface_render::job::PunctualLightOptions = serde_json::from_value(json!({
                 "position_mm":[coordinate,0.0,0.0],"color":[1.0,1.0,1.0],"intensity":1.0,
                 "reference_distance_mm":100.0,"minimum_distance_mm":0.001}))
             .unwrap();
             assert!(point.validate().is_err());
             point.position_mm = [0.0; 3];
-            point.cone = Some(solidcraft_render::job::SpotConeOptions {
+            point.cone = Some(desurface_render::job::SpotConeOptions {
                 emitted_axis: [coordinate, 0.0, 0.0],
                 inner_half_angle_radians: 0.1,
                 outer_half_angle_radians: 0.5,
             });
             assert!(point.validate().is_err());
             let area =
-                solidcraft_render::job::AreaLight { center: [coordinate, 0.0, 0.0], u: [1.0, 0.0, 0.0], v: [0.0, 1.0, 0.0], radiance: [1.0; 3] };
+                desurface_render::job::AreaLight { center: [coordinate, 0.0, 0.0], u: [1.0, 0.0, 0.0], v: [0.0, 1.0, 0.0], radiance: [1.0; 3] };
             assert!(area.validate().is_err());
-            let frame = solidcraft_render::job::textures::PlanarFrame { origin: [coordinate, 0.0, 0.0], u: [1.0, 0.0, 0.0], v: [0.0, 1.0, 0.0] };
+            let frame = desurface_render::job::textures::PlanarFrame { origin: [coordinate, 0.0, 0.0], u: [1.0, 0.0, 0.0], v: [0.0, 1.0, 0.0] };
             assert!(frame.validate().is_err());
         }
     }
@@ -449,7 +449,7 @@ mod tests {
         assert!(gpu.validate().is_err());
         let cpu_job = CpuJob {
             hdr: Some(CpuHdrEnvironment { intensity: 1.0, ..cpu }),
-            environment: Some(solidcraft_render::job::RaytraceEnvironmentOptions { color: [0.0; 3], intensity: 0.0 }),
+            environment: Some(desurface_render::job::RaytraceEnvironmentOptions { color: [0.0; 3], intensity: 0.0 }),
             ..Default::default()
         };
         assert!(cpu_job.to_runtime(0.0).is_err());
@@ -497,7 +497,7 @@ mod tests {
             exposure_ev: 2.5,
             mode: RenderMode::Final,
             format: RenderFormat::Exr,
-            camera: Camera { up: solidcraft_render::UpAxis::Y, ..Default::default() },
+            camera: Camera { up: desurface_render::UpAxis::Y, ..Default::default() },
             ..Default::default()
         };
         Arc::make_mut(&mut loaded.render).setups.insert("Studio".into(), setup);
@@ -742,7 +742,7 @@ mod tests {
 #[cfg(test)]
 mod cpu_budget_tests {
     use super::*;
-    use solidcraft_render::job::{CpuBudget, CpuProgressiveOptions};
+    use desurface_render::job::{CpuBudget, CpuProgressiveOptions};
 
     #[test]
     fn inactive_area_tuning_roundtrips_without_leaking_into_runtime_options() {
@@ -752,7 +752,7 @@ mod cpu_budget_tests {
         assert_eq!((runtime.seed, runtime.area_samples), (None, None));
         let roundtrip: CpuJob = serde_json::from_value(serde_json::to_value(&saved).unwrap()).unwrap();
         assert_eq!(roundtrip, saved);
-        let raw = solidcraft_render::job::RaytraceOptions { seed: Some(1), ..Default::default() };
+        let raw = desurface_render::job::RaytraceOptions { seed: Some(1), ..Default::default() };
         assert!(raw.validate().is_err(), "runtime requests still reject tuning without active emitters");
     }
 

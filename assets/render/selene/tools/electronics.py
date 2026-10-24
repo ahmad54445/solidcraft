@@ -5,7 +5,7 @@ The board outline and mounting pattern are from Raspberry Pi's public mechanical
 drawing. Package envelopes and connector internals are an original, dimension-
 informed visual reconstruction, not a production BOM, electrical design, or a
 manufacturer CAD model. All coordinates are millimetres. No native document is
-patched: this module only emits ordinary SolidCraft commands.
+patched: this module only emits ordinary DeSurface commands.
 
 ``commands()`` extends the pinned SELENE source. ``standalone_commands()`` makes
 the same board fixture in a new, isolated document for inspection and testing.

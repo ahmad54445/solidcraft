@@ -12,8 +12,8 @@
 use std::sync::OnceLock;
 
 use egui::{Pos2, Rect, pos2};
-use solidcraft_engine::geom::Vec3;
-use solidcraft_engine::render::Camera;
+use desurface_engine::geom::Vec3;
+use desurface_engine::render::Camera;
 
 use crate::space_mouse::DeviceMotion;
 use crate::theme::Tokens;

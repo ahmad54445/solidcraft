@@ -286,16 +286,16 @@ fn signature(app: &SolveApp, dialog: Option<&dialogs::Dialog>) -> u64 {
     h.0.finish()
 }
 
-fn reportable(feature: &solidcraft_engine::doc::Feature) -> bool {
+fn reportable(feature: &desurface_engine::doc::Feature) -> bool {
     !matches!(
         feature.kind,
-        solidcraft_engine::doc::FeatureKind::Sketch { .. }
-            | solidcraft_engine::doc::FeatureKind::Import { .. }
-            | solidcraft_engine::doc::FeatureKind::MeshImport { .. }
+        desurface_engine::doc::FeatureKind::Sketch { .. }
+            | desurface_engine::doc::FeatureKind::Import { .. }
+            | desurface_engine::doc::FeatureKind::MeshImport { .. }
     )
 }
 
-fn feature_context(feature: &solidcraft_engine::doc::Feature) -> String {
+fn feature_context(feature: &desurface_engine::doc::Feature) -> String {
     format!("Feature {}: {}\n{}", feature.id, debug(&feature.name, 160), block(&json_context(&feature.kind, 2000)))
 }
 
@@ -317,7 +317,7 @@ pub fn draft_for(app: &SolveApp, dialog: Option<&dialogs::Dialog>, error: Option
     context.push_str("\nSelected items (including occurrence paths):\n");
     context.push_str(&block(&debug(&app.session.selection.iter().take(32).collect::<Vec<_>>(), 3000)));
     for item in app.session.selection.iter().take(8) {
-        if let solidcraft_engine::Sel::Feature { id } = item
+        if let desurface_engine::Sel::Feature { id } = item
             && let Some(feature) = app.session.doc.feature(*id)
             && reportable(feature)
         {
@@ -357,7 +357,7 @@ pub fn draft_for(app: &SolveApp, dialog: Option<&dialogs::Dialog>, error: Option
     Draft::new(title, body, source_signature(app, dialog))
 }
 
-/// A draft from a crash report (`solidcraft_engine::crash`): what happened, where, the command
+/// A draft from a crash report (`desurface_engine::crash`): what happened, where, the command
 /// and how to replay it. The design stays on this computer; the draft says how to share it.
 pub fn crash_draft(report: &serde_json::Value) -> Draft {
     let s = |k: &str| report.get(k).and_then(serde_json::Value::as_str).unwrap_or("?").to_string();
@@ -365,8 +365,8 @@ pub fn crash_draft(report: &serde_json::Value) -> Draft {
     let what = match kind {
         Some("command_panic") => "An internal error stopped a command (the design was left unchanged)",
         Some("kernel_panic_recovered") => "The geometry kernel hit an internal error (caught; the operation failed)",
-        Some("unclean_exit") => "An earlier SolidCraft session ended without recording a clean exit",
-        _ => "SolidCraft hit an internal error",
+        Some("unclean_exit") => "An earlier DeSurface session ended without recording a clean exit",
+        _ => "DeSurface hit an internal error",
     };
     let detection = if kind == Some("unclean_exit") {
         "\n\nDetected on a later launch; the exact exit time was not recorded. A system shutdown or forced stop can also cause an unclean exit."
@@ -390,7 +390,7 @@ pub fn crash_draft(report: &serde_json::Value) -> Draft {
     let field = |o: Option<&serde_json::Value>, k: &str| o.and_then(|o| o.get(k)).and_then(serde_json::Value::as_str).unwrap_or("?").to_string();
     let system = report.get("system");
     let mut body = format!(
-        "## What happened\n{what}{}.{detection}\n\nMessage: {}\nLocation: {}\nThread: {}\nRecorded {} time(s), first recorded {}\n\n## Backtrace\n{}\n## Command\n{}\n## Recent commands\n{}\n\n## Reproduction\nCrash report `{}` on the reporter's computer holds {}. Replay it with `solidcraft-cli crashes replay {}`.\nOnly attach the design if it can be shared publicly.\n\n## Environment\n{}\n",
+        "## What happened\n{what}{}.{detection}\n\nMessage: {}\nLocation: {}\nThread: {}\nRecorded {} time(s), first recorded {}\n\n## Backtrace\n{}\n## Command\n{}\n## Recent commands\n{}\n\n## Reproduction\nCrash report `{}` on the reporter's computer holds {}. Replay it with `desurface-cli crashes replay {}`.\nOnly attach the design if it can be shared publicly.\n\n## Environment\n{}\n",
         command.map(|c| format!(" while running `{c}`")).unwrap_or_default(),
         limited(&s("message"), 2000),
         s("location"),
@@ -408,7 +408,7 @@ pub fn crash_draft(report: &serde_json::Value) -> Draft {
         },
         s("id"),
         block(&format!(
-            "SolidCraft {} ({}, built {})\nOS: {} {}\n{}",
+            "DeSurface {} ({}, built {})\nOS: {} {}\n{}",
             field(app, "version"),
             field(app, "commit"),
             field(app, "built"),
@@ -613,7 +613,7 @@ mod tests {
     #![allow(clippy::unwrap_used, clippy::panic)]
     use super::*;
     use serde_json::json;
-    use solidcraft_engine::{Sel, Session};
+    use desurface_engine::{Sel, Session};
 
     fn app() -> SolveApp {
         SolveApp::new(Session::default(), Default::default())
@@ -761,7 +761,7 @@ mod tests {
     #[test]
     fn crash_draft_marks_later_detection_without_losing_native_evidence() {
         let message =
-            "SolidCraft 0.3.2 (started 2026-10-01T10:00:00Z) crashed with ACCESS_VIOLATION (0xc0000005) in driver.dll+0x1234 between commands";
+            "DeSurface 0.3.2 (started 2026-10-01T10:00:00Z) crashed with ACCESS_VIOLATION (0xc0000005) in driver.dll+0x1234 between commands";
         let frame = "0xc0000005 ACCESS_VIOLATION at driver.dll+0x1234";
         let report = json!({
             "kind": "unclean_exit", "count": 2, "first_seen": "2026-10-12T16:23:41Z",
@@ -1032,7 +1032,7 @@ mod tests {
         assert_eq!(h.app.session.undo.len(), start + 1, "placing and typing the text is one undo step");
         let sid = h.app.session.active_sketch.unwrap();
         let sk = h.app.session.doc.sketch(sid).unwrap();
-        assert!(sk.links.iter().any(|l| matches!(&l.source, solidcraft_engine::sketch::LinkSource::Text { text, .. } if text == "Pending CAD text")));
+        assert!(sk.links.iter().any(|l| matches!(&l.source, desurface_engine::sketch::LinkSource::Text { text, .. } if text == "Pending CAD text")));
     }
 
     #[test]
@@ -1122,7 +1122,7 @@ mod tests {
         h.app.run("sketch.line", json!({"points":[[0,0],[20,0]]})).unwrap();
         h.call("ui.view", json!({"view":"top"}));
         h.app.cam.distance = 80.0;
-        h.app.cam.target = solidcraft_engine::geom::Vec3::new(10.0, 0.0, 0.0);
+        h.app.cam.target = desurface_engine::geom::Vec3::new(10.0, 0.0, 0.0);
         h.settle();
         h.step(&json!({"start":"sketch.dimension"})).unwrap();
         for point in [[0, 0, 0], [20, 0, 0], [10, 5, 0]] {

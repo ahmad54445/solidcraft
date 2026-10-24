@@ -65,5 +65,5 @@ Tests compare rectangular illumination to independent f64 surface quadrature,
 exercise blockers before and beyond emitters, compare continuing and final-bounce
 MIS estimates with a white furnace, validate bounded requests, and check that
 preflight leaves the document unchanged. GPU tests require an actual supported
-adapter when SOLIDCRAFT_REQUIRE_GPU is set; no visual milestone is implied by these
+adapter when DESURFACE_REQUIRE_GPU is set; no visual milestone is implied by these
 numerical tests.

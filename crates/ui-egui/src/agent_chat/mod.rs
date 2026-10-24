@@ -1,9 +1,9 @@
 //! Agent chat: a side panel that talks to a coding agent the user already has (Claude Code,
 //! Codex, Antigravity, OpenCode, …) over the Agent Client Protocol, and gives that agent
-//! SolidCraft's MCP server, bridged to this window, as its way to read and change the open design
+//! DeSurface's MCP server, bridged to this window, as its way to read and change the open design
 //! (docs/agent-chat.md, docs/design/in-app-agent-chat.md).
 //!
-//! Desktop only: the agent is a child process. Off unless turned on in Preferences. SolidCraft
+//! Desktop only: the agent is a child process. Off unless turned on in Preferences. DeSurface
 //! never handles the agent's credentials: an agent that needs a login says so, and the panel
 //! shows the agent's own login command for the user to run.
 //!
@@ -217,7 +217,7 @@ pub enum Item {
         options: Vec<PermissionOption>,
         answer: Option<String>,
     },
-    /// A request of the agent's that SolidCraft holds for the user (files, replacing the design,
+    /// A request of the agent's that DeSurface holds for the user (files, replacing the design,
     /// or any change while the mode is "ask"); `tool`: what "Always allow" remembers.
     Approval {
         id: u64,
@@ -228,7 +228,7 @@ pub enum Item {
     /// A message's changes, merged into one undo step; `doc`: the design right after it.
     Changes {
         steps: usize,
-        doc: Arc<solidcraft_engine::doc::Document>,
+        doc: Arc<desurface_engine::doc::Document>,
         undone: bool,
     },
     Notice {
@@ -240,7 +240,7 @@ pub enum Item {
 /// The message being answered: what undo and the limits need.
 struct Turn {
     /// The design and the undo depth before it.
-    start_doc: Arc<solidcraft_engine::doc::Document>,
+    start_doc: Arc<desurface_engine::doc::Document>,
     start_undo: usize,
     /// Requests that ran commands, and requests of any kind.
     changes: u32,
@@ -702,32 +702,32 @@ pub(crate) fn assistant_tip(mark: AssistantMark) -> String {
     format!("{} (Ctrl+Shift+A) — {state}", tr("ui.assistant"))
 }
 
-/// Whether a permission question is about one of SolidCraft's own tools (which SolidCraft's own
+/// Whether a permission question is about one of DeSurface's own tools (which DeSurface's own
 /// gate checks): the agents name MCP tools after their server.
-fn solidcraft_tool(title: &str) -> bool {
-    title.to_ascii_lowercase().contains("solidcraft")
+fn desurface_tool(title: &str) -> bool {
+    title.to_ascii_lowercase().contains("desurface")
 }
 
-/// `solidcraft-cli` next to this program, else on the search path.
+/// `desurface-cli` next to this program, else on the search path.
 #[cfg(not(target_arch = "wasm32"))]
 fn find_cli() -> Option<std::path::PathBuf> {
-    let name = if cfg!(windows) { "solidcraft-cli.exe" } else { "solidcraft-cli" };
-    if let Some(p) = solidcraft_engine::geom::env::var("CLI").map(std::path::PathBuf::from).filter(|p| p.is_file()) {
+    let name = if cfg!(windows) { "desurface-cli.exe" } else { "desurface-cli" };
+    if let Some(p) = desurface_engine::geom::env::var("CLI").map(std::path::PathBuf::from).filter(|p| p.is_file()) {
         return Some(p);
     }
     std::env::current_exe()
         .ok()
         .and_then(|e| e.parent().map(|d| d.join(name)))
         .filter(|p| p.is_file())
-        .or_else(|| discover::find_in("solidcraft-cli", &discover::search_dirs()))
+        .or_else(|| discover::find_in("desurface-cli", &discover::search_dirs()))
 }
 
-/// The agent's working folder: an empty folder of SolidCraft's own, so an agent's own file tools
+/// The agent's working folder: an empty folder of DeSurface's own, so an agent's own file tools
 /// (where it has them) see nothing of the user's.
 fn working_dir() -> std::path::PathBuf {
-    let d = solidcraft_engine::recovery::data_dir()
+    let d = desurface_engine::recovery::data_dir()
         .map(|d| d.join("agent-chat").join("work"))
-        .unwrap_or_else(|| std::env::temp_dir().join("solidcraft-agent-chat"));
+        .unwrap_or_else(|| std::env::temp_dir().join("desurface-agent-chat"));
     #[cfg(not(target_arch = "wasm32"))]
     let _ = std::fs::create_dir_all(&d);
     d
@@ -1220,14 +1220,14 @@ pub fn answer_permission(app: &mut SolveApp, index: usize, option: Option<&str>)
     app.agent_chat.answer(index, option);
 }
 
-/// The agent asks before running something of its own. SolidCraft's own tools are checked by
-/// SolidCraft's gate, so they're allowed here (no double question); otherwise the mode or an
+/// The agent asks before running something of its own. DeSurface's own tools are checked by
+/// DeSurface's gate, so they're allowed here (no double question); otherwise the mode or an
 /// earlier "always allow" may answer, and the chat says so; otherwise the user is asked.
 fn on_permission(app: &mut SolveApp, key: u64, title: String, options: Vec<PermissionOption>) {
     let agent = app.agent_chat.running_id.clone();
     let mode = agents::mode_for(&app.preferences, &agent);
     let remembered = agents::always_allowed(&app.preferences, &agent, &title);
-    let why = if solidcraft_tool(&title) {
+    let why = if desurface_tool(&title) {
         Some("ui.ai_auto_ours")
     } else if remembered {
         Some("ui.ai_auto_remembered")
@@ -1282,8 +1282,8 @@ fn end_turn(app: &mut SolveApp) {
 /// Merge the undo steps made since `start_doc` (at depth `start_undo`) into one, labelled `label`;
 /// how many steps it took in (0: none were made, or the history no longer reaches that far).
 fn merge_undo(
-    undo: &mut Vec<solidcraft_engine::Snapshot>,
-    start_doc: &Arc<solidcraft_engine::doc::Document>,
+    undo: &mut Vec<desurface_engine::Snapshot>,
+    start_doc: &Arc<desurface_engine::doc::Document>,
     start_undo: usize,
     label: &str,
 ) -> usize {

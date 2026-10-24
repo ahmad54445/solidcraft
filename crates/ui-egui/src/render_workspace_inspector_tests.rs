@@ -295,7 +295,7 @@ fn ribbon_navigation_reuses_inspector_and_preserves_exact_unsaved_intent() {
         assert_eq!(h.app.render_workspace.view.draft.width, 777);
         assert_eq!(h.app.session.doc.to_json(), doc, "navigation may not execute a parameterless apply");
         assert_eq!(h.app.session.undo.len(), undo);
-        assert!(!crate::icon_svg::resolve(solidcraft_engine::find_command(id).unwrap().icon).placeholder);
+        assert!(!crate::icon_svg::resolve(desurface_engine::find_command(id).unwrap().icon).placeholder);
     }
 }
 
@@ -330,7 +330,7 @@ fn ribbon_and_sticky_footer_submit_the_current_draft_not_defaults_or_saved_shot(
     h.app.render_workspace.view.draft.height = 24;
     h.app.render_workspace.view.draft.background = [24, 63, 107];
     let before = h.app.session.doc.to_json();
-    let export = solidcraft_engine::find_command("render.export").unwrap();
+    let export = desurface_engine::find_command("render.export").unwrap();
     assert!(!super::super::interactive_command_info(&h.app, export).enabled);
     assert!(export.info(&h.app.session).enabled, "UI state must not alter direct engine API semantics");
     h.app.start("render.preflight");
@@ -355,7 +355,7 @@ fn ribbon_and_sticky_footer_submit_the_current_draft_not_defaults_or_saved_shot(
 
 #[test]
 fn saved_bloom_intent_roundtrips_and_rejects_unsupported_transparent_output() {
-    use solidcraft_engine::render::job::bloom::Bloom;
+    use desurface_engine::render::job::bloom::Bloom;
     let mut h = fixture();
     super::super::select_image_method(&mut h.app, ImageMethod::GpuRaytrace);
     h.app.render_workspace.view.studio.finishing.bloom = Some(Bloom { strength: 0.25, threshold: 2.5, radius: 12 });
@@ -364,7 +364,7 @@ fn saved_bloom_intent_roundtrips_and_rejects_unsupported_transparent_output() {
     h.app.render_workspace.view.studio.finishing.bloom = None;
     setups::load(&mut h.app);
     assert_eq!(setups::snapshot(&h.app).unwrap(), expected);
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     assert_eq!(reopened.render.setups[&h.app.render_workspace.view.name], expected);
     h.app.render_workspace.view.transparent = true;
     assert!(setups::snapshot(&h.app).is_err());
@@ -379,7 +379,7 @@ fn ribbon_frame_preserves_explicit_roll_world_up_and_saved_view_authority() {
     h.app.cam.roll = 0.37;
     h.app.cam.yaw = 0.21;
     h.app.cam.pitch = 0.43;
-    h.app.cam.up = solidcraft_engine::render::UpAxis::Y;
+    h.app.cam.up = desurface_engine::render::UpAxis::Y;
     let orientation = (h.app.cam.roll, h.app.cam.yaw, h.app.cam.pitch, h.app.cam.up);
     let document = h.app.session.doc.to_json();
     let undo = h.app.session.undo.len();
@@ -393,7 +393,7 @@ fn ribbon_frame_preserves_explicit_roll_world_up_and_saved_view_authority() {
 
 #[test]
 fn independent_sampling_and_volume_intent_roundtrip_offline_without_silent_conflict_repairs() {
-    use solidcraft_engine::render::job::{adaptive::AdaptiveSampling, volume::HomogeneousVolume};
+    use desurface_engine::render::job::{adaptive::AdaptiveSampling, volume::HomogeneousVolume};
     let mut h = fixture();
     super::super::select_image_method(&mut h.app, ImageMethod::GpuRaytrace);
     h.app.render_workspace.view.samples = 64;
@@ -413,7 +413,7 @@ fn independent_sampling_and_volume_intent_roundtrip_offline_without_silent_confl
     h.app.render_workspace.view.studio.volume = None;
     setups::load(&mut h.app);
     assert_eq!(setups::snapshot(&h.app).unwrap(), expected);
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     assert_eq!(reopened.render.setups[&h.app.render_workspace.view.name], expected);
     let original = h.app.session.doc.to_json();
     h.app.render_workspace.view.studio.denoise = true;
@@ -437,7 +437,7 @@ fn independent_sampling_and_volume_intent_roundtrip_offline_without_silent_confl
 #[test]
 fn master_regrade_requires_a_retained_master_instead_of_reconstructing_a_png() {
     let mut h = fixture();
-    let spec = solidcraft_engine::find_command("render.result.regrade").unwrap();
+    let spec = desurface_engine::find_command("render.result.regrade").unwrap();
     assert!(spec.info(&h.app.session).enabled, "direct API is validated by exact explicit source identity");
     assert!(!super::super::interactive_command_info(&h.app, spec).enabled);
     let document = h.app.session.doc.to_json();
@@ -483,14 +483,14 @@ fn public_render_inspection_exposes_exact_identities_without_execution_or_docume
 
 #[test]
 fn aging_tab_adds_reorders_disables_and_persists_layers_without_engineering_edits() {
-    use solidcraft_engine::render::job::aging::AgingKind;
+    use desurface_engine::render::job::aging::AgingKind;
     let mut h = fixture();
     super::super::select_image_method(&mut h.app, ImageMethod::GpuRaytrace);
     let before = h.app.session.doc.to_json();
     h.app.start("render.aging.describe");
     h.frames(3);
     assert_eq!(h.app.render_workspace.view.inspector.page, Page::Aging);
-    assert!(!crate::icon_svg::resolve(solidcraft_engine::find_command("render.aging.describe").unwrap().icon).placeholder);
+    assert!(!crate::icon_svg::resolve(desurface_engine::find_command("render.aging.describe").unwrap().icon).placeholder);
     for code in [1, 3] {
         h.step(&json!({"click":{"handle":"render:aging-add"}})).unwrap();
         h.frames(2);
@@ -517,7 +517,7 @@ fn aging_tab_adds_reorders_disables_and_persists_layers_without_engineering_edit
     h.app.render_workspace.view.studio.aging = Default::default();
     setups::load(&mut h.app);
     assert_eq!(setups::snapshot(&h.app).unwrap(), expected);
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     assert_eq!(reopened.render.setups[&h.app.render_workspace.view.name], expected);
     assert_eq!(h.app.render_workspace.view.studio.aging.get(0).unwrap().target.as_ref(), Some(&identity));
     h.step(&json!({"click":{"handle":"render:aging-remove"}})).unwrap();
@@ -527,7 +527,7 @@ fn aging_tab_adds_reorders_disables_and_persists_layers_without_engineering_edit
 
 #[test]
 fn effects_tab_retains_ordered_looks_and_photographic_intent_across_save_and_reload() {
-    use solidcraft_engine::render::job::looks::LookKind;
+    use desurface_engine::render::job::looks::LookKind;
     let mut h = fixture();
     super::super::select_image_method(&mut h.app, ImageMethod::GpuRaytrace);
     let before = h.app.session.doc.to_json();
@@ -600,7 +600,7 @@ fn clearing_physical_stage_preserves_unsaved_camera_background_and_output_intent
     h.app.render_workspace.view.draft.height = 239;
     h.app.render_workspace.view.draft.exposure_ev = 1.25;
     h.app.render_workspace.view.studio.backdrop_enabled = true;
-    h.app.render_workspace.view.studio.backdrop.mode = solidcraft_engine::render::job::finishing::BackdropMode::Radial;
+    h.app.render_workspace.view.studio.backdrop.mode = desurface_engine::render::job::finishing::BackdropMode::Radial;
     h.app.render_workspace.view.studio.backdrop.center = [0.3, 0.6];
     h.app.render_workspace.view.dirty = true;
     let mut expected = setups::snapshot(&h.app).unwrap();
@@ -616,7 +616,7 @@ fn clearing_physical_stage_preserves_unsaved_camera_background_and_output_intent
     assert_eq!(h.app.session.doc.render.setups[&name], expected);
     assert_eq!(h.app.session.doc.features, geometry);
     assert_eq!(h.app.session.doc.materials, materials);
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     assert_eq!(reopened.render.setups[&name], expected);
 }
 
@@ -641,7 +641,7 @@ fn camera_draft_uses_render_command_and_keeps_saved_design_unchanged() {
     let mut h = fixture();
     let document = h.app.session.doc.to_json();
     let undo = h.app.session.undo.len();
-    for up in [solidcraft_engine::render::UpAxis::Z, solidcraft_engine::render::UpAxis::Y] {
+    for up in [desurface_engine::render::UpAxis::Z, desurface_engine::render::UpAxis::Y] {
         let mut camera = h.app.cam;
         camera.up = up;
         camera.roll = 0.41;

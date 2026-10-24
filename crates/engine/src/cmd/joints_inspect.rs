@@ -4,9 +4,9 @@
 //! angle, flip, limits, values, expressions and the motion links it takes part in. Reads only.
 
 use serde_json::{Value, json};
-use solidcraft_doc::joints::{self, Joint, JointOrigin, Snap, XRef};
-use solidcraft_doc::naming::{legacy_name, strip_piece};
-use solidcraft_doc::{Document, MAX_PLACEMENT_DEPTH, ModelState};
+use desurface_doc::joints::{self, Joint, JointOrigin, Snap, XRef};
+use desurface_doc::naming::{legacy_name, strip_piece};
+use desurface_doc::{Document, MAX_PLACEMENT_DEPTH, ModelState};
 
 use super::{component_of, joint_id, link_json, named_values, occurrence_name};
 use crate::{Result, Session};

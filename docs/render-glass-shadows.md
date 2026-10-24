@@ -59,7 +59,7 @@ final combined backend and showcase acceptance remains incomplete.
 
 The estimator follows the public mathematical description of
 [multiple importance sampling in PBRT](https://pbr-book.org/4ed/Light_Transport_I_Surface_Reflection/A_Better_Path_Tracer).
-The straight solid policy is an explicit SolidCraft preview approximation, not a
+The straight solid policy is an explicit DeSurface preview approximation, not a
 claim made by that reference. No reference source code was copied.
 
 Medium crossings are tested against the true finite endpoint distance. The analytic area-emitter self-hit tolerance is separate and does not shorten the geometric connection; exits or entries arbitrarily close before the endpoint still change its medium and radiance factor.

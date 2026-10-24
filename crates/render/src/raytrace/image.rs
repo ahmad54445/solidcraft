@@ -13,7 +13,7 @@ use crate::{
     film::primary::PrimaryFilm,
     surface::{OpaqueSurface, srgb8_to_linear},
 };
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 #[cfg(test)]
 #[path = "environment_image_tests.rs"]

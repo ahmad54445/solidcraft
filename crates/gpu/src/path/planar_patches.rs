@@ -3,7 +3,7 @@
 //! leaving a plane cannot meet that same plane again at a positive distance.
 use super::{Triangle, invalid, medium_root, reserved};
 use robust::{Coord, Coord3D, orient2d, orient3d};
-use solidcraft_render::job::{CancelToken, Result};
+use desurface_render::job::{CancelToken, Result};
 
 #[derive(Eq, PartialEq, Ord, PartialOrd)]
 struct Edge {
@@ -113,8 +113,8 @@ pub(super) fn ids(triangles: &[Triangle], cancel: &CancelToken) -> Result<Vec<u3
 #[cfg(test)]
 mod tests {
     use super::*;
-    use solidcraft_geom::Vec3;
-    use solidcraft_render::surface::OpaqueSurface;
+    use desurface_geom::Vec3;
+    use desurface_render::surface::OpaqueSurface;
 
     fn triangle(p: [[f64; 3]; 3], body: u32) -> Triangle {
         Triangle {
@@ -193,8 +193,8 @@ mod tests {
 
     #[test]
     fn packing_offset_and_ids_follow_bvh_reordering() {
-        use solidcraft_geom::Mesh;
-        use solidcraft_render::{ProductMesh, ProductScene};
+        use desurface_geom::Mesh;
+        use desurface_render::{ProductMesh, ProductScene};
         use std::sync::Arc;
         let mut mesh = Mesh::default();
         for z in [5.0, 0.0, 10.0] {

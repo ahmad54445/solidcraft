@@ -4,10 +4,10 @@ This integration is a draft. Final combined CPU, wasm and GPU verification and
 full-resolution showcase acceptance remain incomplete. Test descriptions below
 state intended coverage, not a claim that every backend has passed.
 
-Native applications can register `solidcraft_gpu::path::host()` alongside the
+Native applications can register `desurface_gpu::path::host()` alongside the
 existing CPU image host. `render.backends` then exposes `builtin/gpu-path` with
 Preview, Image, PNG, Pbr, Progressive and Refraction. The browser keeps its CPU image host.
-Device discovery follows `SOLIDCRAFT_GPU` and `WGPU_BACKEND`; a device which cannot
+Device discovery follows `DESURFACE_GPU` and `WGPU_BACKEND`; a device which cannot
 create the compute pipeline does not register an available path executor.
 The native UI retains a factory for the viewport's selected adapter at installation,
 without opening another device or compiling path shaders in Design (including safe-mode startup).
@@ -50,7 +50,7 @@ Runtime request-only [glass overrides](render-transmission.md) and an optional
 Neither adds saved document fields. Positive aperture requires perspective.
 
 ```sh
-solidcraft-cli render examples/render-path-studio.json --out enclosure.png --progressive --samples 64 --max-depth 8 --seed 0 --width 800 --height 600
+desurface-cli render examples/render-path-studio.json --out enclosure.png --progressive --samples 64 --max-depth 8 --seed 0 --width 800 --height 600
 ```
 
 The CLI explicitly fails if a progressive request has no suitable device. Ordinary
@@ -118,7 +118,7 @@ pools and each retains the established two-entry queue bound; a document still
 has at most two live jobs across both executors.
 
 Validation lives in `gpu::path::tests` and engine render job tests. Set
-`SOLIDCRAFT_REQUIRE_GPU=1` to make absence of an adapter fail device tests rather
+`DESURFACE_REQUIRE_GPU=1` to make absence of an adapter fail device tests rather
 than skip them. BRDF parity is checked against the f64 oracle with 0.3% relative
 plus 2e-5 absolute tolerance. The near-white furnace allows 0.07 absolute error:
 the existing single-scattering Schlick model is not a perfectly conserving pure
@@ -127,7 +127,7 @@ linear buffers bit-for-bit; cross-adapter bitwise identity is not promised.
 
 The ignored `path_performance` test builds a 1,048,576-triangle procedural sphere
 and measures 1920×1080 dispatches, BVH construction and upload. Select sample count
-with `SOLIDCRAFT_PATH_BENCH_SAMPLES` (default 1). Run it explicitly with a clear GPU
+with `DESURFACE_PATH_BENCH_SAMPLES` (default 1). Run it explicitly with a clear GPU
 timing window; it is excluded from normal CI.
 
 ## Dispatch and device-loss behavior

@@ -6,11 +6,11 @@
 use std::collections::BTreeMap;
 
 use serde_json::{Value, json};
-use solidcraft_doc::expr::Kind;
-use solidcraft_doc::frame::{self, Anchor, MemberProfile, Profile, ProfileSpec};
-use solidcraft_doc::{FeatureKind, SketchId};
-use solidcraft_geom::{Loop2, Seg2, Vec2};
-use solidcraft_sketch::Sketch;
+use desurface_doc::expr::Kind;
+use desurface_doc::frame::{self, Anchor, MemberProfile, Profile, ProfileSpec};
+use desurface_doc::{FeatureKind, SketchId};
+use desurface_geom::{Loop2, Seg2, Vec2};
+use desurface_sketch::Sketch;
 
 use super::features::{add_feature, check_expr, sketch_id};
 use super::sketch::edit;
@@ -38,7 +38,7 @@ pub static COMMANDS: &[CommandSpec] = &[
     CommandSpec::new("frame.profile.list", "Profile Library", list).icon("library")
         .noundo()
         .doc_only()
-        .params("Returns kinds: [{kind, label, required, optional, example}]: the built-in profiles, each SolidCraft's own parametric definition"),
+        .params("Returns kinds: [{kind, label, required, optional, example}]: the built-in profiles, each DeSurface's own parametric definition"),
     CommandSpec::new("frame.profile.properties", "Profile Properties", properties).icon("measure").noundo().doc_only().params(concat!(
         profile_doc!(),
         "; density?: kg/m³ (adds mass_per_m, kg/m). Returns profile (every default filled in), area (mm²), centroid [x,y] (mm, from the bounding box centre), ixx, iyy, ixy (mm⁴ about the centroid), width, height"
@@ -62,7 +62,7 @@ fn resolve(s: &Session, cmd: &str, spec: &ProfileSpec) -> Result<Profile> {
     let doc = &s.doc;
     spec.resolve(|name, e| {
         doc.eval(&doc.with_design_unit(e, Kind::Length), Kind::Length)
-            .map_err(|err| solidcraft_doc::DocError::Invalid(format!("profile `{name}`: {err}")))
+            .map_err(|err| desurface_doc::DocError::Invalid(format!("profile `{name}`: {err}")))
     })
     .map_err(|e| bad(cmd, e.to_string()))
 }
@@ -234,7 +234,7 @@ fn member(s: &mut Session, p: &Value) -> Result<Value> {
         None | Some(Value::Null) => None,
         Some(_) => {
             let e = expr(p, "angle").ok_or_else(|| bad(cmd, "`angle` must be an angle expression"))?;
-            check_expr(s, &e, solidcraft_doc::expr::Kind::Angle, cmd, "angle")?;
+            check_expr(s, &e, desurface_doc::expr::Kind::Angle, cmd, "angle")?;
             Some(e)
         }
     };

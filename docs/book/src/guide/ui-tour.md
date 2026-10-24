@@ -1,6 +1,6 @@
 # A tour of the window
 
-![The SolidCraft window](../generated/sample-plate.png)
+![The DeSurface window](../generated/sample-plate.png)
 
 - **Title bar.** On Windows and Linux the application bar is the window's title bar. On the left:
   the File menu (New, Open, Save, Save As, Export…), undo and redo, the Home tab (the start page)
@@ -59,7 +59,7 @@
   setting; switching presets restores that setting. Release the modifier to stop navigating.
   Shift+click and Shift+left-drag still select. Combined Shift+Alt or Ctrl/Cmd modifiers do not
   start pointer-only navigation.
-  The axis view shows the world's X/Y/Z directions in SolidCraft's colors. Click a signed
+  The axis view shows the world's X/Y/Z directions in DeSurface's colors. Click a signed
   axis tip to look along that axis; click the aligned tip again to look from the opposite side.
   Drag the axis view to orbit around the view centre, with Shift for snapping. Top and bottom
   keep the nearest quarter-turn heading. The house, the navigation bar's Home button and a middle-button double-click in the view go
@@ -124,7 +124,7 @@ colours and corner radii by name:
 
 ```json
 {
-  "format": "solidcraft-theme/1",
+  "format": "desurface-theme/1",
   "name": "My Theme",
   "base": "dark",
   "colors": {
@@ -155,7 +155,7 @@ respectively. The first four style small accents through large surfaces; `contro
 styles form controls, and `sketch_mode_radius` styles sketch creation buttons. Themes own
 these settings, with matching shapes across light and dark variants. Dock joins remain
 square, circular controls remain circular, and control sizes and spacing stay the same.
-Platinum 9 and the phosphor themes use square corners, SolidCraft 95 uses subtle 3-point
+Platinum 9 and the phosphor themes use square corners, DeSurface 95 uses subtle 3-point
 corners, Blueprint uses the standard radii, and Cupertino uses softer corners. Other built-in
 themes retain the defaults.
 
@@ -215,7 +215,7 @@ inside panel chrome, with a `gap` from 0 to 12 points. Missing settings keep exi
 Blueprint uses a single white outer outline, dotted section lines and dark minor dividers. Secondary rules optionally accept `pattern: "dotted"`; the default is `solid`. Focus, selection and
 error outlines retain their semantic colours. See the UI-kit border hierarchy for the schema.
 
-SolidCraft 95 also defines optional `borders.bevel`: a per-band `width` and the
+DeSurface 95 also defines optional `borders.bevel`: a per-band `width` and the
 `highlight`, `light`, `shadow` and `dark_shadow` colours. The shared UI uses these
 for raised panels/buttons, recessed fields and reversed pressed-button lighting.
 Themes that omit this setting keep their existing flat borders.

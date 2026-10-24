@@ -32,7 +32,7 @@ impl Class {
     }
 }
 
-/// The layering table. Names are package names without the `solidcraft-`
+/// The layering table. Names are package names without the `desurface-`
 /// prefix.
 pub const TABLE: &[(&str, Class)] = &[
     ("geom", Class::Layer(0)),
@@ -53,7 +53,7 @@ pub const TABLE: &[(&str, Class)] = &[
     ("mcp", Class::Layer(5)),
     ("testkit", Class::Testkit),
     // apps and tooling
-    ("solidcraft", Class::Exempt),
+    ("desurface", Class::Exempt),
     ("cli", Class::Exempt),
     ("web", Class::Exempt),
     ("xtask", Class::Exempt),
@@ -80,7 +80,7 @@ pub const UI_CRATES: &[&str] = &["egui", "eframe", "egui-wgpu", "wgpu", "winit",
 pub const UI_MIN_LAYER: u8 = 5;
 
 pub fn short_name(pkg: &str) -> &str {
-    pkg.strip_prefix("solidcraft-").unwrap_or(pkg)
+    pkg.strip_prefix("desurface-").unwrap_or(pkg)
 }
 
 pub fn classify(pkg: &str) -> Option<Class> {
@@ -138,7 +138,7 @@ impl std::fmt::Display for Violation {
                 write!(f, "{krate}: standalone crate must not depend on workspace crate {dep}")
             }
             Violation::TestkitAsNormalDep { krate } => {
-                write!(f, "{krate}: solidcraft-testkit may only be a dev-dependency")
+                write!(f, "{krate}: desurface-testkit may only be a dev-dependency")
             }
             Violation::UiBelowL5 { krate, dep, layer } => {
                 write!(f, "{krate} (L{layer}) depends on UI crate `{dep}`; UI toolkits are only allowed in L5+")
@@ -245,67 +245,67 @@ mod tests {
     #[test]
     fn clean_downward_graph_passes() {
         let g = [
-            c("solidcraft-geom", &[("kurbo", Normal, false)]),
-            c("solidcraft-doc", &[("solidcraft-geom", Normal, true)]),
-            c("solidcraft-engine", &[("solidcraft-doc", Normal, true), ("solidcraft-testkit", Dev, true)]),
-            c("solidcraft-ui-egui", &[("solidcraft-engine", Normal, true), ("egui", Normal, false)]),
-            c("solidcraft-cli", &[("solidcraft-ui-egui", Normal, true)]),
+            c("desurface-geom", &[("kurbo", Normal, false)]),
+            c("desurface-doc", &[("desurface-geom", Normal, true)]),
+            c("desurface-engine", &[("desurface-doc", Normal, true), ("desurface-testkit", Dev, true)]),
+            c("desurface-ui-egui", &[("desurface-engine", Normal, true), ("egui", Normal, false)]),
+            c("desurface-cli", &[("desurface-ui-egui", Normal, true)]),
         ];
         assert!(check(&g).is_empty(), "{:?}", check(&g));
     }
 
     #[test]
     fn upward_dependency_flagged() {
-        let v = check(&[c("solidcraft-doc", &[("solidcraft-engine", Normal, true)])]);
+        let v = check(&[c("desurface-doc", &[("desurface-engine", Normal, true)])]);
         assert!(matches!(v[..], [Violation::Upward { from: 2, to: 4, .. }]));
     }
 
     #[test]
     fn sideways_dependency_flagged() {
-        let v = check(&[c("solidcraft-kernel", &[("solidcraft-sketch", Normal, true)])]);
+        let v = check(&[c("desurface-kernel", &[("desurface-sketch", Normal, true)])]);
         assert!(matches!(v[..], [Violation::Upward { from: 1, to: 1, .. }]));
     }
 
     #[test]
     fn self_dev_dependency_ignored() {
-        assert!(check(&[c("solidcraft-doc", &[("solidcraft-doc", Dev, true)])]).is_empty());
+        assert!(check(&[c("desurface-doc", &[("desurface-doc", Dev, true)])]).is_empty());
     }
 
     #[test]
     fn upward_dev_dependency_flagged() {
-        let v = check(&[c("solidcraft-geom", &[("solidcraft-doc", Dev, true)])]);
+        let v = check(&[c("desurface-geom", &[("desurface-doc", Dev, true)])]);
         assert!(matches!(v[..], [Violation::Upward { kind: Dev, .. }]));
     }
 
     #[test]
     fn ui_crates_below_l6_flagged() {
         for dep in ["egui", "eframe", "winit", "egui_kittest", "rfd", "bevy_ecs", "bevy"] {
-            let v = check(&[c("solidcraft-engine", &[(dep, Normal, false)])]);
+            let v = check(&[c("desurface-engine", &[(dep, Normal, false)])]);
             assert!(matches!(v[..], [Violation::UiBelowL5 { layer: 4, .. }]), "{dep}");
         }
-        assert!(check(&[c("solidcraft-engine", &[("egui_extras_not", Normal, false)])]).is_empty());
-        assert!(check(&[c("solidcraft-ui-egui", &[("winit", Normal, false)])]).is_empty());
+        assert!(check(&[c("desurface-engine", &[("egui_extras_not", Normal, false)])]).is_empty());
+        assert!(check(&[c("desurface-ui-egui", &[("winit", Normal, false)])]).is_empty());
     }
 
     #[test]
     fn unregistered_crate_is_error() {
-        let v = check(&[c("solidcraft-mystery", &[])]);
-        assert!(matches!(&v[..], [Violation::Unregistered { krate }] if krate == "solidcraft-mystery"));
+        let v = check(&[c("desurface-mystery", &[])]);
+        assert!(matches!(&v[..], [Violation::Unregistered { krate }] if krate == "desurface-mystery"));
         assert!(v[0].to_string().contains("register"));
     }
 
     #[test]
     fn testkit_only_as_dev_dependency() {
-        let v = check(&[c("solidcraft-doc", &[("solidcraft-testkit", Normal, true)])]);
+        let v = check(&[c("desurface-doc", &[("desurface-testkit", Normal, true)])]);
         assert!(matches!(v[..], [Violation::TestkitAsNormalDep { .. }]));
-        assert!(check(&[c("solidcraft-doc", &[("solidcraft-testkit", Dev, true)])]).is_empty());
-        assert!(check(&[c("solidcraft-testkit", &[("solidcraft-engine", Normal, true)])]).is_empty());
+        assert!(check(&[c("desurface-doc", &[("desurface-testkit", Dev, true)])]).is_empty());
+        assert!(check(&[c("desurface-testkit", &[("desurface-engine", Normal, true)])]).is_empty());
     }
 
     #[test]
     fn apps_and_xtask_exempt() {
-        for app in ["solidcraft", "solidcraft-cli", "xtask"] {
-            assert!(check(&[c(app, &[("egui", Normal, false), ("solidcraft-ui-egui", Normal, true)])]).is_empty());
+        for app in ["desurface", "desurface-cli", "xtask"] {
+            assert!(check(&[c(app, &[("egui", Normal, false), ("desurface-ui-egui", Normal, true)])]).is_empty());
         }
     }
 
@@ -313,17 +313,17 @@ mod tests {
     fn metadata_parsing() {
         let meta: Value = serde_json::from_str(
             r#"{"packages":[
-                {"name":"solidcraft-doc","dependencies":[
-                    {"name":"solidcraft-geom","kind":null,"path":"/x/crates/geom"},
+                {"name":"desurface-doc","dependencies":[
+                    {"name":"desurface-geom","kind":null,"path":"/x/crates/geom"},
                     {"name":"serde","kind":null},
                     {"name":"proptest","kind":"dev"}]},
-                {"name":"solidcraft-geom","dependencies":[]}
+                {"name":"desurface-geom","dependencies":[]}
             ]}"#,
         )
         .unwrap();
         let g = from_metadata(&meta).unwrap();
         assert_eq!(g.len(), 2);
-        let doc = g.iter().find(|c| c.name == "solidcraft-doc").unwrap();
+        let doc = g.iter().find(|c| c.name == "desurface-doc").unwrap();
         assert!(doc.deps[0].workspace && !doc.deps[1].workspace);
         assert_eq!(doc.deps[2].kind, Dev);
         assert!(check(&g).is_empty());

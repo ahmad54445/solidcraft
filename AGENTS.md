@@ -1,14 +1,14 @@
-# SolidCraft — instructions for agents
+# DeSurface — instructions for agents
 
-SolidCraft is a clean-room, open-source, pure-Rust parametric 3D CAD application:
+DeSurface is a clean-room, open-source, pure-Rust parametric 3D CAD application:
 sketches with a constraint solver, a parametric timeline of features, a B-rep
 kernel, and a desktop UI that agents can drive. Projects published by
 [storytold](https://github.com/storytold) can serve as references for implementation conventions.
 Any code adapted from other projects (MIT OR Apache-2.0) is noted in ATTRIBUTION.md.
 
 ## Product name
-SolidCraft everywhere: crates `solidcraft-*`, binaries `solidcraft` and `solidcraft-cli`,
-`.solidcraft` designs, the `solidcraft/N` format tag, `SOLIDCRAFT_*` environment variables,
+DeSurface everywhere: crates `desurface-*`, binaries `desurface` and `desurface-cli`,
+`.solidcraft` designs, the `solidcraft/N` format tag, `DESURFACE_*` environment variables,
 settings and recovery folders, the MCP server name, docs, CI and packaging. The old name
 survives only in the explicit compatibility shims listed in `docs/compatibility.md`; don't add
 new uses of it anywhere else. Public docs/web/Flatpak deployments use project Pages
@@ -25,30 +25,30 @@ new uses of it anywhere else. Public docs/web/Flatpak deployments use project Pa
 `plan/` is gitignored (local only).
 
 ## Never crash
-People trust SolidCraft with their designs; a crash loses their work. **This outranks feature work.**
+People trust DeSurface with their designs; a crash loses their work. **This outranks feature work.**
 - **No panics in non-test code:** no `unwrap()`, `expect()`, `panic!`, `unreachable!`, `todo!`,
   `unimplemented!`; no `unsafe` (`unsafe_code = "forbid"`). The exceptions, in the app crate and in
   `crates/threedx-client` (which deny it instead), have no safe API: the macOS-only
   `crates/threedx-client/src/macos.rs` (loads the 3Dconnexion driver's client framework at run time
   and calls through its function pointers), two functions in
-  `apps/solidcraft/src/open_documents.rs` (macOS hands Finder files only to an Objective-C
-  method), the Windows-only `apps/solidcraft/src/native_crash.rs` (the exception filter that
+  `apps/desurface/src/open_documents.rs` (macOS hands Finder files only to an Objective-C
+  method), the Windows-only `apps/desurface/src/native_crash.rs` (the exception filter that
   records crashes inside native code such as graphics drivers), the Windows-only
-  `apps/solidcraft/src/native_frame.rs` (the window procedure that answers the resize-border hit
+  `apps/desurface/src/native_frame.rs` (the window procedure that answers the resize-border hit
   test of the window without OS decorations) and the Windows-only
-  `apps/solidcraft/src/space_mouse/windows_hid.rs` (asks Plug and Play which HID interfaces are 3D
+  `apps/desurface/src/space_mouse/windows_hid.rs` (asks Plug and Play which HID interfaces are 3D
   mice, so no other device is sent anything).
 - **Errors are `Result<T, E>`** through the crate's error type and `?`. An unfinished feature
   returns an error ("not supported yet: …"); it never panics.
 - **Input-derived numbers are hostile** (command parameters, design files, control-channel
   input): `get()` not `[i]`, finite checks, caps on sizes and loop counts.
 - **Third-party kernel calls are guarded:** everything that calls `truck` goes through
-  `solidcraft_kernel::guard`, which turns a panic into `KernelError::Internal`.
+  `desurface_kernel::guard`, which turns a panic into `KernelError::Internal`.
 - **Last-resort guard:** `Session::execute` runs every command under `catch_unwind`; an escaped
   panic restores the design and reports `EngineError::Internal`.
 - **Crash reports:** the desktop app writes every panic and every unclean exit to a local crash folder,
-  with the design and the commands that reproduce it (`solidcraft_engine::crash`, docs/crash-reports.md).
-  When someone says the app crashed, look there first: `solidcraft-cli crashes`, `crashes show <id>`,
+  with the design and the commands that reproduce it (`desurface_engine::crash`, docs/crash-reports.md).
+  When someone says the app crashed, look there first: `desurface-cli crashes`, `crashes show <id>`,
   `crashes replay <id>` (or the `diagnostics.crash_reports` command / MCP `crash_reports` tool).
 - **Prove it:** every crash fix lands with a regression test (see `hostile_params_never_panic`); a
   crash report's `design.solidcraft` + `replay.json` is the test's starting point.
@@ -58,7 +58,7 @@ People trust SolidCraft with their designs; a crash loses their work. **This out
   `#![deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable)]`.
 
 ## Non-negotiables
-- **Independent.** SolidCraft is independent. Behaviour is designed from public documentation,
+- **Independent.** DeSurface is independent. Behaviour is designed from public documentation,
   general CAD conventions and user feedback. Reference tests use analytic values and open-source
   tools. Never copy another product's code, icons, artwork, help text, tooltips, templates or
   materials. File formats come from public specifications.
@@ -70,7 +70,7 @@ People trust SolidCraft with their designs; a crash loses their work. **This out
   runs FreeCAD as a separate program through its public scripting API to compute reference values;
   nothing from FreeCAD is linked, vendored or shipped.) The sketch solver and the blend
   operations are our own.
-- **Assets — absolutely essential.** SolidCraft contains **no iconography, images, fonts or
+- **Assets — absolutely essential.** DeSurface contains **no iconography, images, fonts or
   artwork from commercial CAD products — ever.** Command icons are the original SVG masters in
   `assets/icons/ui/design/svg/`, compiled through `crates/ui-egui/src/icon_svg.rs`.
   **Before any icon, icon assignment or media edit, read `assets/AGENTS.md`,
@@ -105,8 +105,8 @@ People trust SolidCraft with their designs; a crash loses their work. **This out
 - **Application code is Rust only.** Units are millimetres and radians internally; Z is up.
   Local asset authoring, lint and review tools use Python 3.11+ as documented in
   `assets/AGENTS.md`; Python is not an application runtime dependency. The application exception is
-  JavaScript the browser requires: the service worker `apps/solidcraft-web/sw.js` (browsers only
-  run service workers as JavaScript) and the small inline scripts in `apps/solidcraft-web/index.html`.
+  JavaScript the browser requires: the service worker `apps/desurface-web/sw.js` (browsers only
+  run service workers as JavaScript) and the small inline scripts in `apps/desurface-web/index.html`.
   Keep them minimal; `cargo xtask web-offline-test` covers the service worker.
 - **Quality gates** before every commit: `cargo xtask ci` (fmt, clippy -D warnings, tests,
   assets, layers). Commit after every feature arc that builds.
@@ -186,27 +186,27 @@ version bumps solely from commit prefixes, overwrite published versions, or push
 before the draft is verified.
 
 ## Running and looking at the app
-- `cargo run --release -p solidcraft -- --sample --control PORT` (sample design + control channel).
+- `cargo run --release -p desurface -- --sample --control PORT` (sample design + control channel).
   Pick a free port. Without a display, run it under `Xvfb :99` with `DISPLAY=:99`.
 - Drive it with JSON lines on `127.0.0.1:PORT` (see `docs/control-protocol.md`). The first
   request on a connection carries the launch's token as `"token"`: read it from
-  `~/.local/share/solidcraft/control/PORT.token`, or start the app with
-  `SOLIDCRAFT_CONTROL_TOKEN=$(openssl rand -hex 32)` and send that.
+  `~/.local/share/desurface/control/PORT.token`, or start the app with
+  `DESURFACE_CONTROL_TOKEN=$(openssl rand -hex 32)` and send that.
   - `{"id":1,"method":"engine.execute","params":{"command":"solid.extrude","params":{"distance":20}}}`
   - `{"id":2,"method":"ui.start","params":{"command":"sketch.create"}}` then `ui.click {x, y}`
   - `{"id":3,"method":"ui.screenshot","params":{"path":"/tmp/shot.png"}}` then read the PNG.
 - **For UI work, look at the result** (screenshot, read the PNG). Without a window use
-  `ui.render` or `solidcraft-cli snapshot`.
-- Headless: `solidcraft-cli run script.json --out part.step`, `solidcraft-cli eval design.solidcraft`,
-  `solidcraft-cli snapshot script.json --out shot.png`, `solidcraft-cli commands`.
+  `ui.render` or `desurface-cli snapshot`.
+- Headless: `desurface-cli run script.json --out part.step`, `desurface-cli eval design.solidcraft`,
+  `desurface-cli snapshot script.json --out shot.png`, `desurface-cli commands`.
 - Reference tests: `cargo xtask oracle` replays `tests/oracle/*/recipe.json` and compares with
   each case's `expected.json` (analytic or FreeCAD values; writes `docs/oracle.md`). Expected
   values never come from a commercial CAD product.
-- Build with `CARGO_TARGET_DIR=<repo>/target`. Windows: `cargo xwin build --release --target x86_64-pc-windows-msvc -p solidcraft`.
+- Build with `CARGO_TARGET_DIR=<repo>/target`. Windows: `cargo xwin build --release --target x86_64-pc-windows-msvc -p desurface`.
 
 ## Roadmap
 `ROADMAP.md` (committed) tracks status, milestones and estimates. Update it whenever a
-milestone task lands. `docs/features.md` (SolidCraft's commands by area, from the registry) and
+milestone task lands. `docs/features.md` (DeSurface's commands by area, from the registry) and
 `THIRD-PARTY-LICENSES.txt` are regenerated on `main` after each merge by the Generated files
 workflow; never regenerate them in a PR.
 

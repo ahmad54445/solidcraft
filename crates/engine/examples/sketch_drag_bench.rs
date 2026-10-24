@@ -2,9 +2,9 @@
 use std::{error::Error, io::Write, path::PathBuf, sync::Arc, time::Instant};
 
 use serde_json::{Value, json};
-use solidcraft_engine::Session;
-use solidcraft_geom::Vec2;
-use solidcraft_sketch::{Analysis, ConstraintKind, Hold, Sketch, profiling::capture, solve_with};
+use desurface_engine::Session;
+use desurface_geom::Vec2;
+use desurface_sketch::{Analysis, ConstraintKind, Hold, Sketch, profiling::capture, solve_with};
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -104,7 +104,7 @@ fn main() -> Result<()> {
         }
         cases.push(json!({"case": name, "samples": samples}));
     }
-    let output = json!({"schema": "solidcraft/sketch-drag-bench/1", "size": size, "seed": 99, "repeats": repeats, "warmup": 2, "cases": cases});
+    let output = json!({"schema": "desurface/sketch-drag-bench/1", "size": size, "seed": 99, "repeats": repeats, "warmup": 2, "cases": cases});
     let mut writer: Box<dyn Write> = match out {
         Some(path) => Box::new(std::io::BufWriter::new(std::fs::File::create(path)?)),
         None => Box::new(std::io::stdout().lock()),

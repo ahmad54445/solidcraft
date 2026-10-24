@@ -1,6 +1,6 @@
 # Independent CPU LOD reference
 
-`solidcraft_render::texture_lod::select_isotropic_lod` is the small numerical
+`desurface_render::texture_lod::select_isotropic_lod` is the small numerical
 unit in #1339, supporting the eventual wood consumer under #786. It depends only
 on existing texture admission limits and the standard library; #1327/#1332 do
 not need to merge first. It installs no texture consumer or renderer capability.
@@ -36,7 +36,7 @@ at 1x1. The result includes the unsaturated scale and maximum level. For odd
 dimensions log2 remains a convention approximating non-power-of-two level ratios;
 it is not a claim of exact area integration or alias-free minification.
 
-Policy identifier `solidcraft.isotropic-singular-value-lod/1` fixes that
+Policy identifier `desurface.isotropic-singular-value-lod/1` fixes that
 convention. A consumer must explicitly reconcile it with its prepared chain;
 incomplete chains and different halving/filter policies cannot silently substitute.
 No sampling, alpha/normal interpretation, derivative persistence, allocation,

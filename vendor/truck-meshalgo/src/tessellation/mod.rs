@@ -18,7 +18,7 @@ mod parallelizable {
 
 pub use parallelizable::*;
 
-/// SolidCraft: a disposable preview of a face from already sampled boundary loops.
+/// DeSurface: a disposable preview of a face from already sampled boundary loops.
 /// Caps input points and uses a fixed parameter grid, including periodic seams.
 /// This is approximate display, never an accuracy-controlled modelling mesh.
 pub fn preview_face<S: RobustMeshableSurface>(surface: &S, loops: &[Vec<Point3>], steps: usize) -> Option<PolygonMesh> {
@@ -37,14 +37,14 @@ pub fn project_trim_point<S: RobustMeshableSurface>(surface: &S, point: Point3, 
     triangulation::nearest_projection(surface, point, hint, tolerance, 100)
 }
 
-/// SolidCraft: an edge's polyline as the meshers divide it (at most 20 000 points). Exposed for
+/// DeSurface: an edge's polyline as the meshers divide it (at most 20 000 points). Exposed for
 /// the kernel's regressions in the workspace CI.
 #[doc(hidden)]
 pub fn bounded_polyline<C: PolylineableCurve>(curve: &C, range: (f64, f64), d: Deflection) -> PolylineCurve {
     triangulation::bounded_polyline(curve, range, d)
 }
 
-/// SolidCraft: sampling a curve that may fail to evaluate. truck's `IntersectionCurve::subs`
+/// DeSurface: sampling a curve that may fail to evaluate. truck's `IntersectionCurve::subs`
 /// unwraps the projection of its leader's point onto both surfaces, which does not converge
 /// everywhere; the mesher samples through this trait so that a failed sample is data, not a panic.
 pub trait TrySubs: ParametricCurve3D {
@@ -109,7 +109,7 @@ impl<S: MeshableSurface + SearchNearestParameter<D2, Point = Point3>> RobustMesh
 
 type PolylineCurve = truck_polymesh::PolylineCurve<Point3>;
 
-/// SolidCraft: how finely curves and surfaces are divided into facets. `chord` is the usual
+/// DeSurface: how finely curves and surfaces are divided into facets. `chord` is the usual
 /// tolerance: the most a facet may sag from the true shape. `angle`, when finite, also bounds
 /// what one facet spans: a facet that turns more than `angle` is split whatever its size (a
 /// radius that is small beside the tolerance would otherwise stay one flat facet), until its
@@ -122,7 +122,7 @@ pub struct Deflection {
     pub angle: f64,
     /// Sag below which `angle` no longer splits a facet.
     pub floor: f64,
-    /// SolidCraft: a mesh to display or export, which must lie on its faces, rather than one a
+    /// DeSurface: a mesh to display or export, which must lie on its faces, rather than one a
     /// Boolean operation intersects (whose results must not depend on what follows). Such a
     /// mesh gets grid lines through the vertices that split a face's ruling edges (see
     /// `with_ruling_vertices`), triangulates a trimmed face in speed-scaled parameters
@@ -167,7 +167,7 @@ impl Deflection {
 
     /// The squared sag over squared length above which a facet turns more than `angle`: a
     /// chord spanning `a` of a circle sags `tan(a / 4) / 2` of its length. Infinite without
-    /// an angle bound. SolidCraft: public for the kernel's regressions.
+    /// an angle bound. DeSurface: public for the kernel's regressions.
     #[doc(hidden)]
     pub fn turn2(&self) -> f64 {
         match self.angular() && self.angle < std::f64::consts::PI {
@@ -177,7 +177,7 @@ impl Deflection {
     }
 
     /// Whether the angle bound splits a facet of squared sag `sag2` and squared length `len2`
-    /// (`turn2` from [`Deflection::turn2`]). SolidCraft: public for the kernel's regressions.
+    /// (`turn2` from [`Deflection::turn2`]). DeSurface: public for the kernel's regressions.
     #[doc(hidden)]
     pub fn turns(&self, turn2: f64, sag2: f64, len2: f64) -> bool {
         turn2.is_finite() && sag2 > self.floor * self.floor && sag2 > turn2 * len2
@@ -420,7 +420,7 @@ impl<C: PolylineableCurve, S: RobustMeshableSurface> RobustMeshableShape for She
     }
 }
 
-/// SolidCraft: tessellation with a bound on the angle one facet spans as well as on its sag.
+/// DeSurface: tessellation with a bound on the angle one facet spans as well as on its sag.
 pub trait RoundMeshableShape {
     /// Shape whose edges are made polylines and faces polygon surface.
     type MeshedShape: MeshedShape;

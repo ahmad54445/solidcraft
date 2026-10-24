@@ -26,7 +26,7 @@ The following inventory is retained only to explain the previous planning baseli
 | File SHA-256 | `fcb08540b1db08325f366fd0ff235f84f66d96406961482736bc097d7248c6d6` |
 | File size | 216,036 bytes |
 | Native document tag | `solidcraft/15` |
-| Units and orientation | Millimeters; SolidCraft Z-up convention |
+| Units and orientation | Millimeters; DeSurface Z-up convention |
 | Source statistics | 1,395 bodies; 576 sketches; 3,324 history features |
 | Assembly inventory | 36 component definitions plus root; 36 occurrences; 17 revolute joints |
 

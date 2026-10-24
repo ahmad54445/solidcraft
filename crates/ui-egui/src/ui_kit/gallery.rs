@@ -277,7 +277,7 @@ const ELEMENTS: &[Element] = &[
             "gallery:recovery",
             super::file_view::RecoveryMessage {
                 title: "1 design was recovered",
-                before_filename: " after SolidCraft closed unexpectedly: ",
+                before_filename: " after DeSurface closed unexpectedly: ",
                 filename: "enclosure-lid.solidcraft",
                 after_filename: ", 2 minutes ago.",
             },
@@ -346,7 +346,7 @@ const ELEMENTS: &[Element] = &[
         ui.add_space(Tokens::get().space_6);
         CommandSearch::sheet(ui, ui.available_width(), 1.0, false, |ui| {
             CommandSearch::heading(ui, "search.commands", 1);
-            let c = solidcraft_engine::find_command("solid.fillet").unwrap();
+            let c = desurface_engine::find_command("solid.fillet").unwrap();
             let mut row = MenuItem::new(c.id, c.label, c.icon);
             row.highlighted = true;
             row.shortcut = "F";
@@ -1498,7 +1498,7 @@ fn history_board_in_both_themes_and_widths() {
                         assert_eq!(app.shell.history.unwrap().width(), 112.0);
                     }
                     assert!(app.shell.history.unwrap().right() < app.shell.browser.unwrap().left());
-                    if let Ok(dir) = std::env::var("SOLIDCRAFT_HISTORY_EVIDENCE") {
+                    if let Ok(dir) = std::env::var("DESURFACE_HISTORY_EVIDENCE") {
                         std::fs::create_dir_all(&dir).unwrap();
                         image
                             .unwrap()
@@ -1553,7 +1553,7 @@ fn menu_board_in_both_themes() {
         }
         let image = image.unwrap();
         assert!(image.pixels().any(|p| p.0[3] != 0));
-        if let Ok(dir) = std::env::var("SOLIDCRAFT_MENU_EVIDENCE") {
+        if let Ok(dir) = std::env::var("DESURFACE_MENU_EVIDENCE") {
             std::fs::create_dir_all(&dir).unwrap();
             image.save(std::path::Path::new(&dir).join(if dark { "menus-dark.png" } else { "menus-light.png" })).unwrap();
         }
@@ -1624,7 +1624,7 @@ fn command_search_board_in_both_themes() {
             }
             let image = image.unwrap();
             assert!(image.pixels().any(|p| p.0[3] != 0));
-            if let Ok(dir) = std::env::var("SOLIDCRAFT_SEARCH_EVIDENCE") {
+            if let Ok(dir) = std::env::var("DESURFACE_SEARCH_EVIDENCE") {
                 std::fs::create_dir_all(&dir).unwrap();
                 image.save(std::path::Path::new(&dir).join(format!("search-{state}-{}.png", if dark { "dark" } else { "light" }))).unwrap();
             }
@@ -1780,7 +1780,7 @@ fn confirm_radial_and_history_rows_keep_multitone_artwork() {
                 let group = if matches!(surface, "warning" | "danger" | "info") { "confirm" } else { surface };
                 dominant_accents.entry(group).or_default().insert(dominant.1);
             }
-            if let Ok(dir) = std::env::var("SOLIDCRAFT_ICON_SURFACE_EVIDENCE") {
+            if let Ok(dir) = std::env::var("DESURFACE_ICON_SURFACE_EVIDENCE") {
                 let mut textures = std::collections::HashMap::new();
                 super::checks::tests::textures_update(&mut textures, &output.textures_delta);
                 let capture = super::checks::tests::raster(&ctx, output.shapes.clone(), output.pixels_per_point, bounds, &textures);
@@ -1871,7 +1871,7 @@ fn command_search_ribbon_transition_clips_content_in_both_themes() {
             } else if frame == 25 {
                 assert_eq!(field, closed);
             }
-            if let (Some(state), Ok(dir)) = (state, std::env::var("SOLIDCRAFT_SEARCH_EVIDENCE")) {
+            if let (Some(state), Ok(dir)) = (state, std::env::var("DESURFACE_SEARCH_EVIDENCE")) {
                 std::fs::create_dir_all(&dir).unwrap();
                 let image = raster(&ctx, output.shapes, output.pixels_per_point, bounds, &textures);
                 image.save(std::path::Path::new(&dir).join(format!("ribbon-{state}-{}.png", if dark { "dark" } else { "light" }))).unwrap();
@@ -1883,13 +1883,13 @@ fn command_search_ribbon_transition_clips_content_in_both_themes() {
 
 /// Opt-in CPU capture of the actual File view, with public temporary fixtures only.
 #[test]
-#[ignore = "set SOLIDCRAFT_FILE_EVIDENCE to an output directory and run explicitly"]
+#[ignore = "set DESURFACE_FILE_EVIDENCE to an output directory and run explicitly"]
 fn file_view_application_evidence_in_both_themes_and_widths() {
     use super::checks::tests::{raster, textures_update};
     use std::collections::HashMap;
-    let output_dir = std::path::PathBuf::from(std::env::var("SOLIDCRAFT_FILE_EVIDENCE").expect("set SOLIDCRAFT_FILE_EVIDENCE"));
+    let output_dir = std::path::PathBuf::from(std::env::var("DESURFACE_FILE_EVIDENCE").expect("set DESURFACE_FILE_EVIDENCE"));
     std::fs::create_dir_all(&output_dir).unwrap();
-    let fixture_dir = std::env::temp_dir().join(format!("solidcraft-file-evidence-{}", std::process::id()));
+    let fixture_dir = std::env::temp_dir().join(format!("desurface-file-evidence-{}", std::process::id()));
     std::fs::create_dir_all(&fixture_dir).unwrap();
     let path = fixture_dir.join("sample-plate.solidcraft");
     let fixture = path.to_string_lossy().to_string();
@@ -1908,7 +1908,7 @@ fn file_view_application_evidence_in_both_themes_and_widths() {
             crate::home::install(&mut app.home, &ctx, &fixture, Some(preview));
             app.preferences.theme = if dark { "dark" } else { "light" }.into();
             app.ui.dark = dark;
-            app.recoverable.push(solidcraft_engine::recovery::Entry {
+            app.recoverable.push(desurface_engine::recovery::Entry {
                 id: "public-evidence".into(),
                 path: Some("enclosure-lid.solidcraft".into()),
                 name: "Enclosure lid".into(),

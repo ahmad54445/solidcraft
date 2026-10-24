@@ -8,7 +8,7 @@ use std::ops::Deref;
 use truck_meshalgo::prelude::*;
 use truck_topology::*;
 
-/// SolidCraft: `p` moved into the surface's parameter range (a point found on the boundary can lie a
+/// DeSurface: `p` moved into the surface's parameter range (a point found on the boundary can lie a
 /// hair outside it, and a search started from there fails).
 fn clamped<P, S: ParametricSurface<Point = P>>(surface: &S, p: Point2) -> Point2 {
     match surface.try_range_tuple() {
@@ -31,7 +31,7 @@ where
 {
     let surface = face.surface();
     let pt = wire.front_vertex().unwrap().point();
-    // SolidCraft: intersection-curve points lie on the surface only within the tolerance; fall
+    // DeSurface: intersection-curve points lie on the surface only within the tolerance; fall
     // back to the nearest parameter when the exact search fails.
     let p: Point2 = surface
         .search_parameter(pt, None, 100)
@@ -45,7 +45,7 @@ where
         });
         let mut p = *vec.last().unwrap();
         let closure = |q: &P| -> Option<Point2> {
-            // SolidCraft: the points of an intersection curve on a lofted or swept surface lie on
+            // DeSurface: the points of an intersection curve on a lofted or swept surface lie on
             // the seam between its halves, a hair outside the parameter range, and Newton's
             // method from the previous point's parameter then fails (or the surface bends away
             // from it). `lenient`, the second try after the first gave up: start from the hint
@@ -71,7 +71,7 @@ where
         vec.append(&mut add?);
         Some(vec)
     })?;
-    // SolidCraft: a lenient boundary whose points jump half the parameter range or more has been
+    // DeSurface: a lenient boundary whose points jump half the parameter range or more has been
     // found across a periodic surface's seam by the whole-surface search (on a cylinder the
     // points of one edge landed at both ends of its angle): it would divide the face wrongly, so
     // the face is left undivided as before.
@@ -86,7 +86,7 @@ where
     Some(PolylineCurve(vec))
 }
 
-/// SolidCraft: whether a loop's polygon in the parameter plane has no area to speak of: two
+/// DeSurface: whether a loop's polygon in the parameter plane has no area to speak of: two
 /// points (a closed loop of two edges divided at their ends only), or an area that is rounding
 /// beside the polygon's extent. Its sign then tells nothing.
 fn flat_polygon(poly: &PolylineCurve<Point2>) -> bool {
@@ -99,7 +99,7 @@ fn flat_polygon(poly: &PolylineCurve<Point2>) -> bool {
     poly.len() < 4 || !(poly.area().abs() > 1e-9 * diag2)
 }
 
-/// SolidCraft: a loop whose polygon is flat ([`flat_polygon`]) divided again, finer, to the
+/// DeSurface: a loop whose polygon is flat ([`flat_polygon`]) divided again, finer, to the
 /// loop's own size. A small hole's wire is two half circles; divided at a tolerance that
 /// follows a much larger body (a few millimetres for a part over a metre long) each half is a
 /// single chord, the polygon has no area, and its sign, which tells a hole from a face piece,
@@ -181,7 +181,7 @@ where
     }
     negative_wires.into_iter().try_for_each(|chunk| {
         let pt = chunk.poly.front();
-        // SolidCraft: the innermost piece that holds the loop (nested intersection loops, such
+        // DeSurface: the innermost piece that holds the loop (nested intersection loops, such
         // as both walls of a tube crossing one face), never the loop's own twin.
         let hole = -chunk.poly.area();
         let op = crate::tr!(
@@ -209,7 +209,7 @@ where
                 .into_iter()
                 .map(|chunk| chunk.wire.deref().clone())
                 .collect();
-            // SolidCraft: no panics (wasm can't catch them): a wire visiting a vertex twice gives up.
+            // DeSurface: no panics (wasm can't catch them): a wire visiting a vertex twice gives up.
             let mut new_face = crate::tr!(Face::try_new(wires, surface).ok(), "face of a wire visiting a vertex twice");
             if !face.orientation() {
                 new_face.invert();

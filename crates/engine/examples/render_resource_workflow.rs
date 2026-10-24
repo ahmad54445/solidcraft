@@ -2,7 +2,7 @@
 //! the enormous full engine test binary for every resource/UI-adapter change.
 //! Original analytic fixture; no external CAD or image data. New output folder only.
 use serde_json::{Value, json};
-use solidcraft_engine::{
+use desurface_engine::{
     Session,
     doc::Document,
     render::job::{CpuHost, Phase},

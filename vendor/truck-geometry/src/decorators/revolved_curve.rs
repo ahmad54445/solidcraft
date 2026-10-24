@@ -82,7 +82,7 @@ impl Revolution {
     }
 }
 
-/// SolidCraft: the angle of a point on the seam, where 0 and 2π are the same place, taken at the end
+/// DeSurface: the angle of a point on the seam, where 0 and 2π are the same place, taken at the end
 /// of the period nearer the hint's angle. [`Revolution::proj_angle`] decides it by the sign of a cross
 /// product that is rounding noise there, so a boundary followed point by point could come back to
 /// the seam at the other end of the period from where it left, and its parameter polygon folded

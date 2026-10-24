@@ -1,7 +1,7 @@
 use super::build_scene;
 use crate::{Services, SolveApp};
 use serde_json::json;
-use solidcraft_engine::{Session, doc, geom::Vec3, kernel};
+use desurface_engine::{Session, doc, geom::Vec3, kernel};
 
 #[test]
 fn placed_step_body_uses_imported_opacity_until_a_design_look_overrides_it() {
@@ -26,7 +26,7 @@ fn placed_step_body_uses_imported_opacity_until_a_design_look_overrides_it() {
     app.ui.ground_shadow = false;
     app.ui.show_origin = false;
     let placed = app.session.world_state().bodies.iter().find(|b| b.name != source).unwrap().name.clone();
-    app.session.selection = vec![solidcraft_engine::Sel::Body { name: placed }];
+    app.session.selection = vec![desurface_engine::Sel::Body { name: placed }];
     app.start("appearance.assign");
     let crate::dialogs::Kind::Appearance(appearance) = &app.dialog.as_ref().unwrap().kind else { panic!("appearance dialog") };
     assert!((appearance.opacity - 0.4).abs() < 1e-6);
@@ -66,12 +66,12 @@ fn theme_switches_refresh_cached_viewport_colours_without_remeshing() {
     h.app.run("solid.box", json!({"length": 20, "width": 15, "height": 10})).unwrap();
     h.app.viewport.gpu = Some(super::GpuTarget { format: egui_wgpu::wgpu::TextureFormat::Rgba8Unorm, depth: None, samples: 1, tess: false });
     let body = h.app.session.world_state().bodies[0].name.clone();
-    h.app.session.selection = vec![solidcraft_engine::Sel::Body { name: body.clone() }];
+    h.app.session.selection = vec![desurface_engine::Sel::Body { name: body.clone() }];
     h.frame();
     let revision = h.app.session.revision;
     let mesh = h.app.session.world_state().bodies[0].cached_mesh().unwrap();
     let mut previous: Option<(u64, u64, u64)> = None;
-    for theme in ["dark", "gruvbox-dark", "blueprint", "dark", "light", "solidcraft-95", "cupertino", "light"] {
+    for theme in ["dark", "gruvbox-dark", "blueprint", "dark", "light", "desurface-95", "cupertino", "light"] {
         let result = h.call("ui.prefs", json!({"theme": theme}));
         assert!(result.get("error").is_none(), "{result}");
         h.frame();
@@ -94,7 +94,7 @@ fn theme_switches_refresh_cached_viewport_colours_without_remeshing() {
         assert!(h.app.viewport.slot.lock().unwrap().is_none(), "an unchanged theme reuses its scene");
     }
     h.app.run("appearance.assign", json!({"bodies": [body], "color": "#336699"})).unwrap();
-    for theme in ["gruvbox-dark", "blueprint", "solidcraft-95"] {
+    for theme in ["gruvbox-dark", "blueprint", "desurface-95"] {
         h.call("ui.prefs", json!({"theme": theme}));
         h.frame();
         let scene = h.app.viewport.slot.lock().unwrap().take().unwrap().merged();
@@ -120,7 +120,7 @@ fn cancelling_theme_preview_restores_viewport_palette_keys() {
     h.frame();
     assert_eq!(keys(&h.app), before);
     // Replacing an imported palette keeps its id and base but still changes geometry colours.
-    let custom = |color| json!({"format":"solidcraft-theme/1","name":"Viewport test","base":"dark","colors":{"body":color}});
+    let custom = |color| json!({"format":"desurface-theme/1","name":"Viewport test","base":"dark","colors":{"body":color}});
     h.call("ui.prefs", json!({"theme_import": custom("#abcdef")}));
     h.call("ui.prefs", json!({"theme": "viewport-test"}));
     h.frame();

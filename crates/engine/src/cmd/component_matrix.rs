@@ -4,7 +4,7 @@
 //! `solid.mirror`'s, not a placement's).
 
 use serde_json::Value;
-use solidcraft_doc::{IDENTITY, Mat};
+use desurface_doc::{IDENTITY, Mat};
 
 use crate::Result;
 use crate::params::bad;

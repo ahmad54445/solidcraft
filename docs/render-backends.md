@@ -11,7 +11,7 @@ evaluating the model or changing the document, camera, dirty state or undo/redo 
 It also leaves a model made stale by a live sketch gesture stale.
 
 ```sh
-solidcraft-cli exec render.backends '{}'
+desurface-cli exec render.backends '{}'
 ```
 
 The control channel and MCP `execute` use the same engine command. Parameters must be
@@ -94,7 +94,7 @@ worker/device, starts a render, modifies a document or reserves image memory.
 
 ## Pure request resolution
 
-`solidcraft_render::resolve_request` accepts a descriptor slice and a `RenderRequest`.
+`desurface_render::resolve_request` accepts a descriptor slice and a `RenderRequest`.
 It validates and resolves metadata only: it does not allocate an image, start a job,
 reroute `snapshot` or call a renderer. A request can be deserialized from:
 

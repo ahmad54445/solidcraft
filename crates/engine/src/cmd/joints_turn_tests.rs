@@ -2,7 +2,7 @@
 //! already meet stay as they are instead of the part spinning a half turn about their normal.
 
 use serde_json::json;
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 use super::tests::{occ, place, run};
 use crate::Session;

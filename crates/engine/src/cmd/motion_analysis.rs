@@ -7,10 +7,10 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use serde_json::{Value, json};
-use solidcraft_doc::joints;
-use solidcraft_doc::motion::MotionStudy;
-use solidcraft_doc::{Document, Mat, apply_point, mat_mul};
-use solidcraft_geom::{Aabb3, Vec3};
+use desurface_doc::joints;
+use desurface_doc::motion::MotionStudy;
+use desurface_doc::{Document, Mat, apply_point, mat_mul};
+use desurface_geom::{Aabb3, Vec3};
 
 use super::contact_sweep::{ContactGeometry, Member};
 use super::{drive_with_contact, joint_id, keyed, occurrences, path_world, study_index, traced_point, values_at};
@@ -261,7 +261,7 @@ struct Collision {
 fn shared_volume(s: &Session, doc: &Document, a: u64, b: u64, booleans: &mut usize) -> Option<f64> {
     let st = s.model.state();
     // The bodies under each (and not under the other), with their world frames and boxes.
-    let mut sides: [Vec<(Mat, Aabb3, &solidcraft_doc::ModelBody)>; 2] = Default::default();
+    let mut sides: [Vec<(Mat, Aabb3, &desurface_doc::ModelBody)>; 2] = Default::default();
     for (comp, path, m) in doc.placements() {
         // A body belongs to the innermost of the two on its path, as contact sets pair them.
         let side = match path.iter().rev().find(|o| **o == a || **o == b) {
@@ -289,9 +289,9 @@ fn shared_volume(s: &Session, doc: &Document, a: u64, b: u64, booleans: &mut usi
                 continue;
             }
             *booleans = booleans.checked_sub(1)?;
-            let (pa, pb) = (solidcraft_kernel::transform_matrix(&ba.body, *fa).ok()?, solidcraft_kernel::transform_matrix(&bb.body, *fb).ok()?);
-            if let Some(shared) = solidcraft_kernel::boolean(&pa, &pb, solidcraft_kernel::BoolOp::Intersect).ok()? {
-                total += solidcraft_kernel::measure(&shared).ok()?.volume;
+            let (pa, pb) = (desurface_kernel::transform_matrix(&ba.body, *fa).ok()?, desurface_kernel::transform_matrix(&bb.body, *fb).ok()?);
+            if let Some(shared) = desurface_kernel::boolean(&pa, &pb, desurface_kernel::BoolOp::Intersect).ok()? {
+                total += desurface_kernel::measure(&shared).ok()?.volume;
             }
         }
     }

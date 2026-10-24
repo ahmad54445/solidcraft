@@ -18,9 +18,9 @@
 //! tangent along the edge (the system becomes singular) or Newton does not converge, the caller
 //! uses truck's evaluation.
 
-use solidcraft_geom::Vec3;
-use solidcraft_geom::bspline::CurveN;
-use solidcraft_geom::tess::EvalSurface;
+use desurface_geom::Vec3;
+use desurface_geom::bspline::CurveN;
+use desurface_geom::tess::EvalSurface;
 use truck_meshalgo::prelude::*;
 use truck_modeling as mt;
 

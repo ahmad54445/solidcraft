@@ -1,9 +1,9 @@
 use super::*;
-use solidcraft_doc::{Document, FeatureKind, MeshData};
-use solidcraft_geom::Vec3;
+use desurface_doc::{Document, FeatureKind, MeshData};
+use desurface_geom::Vec3;
 
 fn imported_box() -> Session {
-    let body = solidcraft_kernel::box_solid(Vec3::ZERO, Vec3::new(10., 20., 30.)).unwrap();
+    let body = desurface_kernel::box_solid(Vec3::ZERO, Vec3::new(10., 20., 30.)).unwrap();
     let mesh = body.tessellate(0.01).unwrap();
     let mut doc = Document::default();
     doc.add_feature(
@@ -131,7 +131,7 @@ fn exported_binary_stl_with_a_bore_reconstructs_analytic_faces() {
     run(&mut s, "sketch.circle.center", json!({"center":[10,10],"radius":4}));
     run(&mut s, "sketch.finish", json!({}));
     run(&mut s, "solid.extrude", json!({"sketch":"Section","profiles":[{"point":[30,10]}],"distance":15,"body_name":"Bracket"}));
-    let path = std::env::temp_dir().join(format!("solidcraft-mesh-convert-{}.stl", std::process::id()));
+    let path = std::env::temp_dir().join(format!("desurface-mesh-convert-{}.stl", std::process::id()));
     run(&mut s, "file.save_mesh", json!({"path":path}));
     run(&mut s, "doc.open", json!({"path":path}));
     let name = s.model.state().bodies[0].name.clone();
@@ -140,7 +140,7 @@ fn exported_binary_stl_with_a_bore_reconstructs_analytic_faces() {
     let body = &state.bodies[0].body;
     assert!(!body.is_mesh());
     assert!(body.validity().is_empty());
-    assert_eq!(solidcraft_kernel::measure(body).unwrap().merged.face_types.get("cylinder"), Some(&1));
+    assert_eq!(desurface_kernel::measure(body).unwrap().merged.face_types.get("cylinder"), Some(&1));
     assert_eq!(body.faces(0.01).unwrap().len(), 10);
     std::fs::remove_file(path).unwrap();
 }
@@ -157,10 +157,10 @@ fn stl_export_is_closed_where_faces_meet() {
     let state = s.model.state();
     for name in ["BoxFillet", "CylHole"] {
         let body = &state.bodies.iter().find(|b| b.name == name).unwrap().body;
-        let expected = solidcraft_kernel::measure(body).unwrap().volume;
-        for format in [solidcraft_io::Format::StlBinary, solidcraft_io::Format::StlAscii] {
-            let bytes = solidcraft_io::export(&state, &[name.to_string()], format, name).unwrap();
-            let tris = solidcraft_io::read_stl(&bytes).unwrap();
+        let expected = desurface_kernel::measure(body).unwrap().volume;
+        for format in [desurface_io::Format::StlBinary, desurface_io::Format::StlAscii] {
+            let bytes = desurface_io::export(&state, &[name.to_string()], format, name).unwrap();
+            let tris = desurface_io::read_stl(&bytes).unwrap();
             let key = |p: [f32; 3]| p.map(f32::to_bits);
             let mut edges = std::collections::HashMap::new();
             for t in &tris {
@@ -174,8 +174,8 @@ fn stl_export_is_closed_where_faces_meet() {
             let p = |v: [f32; 3]| Vec3::new(v[0] as f64, v[1] as f64, v[2] as f64);
             let v: f64 = tris.iter().map(|t| p(t[0]).dot(p(t[1]).cross(p(t[2]))) / 6.0).sum();
             assert!((v - expected).abs() <= expected * 1e-3, "{name} {format:?}: STL volume {v}, body {expected}");
-            let mf = solidcraft_io::export(&state, &[name.to_string()], solidcraft_io::Format::ThreeMf, name).unwrap();
-            let (objs, _) = solidcraft_io::read_3mf(&mf).unwrap();
+            let mf = desurface_io::export(&state, &[name.to_string()], desurface_io::Format::ThreeMf, name).unwrap();
+            let (objs, _) = desurface_io::read_3mf(&mf).unwrap();
             assert_eq!(tris.len(), objs.iter().map(|o| o.triangles.len()).sum::<usize>(), "{name} {format:?}: STL and 3MF triangles");
         }
     }
@@ -219,7 +219,7 @@ fn installed_slicers_are_listed() {
 
 fn insert_box_mesh(s: &mut Session, suffix: &str) -> (String, u64) {
     let mut source = imported_box();
-    let path = std::env::temp_dir().join(format!("solidcraft-convert-component-{}-{suffix}.stl", std::process::id()));
+    let path = std::env::temp_dir().join(format!("desurface-convert-component-{}-{suffix}.stl", std::process::id()));
     run(&mut source, "file.save_mesh", json!({"path":path}));
     let result = run(s, "file.insert_mesh", json!({"path":path,"name":"Mesh 1"}));
     std::fs::remove_file(path).unwrap();

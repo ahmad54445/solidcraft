@@ -1,15 +1,15 @@
 # The kernel boundary and truck
 
-`crates/kernel` is SolidCraft's B-rep kernel. It wraps
+`crates/kernel` is DeSurface's B-rep kernel. It wraps
 [truck](https://github.com/ricosjp/truck) (Apache-2.0) for topology, NURBS geometry, booleans,
 tessellation and STEP parsing, and it is the only crate allowed to use truck. Callers get
-SolidCraft types (`Body`, face and edge indices, meshes, measures) and a
+DeSurface types (`Body`, face and edge indices, meshes, measures) and a
 `KernelError` instead of truck types and panics.
 
 ## `guard`
 
 truck can panic on geometry it doesn't handle. Every call into it goes through
-`solidcraft_kernel::guard`, which catches the panic and turns it into
+`desurface_kernel::guard`, which catches the panic and turns it into
 `KernelError::Internal`, leaving the model unchanged:
 
 ```rust
@@ -20,7 +20,7 @@ A failing feature shows an error on the timeline; it never takes the app down.
 
 ## What is our own
 
-truck has no fillets, chamfers, shells or face edits, so these are SolidCraft code in the
+truck has no fillets, chamfers, shells or face edits, so these are DeSurface code in the
 kernel: constant, chord and variable-radius fillets with corner blends, chamfers, shell and
 offset, Delete Face, Split Face, Replace Face, sewing, STEP and IGES reading and writing beyond
 truck's parser, and face provenance (which input face each output face came from, for

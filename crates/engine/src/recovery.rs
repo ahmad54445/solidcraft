@@ -13,20 +13,20 @@ use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
-use solidcraft_doc::Document;
+use desurface_doc::Document;
 
 use crate::{EngineError, Result, Session};
 
-/// The recovery folder: `SOLIDCRAFT_RECOVERY_DIR`, else the platform's per-user data folder.
+/// The recovery folder: `DESURFACE_RECOVERY_DIR`, else the platform's per-user data folder.
 /// Spelled with long names (`vfs::long_names`): an agent's commands reach it by this path, and
 /// short (8.3) names are refused there.
 pub fn default_dir() -> Option<PathBuf> {
-    use solidcraft_io::vfs::long_names;
+    use desurface_io::vfs::long_names;
     // Tests never touch the user's real recovery folder.
     if cfg!(test) {
-        return Some(solidcraft_io::vfs::temp_dir().join(format!("solidcraft-test-recovery-{}", std::process::id())));
+        return Some(desurface_io::vfs::temp_dir().join(format!("desurface-test-recovery-{}", std::process::id())));
     }
-    if let Some(d) = solidcraft_geom::env::var_os("RECOVERY_DIR").filter(|d| !d.is_empty()) {
+    if let Some(d) = desurface_geom::env::var_os("RECOVERY_DIR").filter(|d| !d.is_empty()) {
         return Some(long_names(Path::new(&d)));
     }
     let env = |k: &str| std::env::var_os(k).filter(|d| !d.is_empty()).map(PathBuf::from);
@@ -41,33 +41,33 @@ pub fn default_dir() -> Option<PathBuf> {
     // Compatibility shim (docs/compatibility.md): autosaves made before the rename (or, in the
     // Flatpak sandbox, under the old app id) are copied to the new folder on first launch; the
     // old folder is left as it was.
-    for old in solidcraft_io::legacy_flatpak_path(&dir).into_iter().chain([legacy]) {
-        if let Err(e) = solidcraft_io::adopt_legacy_dir(&dir, &old) {
+    for old in desurface_io::legacy_flatpak_path(&dir).into_iter().chain([legacy]) {
+        if let Err(e) = desurface_io::adopt_legacy_dir(&dir, &old) {
             log::warn!("recovery: could not copy {} to {}: {e}", old.display(), dir.display());
         }
     }
     Some(dir)
 }
 
-/// SolidCraft's per-user data folder (the recovery folder's parent unless
-/// `SOLIDCRAFT_RECOVERY_DIR` moves that): `%LOCALAPPDATA%\SolidCraft`,
-/// `~/Library/Application Support/SolidCraft`, or `$XDG_DATA_HOME/solidcraft`
-/// (`~/.local/share/solidcraft`).
+/// DeSurface's per-user data folder (the recovery folder's parent unless
+/// `DESURFACE_RECOVERY_DIR` moves that): `%LOCALAPPDATA%\DeSurface`,
+/// `~/Library/Application Support/DeSurface`, or `$XDG_DATA_HOME/desurface`
+/// (`~/.local/share/desurface`).
 pub fn data_dir() -> Option<PathBuf> {
     let env = |k: &str| std::env::var_os(k).filter(|d| !d.is_empty()).map(PathBuf::from);
     if cfg!(windows) {
-        Some(env("LOCALAPPDATA")?.join("SolidCraft"))
+        Some(env("LOCALAPPDATA")?.join("DeSurface"))
     } else if cfg!(target_os = "macos") {
-        Some(env("HOME")?.join("Library/Application Support/SolidCraft"))
+        Some(env("HOME")?.join("Library/Application Support/DeSurface"))
     } else {
-        Some(env("XDG_DATA_HOME").or_else(|| env("HOME").map(|h| h.join(".local/share")))?.join("solidcraft"))
+        Some(env("XDG_DATA_HOME").or_else(|| env("HOME").map(|h| h.join(".local/share")))?.join("desurface"))
     }
 }
 
 /// The recovery folder under the per-user data `root`, and the folder earlier releases used.
 /// Windows and macOS name the app's folder in title case, other systems in lower case.
 fn dirs_under(root: &Path, title_case: bool) -> (PathBuf, PathBuf) {
-    let (name, legacy) = if title_case { ("SolidCraft", "SolveCraft") } else { ("solidcraft", "solvecraft") };
+    let (name, legacy) = if title_case { ("DeSurface", "SolveCraft") } else { ("desurface", "solvecraft") };
     (root.join(name).join("recovery"), root.join(legacy).join("recovery"))
 }
 
@@ -94,8 +94,8 @@ fn valid_id(id: &str) -> bool {
 /// An entry's design: `<id>.solidcraft`, or `<id>.solvecraft` for an autosave copied from a
 /// pre-rename recovery folder (compatibility shim, docs/compatibility.md).
 fn design_file(dir: &Path, id: &str) -> PathBuf {
-    let current = file(dir, id, solidcraft_io::DESIGN_EXT);
-    let legacy = file(dir, id, solidcraft_io::LEGACY_DESIGN_EXT);
+    let current = file(dir, id, desurface_io::DESIGN_EXT);
+    let legacy = file(dir, id, desurface_io::LEGACY_DESIGN_EXT);
     if !current.is_file() && legacy.is_file() { legacy } else { current }
 }
 
@@ -143,9 +143,9 @@ pub fn load(dir: &Path, id: &str) -> Result<(Document, Entry)> {
         .and_then(|b| serde_json::from_slice(&b).ok())
         .ok_or_else(|| EngineError::Other(format!("no recovered design `{id}`")))?;
     let path = design_file(dir, id);
-    let bytes = solidcraft_io::vfs::read(&path.to_string_lossy(), solidcraft_io::MAX_DESIGN_BYTES)
+    let bytes = desurface_io::vfs::read(&path.to_string_lossy(), desurface_io::MAX_DESIGN_BYTES)
         .map_err(|e| EngineError::Other(format!("recovered design `{id}`: {e}")))?;
-    Ok((solidcraft_io::read_design(&bytes)?, entry))
+    Ok((desurface_io::read_design(&bytes)?, entry))
 }
 
 /// Delete an entry. Only a real one: `<id>.json` must describe entry `id` and its design must
@@ -157,7 +157,7 @@ pub fn remove(dir: &Path, id: &str) -> Result<()> {
     if !is_entry {
         return Err(EngineError::Other(format!("no recovered design `{id}`")));
     }
-    for ext in ["json", solidcraft_io::DESIGN_EXT, solidcraft_io::LEGACY_DESIGN_EXT, "lock"] {
+    for ext in ["json", desurface_io::DESIGN_EXT, desurface_io::LEGACY_DESIGN_EXT, "lock"] {
         let _ = fs::remove_file(file(dir, id, ext));
     }
     Ok(())
@@ -211,13 +211,13 @@ impl Snapshot {
     fn write(&self) -> Result<()> {
         let io = |e: std::io::Error| EngineError::Other(format!("autosave: {e}"));
         let bytes = if self.visibility.is_empty() {
-            solidcraft_io::write_design_container(&self.doc)?
+            desurface_io::write_design_container(&self.doc)?
         } else {
             let mut doc = (*self.doc).clone();
             doc.visibility = self.visibility.clone();
-            solidcraft_io::write_design_container(&doc)?
+            desurface_io::write_design_container(&doc)?
         };
-        solidcraft_io::write_atomic(&file(&self.dir, &self.id, solidcraft_io::DESIGN_EXT), &bytes, false).map_err(io)?;
+        desurface_io::write_atomic(&file(&self.dir, &self.id, desurface_io::DESIGN_EXT), &bytes, false).map_err(io)?;
         let entry = Entry {
             id: self.id.clone(),
             path: self.path.clone(),
@@ -226,7 +226,7 @@ impl Snapshot {
             features: self.doc.features.len(),
         };
         let meta = serde_json::to_vec_pretty(&entry).map_err(|e| EngineError::Other(e.to_string()))?;
-        solidcraft_io::write_atomic(&file(&self.dir, &self.id, "json"), &meta, false).map_err(io)?;
+        desurface_io::write_atomic(&file(&self.dir, &self.id, "json"), &meta, false).map_err(io)?;
         Ok(())
     }
 }
@@ -312,7 +312,7 @@ impl Autosaver {
         self.last_at = Instant::now();
         if !s.is_dirty() {
             if self.has_entry {
-                for ext in ["json", "solidcraft"] {
+                for ext in ["json", "desurface"] {
                     let _ = fs::remove_file(file(&self.dir, &self.id, ext));
                 }
                 self.has_entry = false;
@@ -355,7 +355,7 @@ impl Autosaver {
         // Crash replays start from this autosave from here, unless the design changed while it
         // was written: the journal then keeps the commands since its older start.
         if Arc::ptr_eq(&s.doc, &doc) {
-            crate::crash::rebased(s, Some(&file(&self.dir, &self.id, solidcraft_io::DESIGN_EXT)), true);
+            crate::crash::rebased(s, Some(&file(&self.dir, &self.id, desurface_io::DESIGN_EXT)), true);
         }
         self.last = Some((doc, visibility));
         Ok(())
@@ -368,7 +368,7 @@ impl Autosaver {
         if let Some(w) = self.writing.take() {
             let _ = w.done.recv();
         }
-        for ext in ["json", solidcraft_io::DESIGN_EXT] {
+        for ext in ["json", desurface_io::DESIGN_EXT] {
             let _ = fs::remove_file(file(&self.dir, &self.id, ext));
         }
         self.lock = None;
@@ -390,12 +390,12 @@ impl Autosaver {
 mod tests {
     #[test]
     fn autosave_from_a_legacy_folder_is_listed_and_loads() {
-        let d = std::env::temp_dir().join(format!("solidcraft-recovery-legacy-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("desurface-recovery-legacy-{}", std::process::id()));
         let _ = fs::remove_dir_all(&d);
         fs::create_dir_all(&d).unwrap();
         let id = "1-2-3";
         let doc = Document::default();
-        fs::write(d.join(format!("{id}.solvecraft")), solidcraft_io::write_design(&doc)).unwrap();
+        fs::write(d.join(format!("{id}.solvecraft")), desurface_io::write_design(&doc)).unwrap();
         let entry = Entry { id: id.into(), path: Some("/d/part.solvecraft".into()), name: "part".into(), saved_at: 1, features: 0 };
         fs::write(d.join(format!("{id}.json")), serde_json::to_vec(&entry).unwrap()).unwrap();
         assert_eq!(orphans(&d).iter().map(|e| e.id.as_str()).collect::<Vec<_>>(), [id]);
@@ -409,16 +409,16 @@ mod tests {
     #[test]
     fn recovery_dirs_and_their_legacy_names() {
         let (dir, legacy) = super::dirs_under(Path::new("/data"), false);
-        assert_eq!((dir.as_path(), legacy.as_path()), (Path::new("/data/solidcraft/recovery"), Path::new("/data/solvecraft/recovery")));
+        assert_eq!((dir.as_path(), legacy.as_path()), (Path::new("/data/desurface/recovery"), Path::new("/data/solvecraft/recovery")));
         let (dir, legacy) = super::dirs_under(Path::new("/data"), true);
-        assert_eq!((dir.as_path(), legacy.as_path()), (Path::new("/data/SolidCraft/recovery"), Path::new("/data/SolveCraft/recovery")));
+        assert_eq!((dir.as_path(), legacy.as_path()), (Path::new("/data/DeSurface/recovery"), Path::new("/data/SolveCraft/recovery")));
     }
 
     use super::*;
     use serde_json::json;
 
     fn dir(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("solidcraft-recovery-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("desurface-recovery-{tag}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&d);
         d
     }
@@ -500,7 +500,7 @@ mod tests {
         let d = dir("discard");
         fs::create_dir_all(&d).unwrap();
         let part = d.join("part.solidcraft");
-        fs::write(&part, solidcraft_io::write_design(&Document::default())).unwrap();
+        fs::write(&part, desurface_io::write_design(&Document::default())).unwrap();
         let mut s = Session::default();
         let discard = |s: &mut Session, id: &str| s.execute("doc.recovery_discard", &json!({"dir": d.to_string_lossy(), "id": id}));
         let e = discard(&mut s, "part").unwrap_err();
@@ -532,9 +532,9 @@ mod tests {
         let mut t = Session::default();
         let r = t.execute("doc.recover", &json!({"dir": d.to_string_lossy(), "id": id, "discard": true})).unwrap();
         assert_eq!(r["features"], 1, "{r}");
-        assert!(orphans(&d).is_empty() && !file(&d, &id, "json").exists() && !file(&d, &id, "solidcraft").exists());
+        assert!(orphans(&d).is_empty() && !file(&d, &id, "json").exists() && !file(&d, &id, "desurface").exists());
         let part = d.join("part.solidcraft");
-        fs::write(&part, solidcraft_io::write_design(&Document::default())).unwrap();
+        fs::write(&part, desurface_io::write_design(&Document::default())).unwrap();
         assert!(t.execute("doc.recover", &json!({"dir": d.to_string_lossy(), "id": "part", "discard": true})).is_err());
         assert!(part.exists());
         let _ = fs::remove_dir_all(&d);
@@ -549,7 +549,7 @@ mod tests {
         assert!(a.tick(&s, false).unwrap());
         s.mark_saved();
         a.tick(&s, false).unwrap();
-        assert!(!file(&d, &a.id, "solidcraft").exists());
+        assert!(!file(&d, &a.id, "desurface").exists());
         a.close(&s);
         assert_eq!(fs::read_dir(&d).unwrap().count(), 0);
         // Closing with unsaved changes keeps them for the next launch.

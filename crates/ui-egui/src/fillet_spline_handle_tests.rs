@@ -1,6 +1,6 @@
 use crate::scenario::Harness;
 use serde_json::{Value, json};
-use solidcraft_engine::doc::{FeatureKind, FilletStyle, kernel};
+use desurface_engine::doc::{FeatureKind, FilletStyle, kernel};
 
 /// A plate whose top narrows from 20 to 2 mm along 40 mm, its top front edge rounded at 3 mm
 /// with Taper to Fit.
@@ -38,11 +38,11 @@ fn dragging_a_taper_handle_makes_the_fillet_a_spline() {
     open(&mut h);
     let (_, taper) = h.app.preview.tapered.first().cloned().expect("the preview's taper");
     let law =
-        if taper.start.dist(solidcraft_engine::geom::Vec3::new(0.0, 0.0, 15.0)) < 1e-9 { taper.spline.clone() } else { taper.spline.reversed() };
+        if taper.start.dist(desurface_engine::geom::Vec3::new(0.0, 0.0, 15.0)) < 1e-9 { taper.spline.clone() } else { taper.spline.reversed() };
     // A handle per control radius, each that radius into the body from the edge.
-    let into = solidcraft_engine::geom::Vec3::new(0.0, 1.0, -1.0) * std::f64::consts::FRAC_1_SQRT_2;
+    let into = desurface_engine::geom::Vec3::new(0.0, 1.0, -1.0) * std::f64::consts::FRAC_1_SQRT_2;
     let at = |u: f64, r: f64| {
-        let p = solidcraft_engine::geom::Vec3::new(40.0 * u, 0.0, 15.0) + into * r;
+        let p = desurface_engine::geom::Vec3::new(40.0 * u, 0.0, 15.0) + into * r;
         json!([p.x, p.y, p.z])
     };
     let g = law.greville();
@@ -68,7 +68,7 @@ fn dragging_a_taper_handle_makes_the_fillet_a_spline() {
     };
     assert_eq!(knots, &taper.spline.knots);
     let values: Vec<f64> =
-        std::iter::once(radius).chain(radii).map(|e| h.app.session.doc.eval(e, solidcraft_engine::doc::expr::Kind::Length).unwrap()).collect();
+        std::iter::once(radius).chain(radii).map(|e| h.app.session.doc.eval(e, desurface_engine::doc::expr::Kind::Length).unwrap()).collect();
     let moved: Vec<usize> = (0..values.len()).filter(|i| (values[*i] - taper.spline.radii[*i]).abs() > 1e-3).collect();
     assert_eq!(moved, [k], "{values:?} vs {:?}", taper.spline.radii);
     assert!((values[k] - 4.0).abs() < 0.05, "{values:?}");
@@ -109,14 +109,14 @@ fn dialog_spline(h: &Harness) -> kernel::RadiusSpline {
     let knots: Vec<f64> = d.extra["knots"].as_array().unwrap().iter().filter_map(Value::as_f64).collect();
     let rest: Vec<String> = d.extra["radii"].as_array().unwrap().iter().map(|r| r.as_str().map_or_else(|| r.to_string(), str::to_owned)).collect();
     let values =
-        std::iter::once(radius).chain(&rest).map(|e| h.app.session.doc.eval(e, solidcraft_engine::doc::expr::Kind::Length).unwrap()).collect();
+        std::iter::once(radius).chain(&rest).map(|e| h.app.session.doc.eval(e, desurface_engine::doc::expr::Kind::Length).unwrap()).collect();
     FilletStyle::spline(&knots, values)
 }
 
 /// A point `r` into the box from the top edge at y (0 or 30), x = 40 u.
 fn into_box(u: f64, y: f64, r: f64) -> Value {
     let side = if y == 0.0 { 1.0 } else { -1.0 };
-    let p = solidcraft_engine::geom::Vec3::new(40.0 * u, y + side * r * std::f64::consts::FRAC_1_SQRT_2, 20.0 - r * std::f64::consts::FRAC_1_SQRT_2);
+    let p = desurface_engine::geom::Vec3::new(40.0 * u, y + side * r * std::f64::consts::FRAC_1_SQRT_2, 20.0 - r * std::f64::consts::FRAC_1_SQRT_2);
     json!({"world": [p.x, p.y, p.z]})
 }
 

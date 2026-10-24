@@ -38,7 +38,7 @@ The standard `render.result.regrade` action can apply looks and photographic eff
 
 ## Showcase provenance
 
-The requested MP4 will contain only actual native application captures and actual SolidCraft-produced renders, with clearly labeled editorial transitions, captions and before/after comparisons. No generated illustration or repainted substitute can stand in for renderer output. Any edited video camera motion is a presentation move over a still frame, not evidence of real-time rendering or a simulated model animation. Final resolutions, sample counts, immutable PNG/EXR hashes, source revision and video checksum must be recorded after execution.
+The requested MP4 will contain only actual native application captures and actual DeSurface-produced renders, with clearly labeled editorial transitions, captions and before/after comparisons. No generated illustration or repainted substitute can stand in for renderer output. Any edited video camera motion is a presentation move over a still frame, not evidence of real-time rendering or a simulated model animation. Final resolutions, sample counts, immutable PNG/EXR hashes, source revision and video checksum must be recorded after execution.
 
 Video assembly tooling remains isolated outside the application dependency graph. No fonts, executable or video tool binaries are redistributed in the showcase package. The language-neutral renderer schemas and original English source remain unchanged by localized UI labels.
 
@@ -62,7 +62,7 @@ On the frozen native producer `9f8c3d30`, actual 1920x1080 background images com
 
 The requested MP4 is complete, decoded end-to-end and visually reviewed through encoded chapter/transition frames. It is 1920x1080 at 30 fps, 122.0 seconds, 11,467,697 bytes. SHA-256: `227ecf8d5dc15ef9b7bbafb1d56ff239ce88b5b01e9488d6a9d96c25fcf401e4`. It contains actual native render output and actual UI captures, English collaborator captions, comparison wipes/crossfades and an original low-level synthesized soundtrack. This is an edited demonstration, not real-time rendering, physical animation or generated-image substitution.
 
-The media is consumed by `assets/render/showcase/aging-effects-20261023/README.md`, with exact source/frame manifests, selected native PNGs and screenshots. The same directory contains the editable 43-body sample and thirteen production/background shot recipes. `distribution/SolidCraft-Render-Showcase.zip` packages the selected delivery. No font files, application/encoder executables, control credentials, personal preferences, draft images or raw intermediate EXR pile is distributed.
+The media is consumed by `assets/render/showcase/aging-effects-20261023/README.md`, with exact source/frame manifests, selected native PNGs and screenshots. The same directory contains the editable 43-body sample and thirteen production/background shot recipes. `distribution/DeSurface-Render-Showcase.zip` packages the selected delivery. No font files, application/encoder executables, control credentials, personal preferences, draft images or raw intermediate EXR pile is distributed.
 
 Backgrounds are shown explicitly in three chapters: solid versus radial-gradient presentation with identical EXR; floor/wall versus 24-strip cyclorama with genuine transport/shadow/reflection changes; and the new shared-kit Backgrounds control page. The interface now explains stage occlusion, frozen completed results, separate HDR illumination and transparency. The documented clear-stage draft-loss bug is fixed and covered by clicked save/reopen regression.
 

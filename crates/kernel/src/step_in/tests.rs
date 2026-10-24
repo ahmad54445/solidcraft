@@ -1,4 +1,4 @@
-use solidcraft_geom::{Loop2, Plane, Region2, Vec2, Vec3};
+use desurface_geom::{Loop2, Plane, Region2, Vec2, Vec3};
 
 use super::*;
 use crate::{BoolOp, boolean, box_solid, cylinder, extrude, fillet, measure, revolve, sphere, step_export, torus};
@@ -111,7 +111,7 @@ fn seam_only_sphere_void_is_turned_inside_out() {
     assert!(rel(m.area, area) < 1e-3, "area {} vs {area}", m.area);
 }
 
-/// A block with a closed cavity, written as BREP_WITH_VOIDS. SolidCraft writes the void's
+/// A block with a closed cavity, written as BREP_WITH_VOIDS. DeSurface writes the void's
 /// shell facing into the cavity with ORIENTED_CLOSED_SHELL `.T.`; some exporters write the
 /// same faces with `.F.` (#3730), which turned the void inside out and added its volume. Either
 /// way the cavity is taken out.
@@ -145,8 +145,8 @@ fn non_antipodal_seam_sphere_does_not_panic() {
 #[test]
 #[ignore = "manual STEP import timing; run without concurrent builds"]
 fn benchmark_independent_step_solids() {
-    let count = solidcraft_geom::env::var("STEP_BENCH_COUNT").map(|s| s.parse::<usize>().unwrap().clamp(1, 512)).unwrap_or(48);
-    let kind = solidcraft_geom::env::var("STEP_BENCH_KIND").unwrap_or_else(|| "cylinder".into());
+    let count = desurface_geom::env::var("STEP_BENCH_COUNT").map(|s| s.parse::<usize>().unwrap().clamp(1, 512)).unwrap_or(48);
+    let kind = desurface_geom::env::var("STEP_BENCH_KIND").unwrap_or_else(|| "cylinder".into());
     let bodies: Vec<_> = (0..count)
         .map(|i| {
             let at = Vec3::new((i % 8) as f64 * 60.0, (i / 8) as f64 * 60.0, 0.0);
@@ -158,7 +158,7 @@ fn benchmark_independent_step_solids() {
         })
         .collect();
     let text = step_export(&bodies.iter().collect::<Vec<_>>(), "independent bodies").unwrap();
-    if let Ok(path) = solidcraft_geom::env::var("STEP_BENCH_FIXTURE").ok_or(()) {
+    if let Ok(path) = desurface_geom::env::var("STEP_BENCH_FIXTURE").ok_or(()) {
         std::fs::write(path, &text).unwrap();
     }
     let start = std::time::Instant::now();
@@ -1465,7 +1465,7 @@ fn glued_halves_export_as_whole_faces() {
 /// its surfaces saw a 60 mm part as 130 mm long.
 #[test]
 fn rounded_slot_exports_cylinders() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     use std::f64::consts::{FRAC_PI_2, PI};
     let outer = Loop2 {
         segs: vec![
@@ -1504,7 +1504,7 @@ fn rounded_slot_exports_cylinders() {
 /// and readers bounding the part by its surfaces saw a 60 mm part as 130 mm long.
 #[test]
 fn ramp_cut_slot_exports_sheets_bounded_by_their_faces() {
-    use solidcraft_geom::Seg2;
+    use desurface_geom::Seg2;
     use std::f64::consts::{FRAC_PI_2, PI};
     let outer = Loop2 {
         segs: vec![
@@ -1658,16 +1658,16 @@ fn faces_with_too_many_bounds_are_refused() {
     assert!(start.elapsed() < std::time::Duration::from_secs(10), "took {:?}", start.elapsed());
 }
 
-/// A board-like assembly for issue #883: `SOLIDCRAFT_STEP_PCB_FIXTURE=path` writes it (with
-/// `SOLIDCRAFT_STEP_PCB_COMPONENTS` and `SOLIDCRAFT_STEP_PCB_PINS`; 600 and 15 give 52 MB). Every component is
+/// A board-like assembly for issue #883: `DESURFACE_STEP_PCB_FIXTURE=path` writes it (with
+/// `DESURFACE_STEP_PCB_COMPONENTS` and `DESURFACE_STEP_PCB_PINS`; 600 and 15 give 52 MB). Every component is
 /// its own product with a package body and its own pins (nothing shared), the worst case for
 /// a large import.
 #[test]
 #[ignore = "manual fixture generator for large STEP imports"]
 fn generate_board_assembly_fixture() {
     use crate::step_out::{ExportBody, ExportProduct, StepHeader, step_export_products};
-    let count: usize = solidcraft_geom::env::var("STEP_PCB_COMPONENTS").map(|s| s.parse().unwrap()).unwrap_or(500);
-    let pins: usize = solidcraft_geom::env::var("STEP_PCB_PINS").map(|s| s.parse().unwrap()).unwrap_or(16);
+    let count: usize = desurface_geom::env::var("STEP_PCB_COMPONENTS").map(|s| s.parse().unwrap()).unwrap_or(500);
+    let pins: usize = desurface_geom::env::var("STEP_PCB_PINS").map(|s| s.parse().unwrap()).unwrap_or(16);
     let mut owned: Vec<Vec<Body>> = Vec::new();
     for c in 0..count {
         let w = 4.0 + (c % 7) as f64 * 0.37;
@@ -1699,7 +1699,7 @@ fn generate_board_assembly_fixture() {
     products.push(ExportProduct { name: "Board".into(), bodies: Vec::new(), children });
     let root = products.len() - 1;
     let text = step_export_products(&products, root, &StepHeader { file_name: "board.step".into(), ..Default::default() }).unwrap();
-    let path = solidcraft_geom::env::var("STEP_PCB_FIXTURE").unwrap_or_else(|| "board.step".into());
+    let path = desurface_geom::env::var("STEP_PCB_FIXTURE").unwrap_or_else(|| "board.step".into());
     std::fs::write(&path, &text).unwrap();
     println!("wrote {path}: {} bytes, {} components", text.len(), count);
 }
@@ -2301,7 +2301,7 @@ fn step_conformance_parts_read_back_their_exact_shape() {
         assert!(imp.warnings.is_empty(), "{name}: {:?}", imp.warnings);
         assert_eq!(imp.bodies.len(), bodies, "{name}");
         let (mut v, mut n) = (0.0, 0);
-        let mut b = solidcraft_geom::Aabb3::EMPTY;
+        let mut b = desurface_geom::Aabb3::EMPTY;
         for body in &imp.bodies {
             let m = measure(&body.body).unwrap_or_else(|e| panic!("{name}: {e}"));
             v += m.volume;

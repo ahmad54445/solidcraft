@@ -6,10 +6,10 @@ control channel. No separate engine or server is started.
 
 | Call | Result |
 |---|---|
-| `solidcraft.request(method, params?)` | Any [control method](control-protocol.md), such as `ui.inspect`, `document.inspect` or `engine.batch` |
-| `solidcraft.execute(command, params?)` | Run an engine command without opening its interactive dialog |
-| `solidcraft.commands()` | Discover commands, their parameters and current enablement |
-| `solidcraft.inspect(params?)` | Inspect the active document, optionally with `{measure: true}` |
+| `desurface.request(method, params?)` | Any [control method](control-protocol.md), such as `ui.inspect`, `document.inspect` or `engine.batch` |
+| `desurface.execute(command, params?)` | Run an engine command without opening its interactive dialog |
+| `desurface.commands()` | Discover commands, their parameters and current enablement |
+| `desurface.inspect(params?)` | Inspect the active document, optionally with `{measure: true}` |
 
 Every call returns a promise. It resolves to the control reply's `result`, or rejects with an
 `Error`. Omitted or `null` parameters become `{}`. Parameters must be JSON serializable and
@@ -20,15 +20,15 @@ completion; keep it active while driving the app. A reload ends the session and 
 In the browser's developer console, on an empty design:
 
 ```js
-await solidcraft.commands();
-await solidcraft.request("ui.home", {open: false});
-await solidcraft.execute("solid.box", {
+await desurface.commands();
+await desurface.request("ui.home", {open: false});
+await desurface.execute("solid.box", {
   length: 30, width: 20, height: 10, body_name: "Browser API box"
 });
-await solidcraft.inspect({measure: true});
-await solidcraft.execute("edit.undo");
-await solidcraft.execute("edit.redo");
-await solidcraft.request("ui.inspect");
+await desurface.inspect({measure: true});
+await desurface.execute("edit.undo");
+await desurface.execute("edit.redo");
+await desurface.request("ui.inspect");
 ```
 
 An agent with JavaScript evaluation access to this tab can make the same calls. The API does
@@ -39,7 +39,7 @@ the browser host's limitations; this API does not grant desktop filesystem or wi
 
 ## Verify a browser build
 
-Build the app with `trunk build` in `apps/solidcraft-web`, then run from the repository root:
+Build the app with `trunk build` in `apps/desurface-web`, then run from the repository root:
 
 ```sh
 cargo xtask web-api-test --site dist/web

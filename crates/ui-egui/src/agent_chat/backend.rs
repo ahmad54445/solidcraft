@@ -62,9 +62,9 @@ pub enum Event {
 
 /// What a backend gets to start.
 pub struct StartContext {
-    /// Its working folder: an empty folder of SolidCraft's own, not the user's files.
+    /// Its working folder: an empty folder of DeSurface's own, not the user's files.
     pub cwd: std::path::PathBuf,
-    /// The MCP server that reaches this window (`solidcraft-cli mcp --connect` to the chat's own
+    /// The MCP server that reaches this window (`desurface-cli mcp --connect` to the chat's own
     /// endpoint), for backends that start MCP servers; `None` when it could not be set up.
     pub bridge: Option<super::acp::McpBridge>,
     /// Where tool calls run in process go, for backends that run their own tool loop.

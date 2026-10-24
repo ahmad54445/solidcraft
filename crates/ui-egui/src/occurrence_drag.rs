@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use egui::Pos2;
 use serde_json::json;
-use solidcraft_engine::doc::{Document, apply_point, mat_inverse};
-use solidcraft_engine::geom::Vec3;
+use desurface_engine::doc::{Document, apply_point, mat_inverse};
+use desurface_engine::geom::Vec3;
 
 use crate::SolveApp;
 use crate::viewport::{Hit, Proj};

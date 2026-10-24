@@ -3,7 +3,7 @@
 use super::{ImageMethod, materials, setups};
 use crate::{SolveApp, theme::Tokens, ui_kit};
 use serde_json::{Value, json};
-use solidcraft_engine::{doc::Document, geom::Vec3};
+use desurface_engine::{doc::Document, geom::Vec3};
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
     sync::{Arc, Weak},

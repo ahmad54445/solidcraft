@@ -6,7 +6,7 @@ use super::{SamplingError, TextureView};
 pub const MAX_MIP_TAIL_BYTES: usize = 32 * 1024 * 1024;
 /// Include this recipe in preparation/cache identity, alongside source/role/policies.
 /// V1 means floor-halved linear area filtering, opaque RGB and generated alpha=1.
-pub const MIP_RECIPE_ID: &str = "solidcraft.opaque-linear-area-mips/1";
+pub const MIP_RECIPE_ID: &str = "desurface.opaque-linear-area-mips/1";
 const MAX_LEVELS: usize = 12;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

@@ -1,6 +1,6 @@
 # Bounded linear film accumulation
 
-`solidcraft_render::film` is the independent accumulator for #1696. It is extracted from the original renderer donor at `3b892eab`; it does not install a CPU integrator, PNG resolver, camera coverage buffer or progressive UI.
+`desurface_render::film` is the independent accumulator for #1696. It is extracted from the original renderer donor at `3b892eab`; it does not install a CPU integrator, PNG resolver, camera coverage buffer or progressive UI.
 
 Samples are nonnegative finite linear RGB. Per-pixel running means and unbiased sample variance remain linear: no exposure, denoising, tone mapping or display conversion occurs here. A later consumer applies its output transform exactly once after resolving a complete pass. Sample order is significant; splitting the same ordered samples into bounded contiguous calls preserves identical results, while arbitrary floating-point reordering is not promised.
 

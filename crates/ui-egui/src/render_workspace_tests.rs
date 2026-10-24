@@ -1,11 +1,11 @@
 use super::*;
 use crate::scenario::Harness;
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 #[cfg(not(target_arch = "wasm32"))]
 mod async_path_host {
     use super::*;
-    use solidcraft_engine::render::job;
+    use desurface_engine::render::job;
     use std::sync::mpsc;
     use std::time::{Duration, Instant};
 
@@ -15,7 +15,7 @@ mod async_path_host {
         fn descriptor(&self) -> job::Result<ExecutorDescriptor> {
             let mut descriptor = job::CpuHost::cooperative().descriptor()?;
             descriptor.id = ExecutorId::new("test-path").unwrap();
-            descriptor.profiles[0].features.push(solidcraft_engine::render::RenderFeature::Progressive);
+            descriptor.profiles[0].features.push(desurface_engine::render::RenderFeature::Progressive);
             Ok(descriptor)
         }
         fn admit(&self, _: &ProductScene, _: &job::ImageRequest, _: job::JobOptions) -> job::Result<job::Admission> {
@@ -253,7 +253,7 @@ mod async_path_host {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn opaque_pbr_product_gpu_and_cpu_share_color_and_material_semantics() {
-    use solidcraft_engine::render::{
+    use desurface_engine::render::{
         StandardView,
         job::{CancelToken, ImageRequest, ImageTask, TaskPoll},
     };
@@ -268,7 +268,7 @@ fn opaque_pbr_product_gpu_and_cpu_share_color_and_material_semantics() {
             "pbr":{"metallic":metallic,"roughness":roughness,"dielectric_ior":1.5}}),
         )
         .unwrap();
-        let scene = solidcraft_engine::product_scene::extract(&s).unwrap();
+        let scene = desurface_engine::product_scene::extract(&s).unwrap();
         let (key, gpu) = gpu_scene(&scene).unwrap();
         assert!(!gpu.pbr.is_empty() && gpu.tris.is_empty());
         assert_ne!(previous, Some(key));
@@ -450,7 +450,7 @@ fn saved_camera_survives_frames_and_product_fit_ignores_selection() {
     let mut h = Harness::new();
     h.app.run("solid.box", json!({"length":10,"width":20,"height":5,"body_name":"Product"})).unwrap();
     h.app.run("solid.box", json!({"corner":[100,0,0],"length":10,"width":20,"height":5,"body_name":"Other"})).unwrap();
-    let camera = Camera { up: solidcraft_engine::render::UpAxis::Y, roll: 0.2, ..Default::default() };
+    let camera = Camera { up: desurface_engine::render::UpAxis::Y, roll: 0.2, ..Default::default() };
     h.app.run("render.settings.set", json!({"name":"Studio","set":{"camera":camera,"background":[21,43,65]}})).unwrap();
     h.frames(3);
     let design = h.app.cam;
@@ -461,8 +461,8 @@ fn saved_camera_survives_frames_and_product_fit_ignores_selection() {
     h.frames(3);
     assert_eq!(h.app.cam, camera);
     assert_eq!(h.app.render_workspace.view.draft.background, [21, 43, 65]);
-    h.app.session.selection = vec![solidcraft_engine::Sel::Body { name: "Product".into() }];
-    let bounds = solidcraft_engine::product_scene::extract(&h.app.session).unwrap().bounds;
+    h.app.session.selection = vec![desurface_engine::Sel::Body { name: "Product".into() }];
+    let bounds = desurface_engine::product_scene::extract(&h.app.session).unwrap().bounds;
     let mut expected = camera;
     expected.fit(&bounds);
     h.app.animate_view("fit");
@@ -475,15 +475,15 @@ fn saved_camera_survives_frames_and_product_fit_ignores_selection() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn progressive_image_controls_route_to_the_registered_host() {
-    let host = solidcraft_gpu::select::Policy::from_env()
-        .and_then(|policy| solidcraft_gpu::select::pick(policy).ok_or_else(|| "no qualifying adapter".to_string()))
-        .and_then(|(adapter, _)| solidcraft_gpu::path::host_on_adapter(&adapter).map_err(|e| e.to_string()));
+    let host = desurface_gpu::select::Policy::from_env()
+        .and_then(|policy| desurface_gpu::select::pick(policy).ok_or_else(|| "no qualifying adapter".to_string()))
+        .and_then(|(adapter, _)| desurface_gpu::path::host_on_adapter(&adapter).map_err(|e| e.to_string()));
     let host = match host {
         Ok(host) => host,
         Err(e) => {
             let vulkan = egui_wgpu::wgpu::Backends::VULKAN;
-            let expected = solidcraft_gpu::select::native_backends().contains(vulkan);
-            assert!(!expected || std::env::var_os("SOLIDCRAFT_REQUIRE_GPU").is_none(), "required GPU unavailable: {e}");
+            let expected = desurface_gpu::select::native_backends().contains(vulkan);
+            assert!(!expected || std::env::var_os("DESURFACE_REQUIRE_GPU").is_none(), "required GPU unavailable: {e}");
             eprintln!("skipping progressive UI device test: {e}");
             return;
         }
@@ -502,7 +502,7 @@ fn progressive_image_controls_route_to_the_registered_host() {
     h.app.render_workspace.view.max_depth = 3;
     h.app.render_workspace.view.seed = 7;
     h.app.render_workspace.view.draft.exposure_ev = 0.5;
-    h.app.render_workspace.view.studio.tone_map = solidcraft_engine::render::job::ToneMap::AcesFitted;
+    h.app.render_workspace.view.studio.tone_map = desurface_engine::render::job::ToneMap::AcesFitted;
     h.app.render_workspace.view.studio.lens_enabled = true;
     h.app.render_workspace.view.studio.lens.aperture_radius_mm = 0.0;
     h.app.render_workspace.view.studio.lighting_enabled = true;
@@ -566,7 +566,7 @@ fn progressive_image_controls_route_to_the_registered_host() {
     let started = h.app.run("render.start", checked).unwrap();
     let job = serde_json::from_value(started["job"].clone()).unwrap();
     let status = h.app.session.render_job_handle(job).unwrap().wait_timeout(std::time::Duration::from_secs(30)).unwrap();
-    assert_eq!(status.progress.phase, solidcraft_engine::render::job::Phase::Completed, "{:?}", status.error);
+    assert_eq!(status.progress.phase, desurface_engine::render::job::Phase::Completed, "{:?}", status.error);
     assert!(Arc::ptr_eq(&doc, &h.app.session.doc));
     assert_eq!(h.app.session.undo.len(), undo);
     assert!(!h.app.session.is_dirty());
@@ -637,18 +637,18 @@ fn product_gpu_buffers_preserve_opacity_and_never_contain_overlays() {
     let mut s = Session::default();
     s.execute("solid.box", &json!({"length":10,"width":10,"height":10,"body_name":"Glass"})).unwrap();
     s.execute("appearance.assign", &json!({"bodies":["Glass"],"color":"#336699","opacity":0.4})).unwrap();
-    let scene = solidcraft_engine::product_scene::extract(&s).unwrap();
+    let scene = desurface_engine::product_scene::extract(&s).unwrap();
     let (key, gpu) = gpu_scene(&scene).unwrap();
     assert!(gpu.tris.is_empty());
     assert!(!gpu.glass.is_empty());
     assert!(gpu.glass.as_chunks::<{ crate::gpu::TRI_SIZE }>().0.iter().all(|v| v[24..] == [51, 102, 153, 102]));
     assert!(gpu.lines.is_empty() && gpu.overlay.is_empty() && gpu.under.is_empty() && gpu.hidden.is_empty() && gpu.ghost.is_empty());
-    s.selection = vec![solidcraft_engine::Sel::Body { name: "Glass".into() }];
-    s.section = Some((solidcraft_engine::geom::Vec3::ZERO, solidcraft_engine::geom::Vec3::X));
-    let after = solidcraft_engine::product_scene::extract(&s).unwrap();
+    s.selection = vec![desurface_engine::Sel::Body { name: "Glass".into() }];
+    s.section = Some((desurface_engine::geom::Vec3::ZERO, desurface_engine::geom::Vec3::X));
+    let after = desurface_engine::product_scene::extract(&s).unwrap();
     assert_eq!(gpu_scene(&after).unwrap().0, key);
     s.execute("appearance.assign", &json!({"bodies":["Glass"],"color":"#336699","opacity":0.0})).unwrap();
-    let invisible = solidcraft_engine::product_scene::extract(&s).unwrap();
+    let invisible = desurface_engine::product_scene::extract(&s).unwrap();
     assert_eq!(invisible.meshes[0].opacity, 0.0);
     let (_, empty) = gpu_scene(&invisible).unwrap();
     assert!(empty.tris.is_empty() && empty.glass.is_empty());
@@ -661,11 +661,11 @@ fn transmission_uses_legacy_preview_buffers_and_invalidates_the_opaque_cache() {
     let appearance = json!({"bodies":["Glass"],"color":"#336699",
         "pbr":{"metallic":0,"roughness":0.1,"dielectric_ior":1.5}});
     s.execute("appearance.assign", &appearance).unwrap();
-    let (opaque_key, opaque) = gpu_scene(&solidcraft_engine::product_scene::extract(&s).unwrap()).unwrap();
+    let (opaque_key, opaque) = gpu_scene(&desurface_engine::product_scene::extract(&s).unwrap()).unwrap();
     assert!(!opaque.pbr.is_empty());
-    let mut scene = solidcraft_engine::product_scene::extract(&s).unwrap();
+    let mut scene = desurface_engine::product_scene::extract(&s).unwrap();
     scene.meshes[0].transmission =
-        Some(solidcraft_engine::render::transmission::Transmission::new(solidcraft_engine::geom::Vec3::ZERO, None).unwrap());
+        Some(desurface_engine::render::transmission::Transmission::new(desurface_engine::geom::Vec3::ZERO, None).unwrap());
     let (glass_key, glass) = gpu_scene(&scene).unwrap();
     assert_ne!(opaque_key, glass_key);
     assert!(glass.pbr.is_empty());
@@ -678,7 +678,7 @@ fn transmission_uses_legacy_preview_buffers_and_invalidates_the_opaque_cache() {
 
 #[test]
 fn host_profiles_advertise_only_installed_opaque_pbr_not_hdri_refraction_or_final() {
-    use solidcraft_engine::render::*;
+    use desurface_engine::render::*;
     let host = host_executor(512, true, 4).unwrap();
     assert_eq!(host.limits.max_dimension, 512);
     assert_eq!(host.profiles.len(), 1);
@@ -713,7 +713,7 @@ fn host_profiles_advertise_only_installed_opaque_pbr_not_hdri_refraction_or_fina
     assert!(host_executor(1024, true, 0).is_err());
 }
 
-fn completed_preview(h: &mut Harness, background: [u8; 3]) -> solidcraft_engine::render::job::JobId {
+fn completed_preview(h: &mut Harness, background: [u8; 3]) -> desurface_engine::render::job::JobId {
     let reply = h.app.session.execute("render.start", &json!({"settings":{"width":16,"height":16,"background":background}})).unwrap();
     let job = serde_json::from_value(reply["job"].clone()).unwrap();
     let host = h.app.session.render_job_host().unwrap().clone();
@@ -1152,7 +1152,7 @@ fn image_method_requests_never_fall_back_or_mix_cpu_and_gpu_options() {
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn native_cpu_controls_check_and_start_the_same_capture_and_keep_it_exportable() {
-    use solidcraft_engine::render::job::{CpuHost, Phase};
+    use desurface_engine::render::job::{CpuHost, Phase};
     let mut h = Harness::new();
     let host = CpuHost::for_platform().unwrap();
     h.app.session.set_render_job_host(Some(host.clone())).unwrap();
@@ -1195,7 +1195,7 @@ fn native_cpu_controls_check_and_start_the_same_capture_and_keep_it_exportable()
     h.step(&json!({"click":{"handle":"dialog:list:render.cpu_reflection_mirror"}})).unwrap();
     assert_eq!(
         h.app.render_workspace.view.raytrace.reflections.as_ref().unwrap().bodies[0].mode,
-        solidcraft_engine::render::job::ReflectionMode::Mirror
+        desurface_engine::render::job::ReflectionMode::Mirror
     );
     h.step(&json!({"click":{"handle":reflection_section}})).unwrap();
     let hdr_path = h.dir.join("cpu-captured.hdr");
@@ -1254,7 +1254,7 @@ fn native_cpu_controls_check_and_start_the_same_capture_and_keep_it_exportable()
     assert_eq!(image_params(&h.app).unwrap()["raytrace"]["area_lights"], json!([]));
 }
 
-fn async_export_fixture() -> (Harness, solidcraft_engine::render::job::JobId) {
+fn async_export_fixture() -> (Harness, desurface_engine::render::job::JobId) {
     let mut h = Harness::new();
     h.app.run("solid.box", json!({"length":10,"width":20,"height":5})).unwrap();
     h.app.session.mark_saved();
@@ -1418,8 +1418,8 @@ fn nav_app(render: bool, preset: &str, around: crate::prefs::OrbitAround) -> cra
     app.preferences.zoom_to_cursor = true;
     app.ui.perspective = true;
     let mut cam = Camera::default();
-    cam.set_view(solidcraft_engine::render::StandardView::Iso);
-    cam.fit(&solidcraft_engine::product_scene::extract(&app.session).unwrap().bounds);
+    cam.set_view(desurface_engine::render::StandardView::Iso);
+    cam.fit(&desurface_engine::product_scene::extract(&app.session).unwrap().bounds);
     app.cam = cam;
     app
 }
@@ -1506,9 +1506,9 @@ fn render_workspace_view_keys_double_middle_click_and_navigators_work() {
         enter(&mut h.app, true).unwrap();
         h.app.render_workspace.view.inspector.page = inspector::Page::All;
         h.frames(3);
-        let bounds = solidcraft_engine::product_scene::extract(&h.app.session).unwrap().bounds;
+        let bounds = desurface_engine::product_scene::extract(&h.app.session).unwrap().bounds;
         let mut home = h.app.cam;
-        home.set_view(solidcraft_engine::render::StandardView::Iso);
+        home.set_view(desurface_engine::render::StandardView::Iso);
         home.fit(&bounds);
         let off = |h: &mut Harness| {
             h.app.cam.yaw += 0.7;
@@ -1545,7 +1545,7 @@ fn render_workspace_view_keys_double_middle_click_and_navigators_work() {
         // A standard view from the navigator.
         h.step(&json!({"click":{"handle":"axis_view:z"}})).unwrap();
         h.settle();
-        assert!(h.app.cam.back().dot(solidcraft_engine::geom::Vec3::Z) > 0.999, "{style:?}: view from +Z, got {:?}", h.app.cam.back());
+        assert!(h.app.cam.back().dot(desurface_engine::geom::Vec3::Z) > 0.999, "{style:?}: view from +Z, got {:?}", h.app.cam.back());
         assert!(h.app.session.selection.is_empty());
     }
 }
@@ -1554,7 +1554,7 @@ fn render_workspace_view_keys_double_middle_click_and_navigators_work() {
 /// smaller at the same aspect instead of refusing every frame.
 #[test]
 fn four_and_five_k_viewports_preview_downscaled_within_the_limits() {
-    use solidcraft_engine::render::*;
+    use desurface_engine::render::*;
     for samples in [1, 4, 16] {
         let host = host_executor(16384, true, samples).unwrap();
         let mut s = Session::default();
@@ -1634,7 +1634,7 @@ fn backend_diagnostics_wrap_without_elision_in_bounded_image_controls() {
 
 #[test]
 fn gpu_material_recipes_use_exact_linear_absorption_without_changing_saved_appearance() {
-    use solidcraft_engine::doc::appearance_pack::{GlassBoundary, Recipe, STARTER_PACK};
+    use desurface_engine::doc::appearance_pack::{GlassBoundary, Recipe, STARTER_PACK};
     let mut h = Harness::new();
     h.app.run("solid.box", json!({"length":10,"width":10,"height":3,"body_name":"Optics"})).unwrap();
     h.app.run("appearance.assign", json!({"bodies":["Optics"],"color":"#a0c0e0","opacity":0.25})).unwrap();
@@ -1657,7 +1657,7 @@ fn gpu_material_recipes_use_exact_linear_absorption_without_changing_saved_appea
         assert_eq!(wire["body_name"], "Optics");
         assert_eq!(wire["ior"], recipe.dielectric_ior);
         let [r, g, b]: [f64; 3] = serde_json::from_value(wire["absorption_per_mm"].clone()).unwrap();
-        let medium = solidcraft_engine::render::transmission::Transmission::new(solidcraft_engine::geom::Vec3::new(r, g, b), None).unwrap();
+        let medium = desurface_engine::render::transmission::Transmission::new(desurface_engine::geom::Vec3::new(r, g, b), None).unwrap();
         let transmitted = medium.attenuation(recipe.reference_path_mm).unwrap();
         for (actual, expected) in [transmitted.x, transmitted.y, transmitted.z].into_iter().zip(recipe.transmission_linear_rgb) {
             assert!((actual - expected).abs() < 1e-12, "the actual optical consumer must reproduce the recipe's linear transmittance");
@@ -1799,7 +1799,7 @@ fn clicked_gpu_material_at_assignment_limit_edits_existing_but_cannot_add_anothe
 
 #[test]
 fn cpu_reflection_controls_preserve_exact_targets_and_engine_bounds() {
-    use solidcraft_engine::render::job::ReflectionMode;
+    use desurface_engine::render::job::ReflectionMode;
     let mut h = Harness::new();
     h.app.run("solid.box", json!({"length":10,"width":20,"height":5,"body_name":"Reflector"})).unwrap();
     let doc = h.app.session.doc.clone();
@@ -1832,7 +1832,7 @@ fn cpu_reflection_controls_preserve_exact_targets_and_engine_bounds() {
 
 #[test]
 fn cpu_reflection_binding_requires_confirmation_and_never_follows_a_reused_name() {
-    use solidcraft_engine::render::job::ReflectionMode;
+    use desurface_engine::render::job::ReflectionMode;
     let mut h = Harness::new();
     h.app.run("solid.box", json!({"length":10,"width":20,"height":5,"body_name":"Reflector"})).unwrap();
     cpu::set_reflection(&mut h.app, "Reflector", Some(ReflectionMode::Mirror)).unwrap();
@@ -1907,7 +1907,7 @@ fn cpu_environment_controls_keep_wire_schemas_separate_without_reading_files() {
 
 #[test]
 fn cpu_light_controls_preserve_hidden_spot_fields_and_validate_runtime_bounds() {
-    use solidcraft_engine::render::job::{DirectionalLightOptions, PunctualLightOptions, SpotConeOptions};
+    use desurface_engine::render::job::{DirectionalLightOptions, PunctualLightOptions, SpotConeOptions};
     let mut h = Harness::new();
     h.app.render_workspace.view.raytrace.lights = Some(vec![DirectionalLightOptions { direction: [0.0, 0.0, 1.0], color: [1.0; 3], intensity: 2.0 }]);
     h.app.render_workspace.view.raytrace.punctual_lights = Some(vec![PunctualLightOptions {
@@ -1964,9 +1964,9 @@ fn delayed_cpu_hdr_picker_cannot_write_into_another_document_or_revision() {
 
 #[test]
 fn clicked_setup_save_reload_and_switch_keep_gpu_numeric_intent_without_a_host() {
-    use solidcraft_engine::doc::render_settings::{GpuJob, RenderJob, SkyEnvironment};
-    use solidcraft_engine::render::job::{AreaLight, AreaLights, StudioLighting, Sun, ThinLens, ToneMap};
-    use solidcraft_engine::render::lighting::environment::SkyGradient;
+    use desurface_engine::doc::render_settings::{GpuJob, RenderJob, SkyEnvironment};
+    use desurface_engine::render::job::{AreaLight, AreaLights, StudioLighting, Sun, ThinLens, ToneMap};
+    use desurface_engine::render::lighting::environment::SkyGradient;
     let mut h = Harness::new();
     h.call("ui.resize", json!({"width":1600,"height":2200}));
     enter(&mut h.app, true).unwrap();
@@ -1996,8 +1996,8 @@ fn clicked_setup_save_reload_and_switch_keep_gpu_numeric_intent_without_a_host()
             options: Box::new(GpuJob {
                 aging: Default::default(),
                 nested_media: true,
-                volume: Some(solidcraft_engine::render::job::volume::HomogeneousVolume { extinction_per_mm: 0.0, ..Default::default() }),
-                adaptive: Some(solidcraft_engine::render::job::adaptive::AdaptiveSampling {
+                volume: Some(desurface_engine::render::job::volume::HomogeneousVolume { extinction_per_mm: 0.0, ..Default::default() }),
+                adaptive: Some(desurface_engine::render::job::adaptive::AdaptiveSampling {
                     pilot_samples: 16,
                     min_samples: 16,
                     relative_error: 0.1,
@@ -2080,16 +2080,16 @@ fn clicked_setup_save_reload_and_switch_keep_gpu_numeric_intent_without_a_host()
     assert_eq!(setups::snapshot(&h.app).unwrap(), expected);
     assert_eq!(h.app.render_workspace.view.completed, completed);
     assert_eq!(h.app.render_workspace.view.result_camera, result_camera);
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     assert_eq!(reopened.render.setups["GPU copy"], expected, "the boundary setup must reopen from JSON");
-    let native = solidcraft_engine::io::write_design_container(&h.app.session.doc).unwrap();
-    let reopened = solidcraft_engine::io::read_design(&native).unwrap();
+    let native = desurface_engine::io::write_design_container(&h.app.session.doc).unwrap();
+    let reopened = desurface_engine::io::read_design(&native).unwrap();
     assert_eq!(reopened.render.setups["GPU copy"], expected, "the native container keeps exact numeric intent");
 }
 
 #[test]
 fn cpu_setup_reload_preserves_unedited_numeric_options_and_explicit_empty_values() {
-    use solidcraft_engine::doc::render_settings::{CpuJob, RenderJob};
+    use desurface_engine::doc::render_settings::{CpuJob, RenderJob};
     let mut h = Harness::new();
     h.call("ui.resize", json!({"width":1600,"height":2400}));
     enter(&mut h.app, true).unwrap();
@@ -2136,7 +2136,7 @@ fn cpu_setup_reload_preserves_unedited_numeric_options_and_explicit_empty_values
 
 #[test]
 fn cpu_progressive_controls_resize_only_on_request_and_save_reload_without_a_host() {
-    use solidcraft_engine::render::job::CpuProgressiveOptions;
+    use desurface_engine::render::job::CpuProgressiveOptions;
     let mut h = Harness::new();
     h.call("ui.resize", json!({"width":1600,"height":2600}));
     enter(&mut h.app, true).unwrap();
@@ -2184,7 +2184,7 @@ fn cpu_progressive_controls_resize_only_on_request_and_save_reload_without_a_hos
     assert!(!h.app.render_workspace.view.dirty);
     h.app.render_workspace.view.name = "Progressive CPU copy".into();
     setups::save(&mut h.app).unwrap();
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     h.app.session = Session::new(reopened);
     setups::load(&mut h.app);
     assert_eq!(setups::snapshot(&h.app).unwrap(), expected);
@@ -2194,7 +2194,7 @@ fn cpu_progressive_controls_resize_only_on_request_and_save_reload_without_a_hos
 
 #[test]
 fn cpu_progressive_setup_preserves_hidden_values_empty_lists_and_one_exposure() {
-    use solidcraft_engine::doc::render_settings::{CpuJob, RenderJob};
+    use desurface_engine::doc::render_settings::{CpuJob, RenderJob};
     let mut h = Harness::new();
     h.app.session.set_render_job_host(None).unwrap();
     let options: CpuJob = serde_json::from_value(json!({
@@ -2231,7 +2231,7 @@ fn cpu_progressive_setup_preserves_hidden_values_empty_lists_and_one_exposure() 
 
 #[test]
 fn setup_save_refuses_nonportable_state_atomically_and_tracks_invalid_legacy_edits() {
-    use solidcraft_engine::render::job::ReflectionMode;
+    use desurface_engine::render::job::ReflectionMode;
     let mut h = Harness::new();
     h.app.run("solid.box", json!({"length":10,"width":20,"height":5,"body_name":"Target"})).unwrap();
     enter(&mut h.app, true).unwrap();
@@ -2291,18 +2291,18 @@ fn captured_hdr_input(path: &str) -> hdr::Input {
     hdr::Input::FileCaptured {
         path: path.into(),
         metadata: hdr::Metadata {
-            sha256: solidcraft_engine::doc::render_resources::HdrId::of(&bytes),
+            sha256: desurface_engine::doc::render_resources::HdrId::of(&bytes),
             width: 2,
             height: 1,
             encoded_bytes: bytes.len() as u64,
-            primaries: Some(solidcraft_engine::doc::render_resources::SRGB_D65_PRIMARIES),
+            primaries: Some(desurface_engine::doc::render_resources::SRGB_D65_PRIMARIES),
         },
     }
 }
 
 #[test]
 fn hdr_ui_save_embeds_once_without_a_host_and_reload_never_reopens_the_source_path() {
-    use solidcraft_engine::doc::render_settings::RenderJob;
+    use desurface_engine::doc::render_settings::RenderJob;
     let mut h = Harness::new();
     h.app.run("solid.box", json!({"body_name":"HDR target","length":10,"width":20,"height":5})).unwrap();
     h.call("ui.resize", json!({"width":1600,"height":2200}));
@@ -2312,7 +2312,7 @@ fn hdr_ui_save_embeds_once_without_a_host_and_reload_never_reopens_the_source_pa
     let path = h.dir.join("original-embedded.hdr");
     let bytes = original_hdr_bytes(128, true);
     std::fs::write(&path, &bytes).unwrap();
-    let resource = solidcraft_engine::doc::render_resources::HdrId::of(&bytes);
+    let resource = desurface_engine::doc::render_resources::HdrId::of(&bytes);
     let save = h.app.tr("render.save_setup").to_string();
     select_image_method(&mut h.app, ImageMethod::GpuRaytrace);
     h.app.render_workspace.view.name = "HDR GPU".into();
@@ -2340,7 +2340,7 @@ fn hdr_ui_save_embeds_once_without_a_host_and_reload_never_reopens_the_source_pa
 
     select_image_method(&mut h.app, ImageMethod::CpuRaytrace);
     h.app.render_workspace.view.name = "HDR CPU".into();
-    h.app.render_workspace.view.raytrace.progressive = Some(solidcraft_engine::render::job::CpuProgressiveOptions { samples_per_pixel: 7, seed: 84 });
+    h.app.render_workspace.view.raytrace.progressive = Some(desurface_engine::render::job::CpuProgressiveOptions { samples_per_pixel: 7, seed: 84 });
     h.app.render_workspace.view.draft.exposure_ev = 1.75;
     h.app.render_workspace.view.cpu.environment = cpu::Environment::Hdr;
     h.app.render_workspace.view.cpu.rotation_rad = -1234.567890123;
@@ -2361,7 +2361,7 @@ fn hdr_ui_save_embeds_once_without_a_host_and_reload_never_reopens_the_source_pa
     std::fs::remove_file(&path).unwrap();
 
     for (name, expected, target) in [("HDR GPU", gpu, hdr::Target::Gpu), ("HDR CPU", cpu, hdr::Target::Cpu)] {
-        let loaded = solidcraft_engine::doc::Document::from_json(&encoded).unwrap();
+        let loaded = desurface_engine::doc::Document::from_json(&encoded).unwrap();
         h.app.session = Session::new(loaded);
         h.app.render_workspace.view.name = name.into();
         setups::load(&mut h.app);
@@ -2455,7 +2455,7 @@ fn hdr_picker_cancel_and_late_setup_method_or_input_answers_preserve_the_selecti
 
 #[test]
 fn embedded_hdr_runtime_requests_preserve_temporary_bindings_without_serializing_them() {
-    use solidcraft_engine::render::job::ReflectionMode;
+    use desurface_engine::render::job::ReflectionMode;
     for target in [hdr::Target::Cpu, hdr::Target::Gpu] {
         let mut h = Harness::new();
         h.app.run("solid.box", json!({"body_name":"Target","length":10,"width":20,"height":5})).unwrap();
@@ -2501,7 +2501,7 @@ fn embedded_hdr_runtime_requests_preserve_temporary_bindings_without_serializing
 
 #[test]
 fn cpu_resource_profile_edits_preserve_resolution_samples_and_saved_intent() {
-    use solidcraft_engine::render::job::{CpuBudget, CpuProgressiveOptions};
+    use desurface_engine::render::job::{CpuBudget, CpuProgressiveOptions};
     let mut h = Harness::new();
     h.call("ui.resize", json!({"width":1600,"height":2600}));
     enter(&mut h.app, true).unwrap();
@@ -2531,7 +2531,7 @@ fn cpu_resource_profile_edits_preserve_resolution_samples_and_saved_intent() {
 
 #[test]
 fn large_image_display_uses_captured_profile_and_keeps_export_pixels_unchanged() {
-    use solidcraft_engine::render::job::{CpuBudget, ImageRequest, RaytraceOptions};
+    use desurface_engine::render::job::{CpuBudget, ImageRequest, RaytraceOptions};
     let request = ImageRequest {
         integrator: Integrator::Raytrace,
         raytrace: Some(RaytraceOptions { budget: CpuBudget::Studio, ..Default::default() }),
@@ -2613,7 +2613,7 @@ fn product_preview_exact_payload_preserves_mixed_surfaces_and_refuses_overflow()
         .unwrap();
     session.execute("appearance.assign", &json!({"bodies":["Glass"],"color":"#336699","opacity":0.4})).unwrap();
     let original = session.doc.to_json();
-    let scene = solidcraft_engine::product_scene::extract(&session).unwrap();
+    let scene = desurface_engine::product_scene::extract(&session).unwrap();
     let plan = preview_upload_plan(&scene, MAX_GEOMETRY_BYTES).unwrap();
     let (_, gpu) = gpu_scene(&scene).unwrap();
     assert_eq!((plan.pbr, plan.tris, plan.glass), (gpu.pbr.len(), gpu.tris.len(), gpu.glass.len()));
@@ -2633,8 +2633,8 @@ fn product_preview_exact_payload_preserves_mixed_surfaces_and_refuses_overflow()
 #[cfg(all(not(target_arch = "wasm32"), target_pointer_width = "64"))]
 #[test]
 fn full_detail_preview_source_can_exceed_legacy_128_mib_without_mesh_reduction() {
-    use solidcraft_engine::geom::{Mesh, Vec3};
-    use solidcraft_engine::render::{ProductMesh, surface::OpaqueSurface};
+    use desurface_engine::geom::{Mesh, Vec3};
+    use desurface_engine::render::{ProductMesh, surface::OpaqueSurface};
     // One immutable original triangle repeated in the index list; this tests
     // payload admission only. Actual SELENE upload is separate native evidence.
     let count = (128 * 1024 * 1024) / (3 * crate::gpu::PBR_SIZE) + 1;
@@ -2697,7 +2697,7 @@ fn refused_product_capture_is_cached_until_identity_changes_or_explicit_retry() 
     assert!(h.app.render_workspace.scene_signature.is_none() && h.app.render_workspace.scene_error.is_none());
     let mut session = Session::default();
     session.execute("solid.box", &json!({"length":1,"width":1,"height":1})).unwrap();
-    h.app.render_workspace.prepare_preview(signature, || solidcraft_engine::product_scene::extract(&session).map_err(|e| e.to_string())).unwrap();
+    h.app.render_workspace.prepare_preview(signature, || desurface_engine::product_scene::extract(&session).map_err(|e| e.to_string())).unwrap();
     assert!(h.app.render_workspace.scene_error.is_none());
     assert!(h.app.render_workspace.preview_upload_bytes.unwrap() > 0);
     assert!(h.app.render_workspace.key.is_some() && h.app.render_workspace.scene.is_some());
@@ -2725,7 +2725,7 @@ fn product_preview_error_uses_shared_wrapped_surface_and_explicit_retry_target()
 
 #[test]
 fn finishing_backdrop_and_raw_retention_save_reload_without_a_gpu_or_hidden_transport_edits() {
-    use solidcraft_engine::render::job::finishing::{Backdrop, BackdropMode, Finishing};
+    use desurface_engine::render::job::finishing::{Backdrop, BackdropMode, Finishing};
     let mut h = Harness::new();
     h.call("ui.resize", json!({"width":1600,"height":2200}));
     enter(&mut h.app, true).unwrap();
@@ -2776,7 +2776,7 @@ fn missing_linear_master_is_never_reconstructed_from_a_finished_png() {
     h.app.render_workspace.view.completed = Some(id);
     h.app.render_workspace.view.studio.export_exr = true;
     assert!(!studio::linear_export_available(&h.app));
-    let temp = std::env::temp_dir().join(format!("solidcraft-missing-linear-{}.exr", std::process::id()));
+    let temp = std::env::temp_dir().join(format!("desurface-missing-linear-{}.exr", std::process::id()));
     assert!(h.app.session.execute("render.export", &json!({"job":id,"path":temp,"format":"exr"})).is_err());
     assert!(!temp.exists());
     assert_eq!(h.app.session.render_job_handle(id).unwrap().frame().unwrap().unwrap().png(), bytes);

@@ -86,15 +86,15 @@ outer undo transaction through the existing material commands. Mass remains the 
 volume × density calculation; a generic illustrative density is not an engineering grade.
 
 `library.export` also accepts `id` (default `user.local`), `name` (default `My library`),
-`provenance`, `overwrite` (default false) and `format` (default `solidcraft-library/2`).
-Explicit `solidcraft-library/1` refuses PBR or engineering-card loss before publishing,
+`provenance`, `overwrite` (default false) and `format` (default `desurface-library/2`).
+Explicit `desurface-library/1` refuses PBR or engineering-card loss before publishing,
 including with overwrite enabled. Only explicit assignments/design-local
 definitions are inspected, without evaluating geometry. Duplicate exact definitions are
 deduplicated; different values with the same display name remain distinct entries.
 
 ## Portable catalog v2
 
-`solidcraft-library/2` extends the same envelope and definition kinds with optional
+`desurface-library/2` extends the same envelope and definition kinds with optional
 `pbr: {metallic, roughness, dielectric_ior}` on appearance values and optional
 `physical_card` on material values. PBR uses the bounded opaque contract and requires
 opacity exactly one. Cards use the existing SI admission and validation rules.
@@ -116,7 +116,7 @@ V1 wire input rejects even null v2-only fields. Older readers refuse v2.
 
 ## Scalar catalog v1 compatibility
 
-The independent JSON format marker is `solidcraft-library/1`. It has `id`, `name` and an
+The independent JSON format marker is `desurface-library/1`. It has `id`, `name` and an
 `entries` array. Each entry has `id`, `revision`, `provenance` and a typed `definition`:
 
 - `appearance`: `value: {name, color: [r,g,b], opacity}`; sRGB bytes and finite opacity 0–1.

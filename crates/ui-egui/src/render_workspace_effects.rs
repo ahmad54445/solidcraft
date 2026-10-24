@@ -2,7 +2,7 @@
 //! Numerical edits remain one render draft until the ordinary Save action.
 use super::{ImageMethod, materials, studio};
 use crate::{SolveApp, ui_kit};
-use solidcraft_engine::render::job::{
+use desurface_engine::render::job::{
     aging::{AgingKind, AgingLayer, SurfaceClass},
     looks::{LookKind, LookLayer},
 };

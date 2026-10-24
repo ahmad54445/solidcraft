@@ -2,7 +2,7 @@
 //! Air is 1.0. Distances and absorption coefficients use millimetres.
 use super::{Bounds, Result, TraceError, Triangle, unit};
 use crate::{ProductScene, job::DielectricOptions};
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 pub const MAX_OVERRIDES: usize = 8;
 pub const MAX_BOUNDARIES: u8 = 8;

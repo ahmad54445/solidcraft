@@ -1,5 +1,5 @@
 use super::*;
-use solidcraft_render::job::adaptive::AdaptiveSampling;
+use desurface_render::job::adaptive::AdaptiveSampling;
 
 #[test]
 fn independent_pilots_never_enter_the_final_master_and_admission_counts_auxiliary_storage() {
@@ -71,9 +71,9 @@ fn transmission_strata_preserve_opaque_stream_and_reduce_absorbing_sheet_error_a
     let b = image::load_from_memory(&b).unwrap().into_rgba8();
     assert!(a.as_raw().iter().zip(b.as_raw()).all(|(a, b)| a.abs_diff(*b) <= 1), "strata preserve opaque radiance within accumulation rounding");
     let mut source = glass_slab(true);
-    let transmission = solidcraft_render::transmission::Transmission::new(Vec3::new(3.0, 3.0, 3.0), Some(1.0)).unwrap();
+    let transmission = desurface_render::transmission::Transmission::new(Vec3::new(3.0, 3.0, 3.0), Some(1.0)).unwrap();
     source.meshes[0].transmission = Some(transmission);
-    let (_, oracle) = solidcraft_render::transmission::slab(transmission, 1.0, 1.0, 1.0, 1.5).unwrap();
+    let (_, oracle) = desurface_render::transmission::slab(transmission, 1.0, 1.0, 1.0, 1.5).unwrap();
     let mut squared_error = [0.0; 2];
     let mut mean = [0.0; 2];
     for seed in 0..32 {
@@ -110,7 +110,7 @@ fn adaptive_report_refuses_retired_device_before_readback() {
     let Some(executor) = executor() else { return };
     let options = JobOptions {
         samples: 16,
-        adaptive: Some(solidcraft_render::job::adaptive::AdaptiveSampling {
+        adaptive: Some(desurface_render::job::adaptive::AdaptiveSampling {
             pilot_samples: 16,
             min_samples: 16,
             relative_error: 0.1,

@@ -1104,6 +1104,257 @@ dependencies = [
 ]
 
 [[package]]
+name = "desurface"
+version = "0.21.0"
+dependencies = [
+ "block2 0.6.2",
+ "desurface-3dx-client",
+ "desurface-engine",
+ "desurface-space-mouse",
+ "desurface-ui-egui",
+ "eframe",
+ "egui",
+ "embed-resource",
+ "getrandom 0.3.4",
+ "hidapi",
+ "keyring",
+ "log",
+ "muda",
+ "objc2 0.6.5",
+ "objc2-app-kit 0.3.2",
+ "objc2-foundation 0.3.2",
+ "pollster 0.4.0",
+ "quick-xml",
+ "raw-window-handle",
+ "rfd",
+ "ron",
+ "rustls",
+ "serde_json",
+ "ureq",
+ "windows-sys 0.61.2",
+ "winit",
+]
+
+[[package]]
+name = "desurface-3dx-client"
+version = "0.21.0"
+
+[[package]]
+name = "desurface-cli"
+version = "0.21.0"
+dependencies = [
+ "desurface-engine",
+ "desurface-gpu",
+ "desurface-mcp",
+ "image",
+ "log",
+ "serde_json",
+]
+
+[[package]]
+name = "desurface-derive"
+version = "0.21.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.119",
+]
+
+[[package]]
+name = "desurface-doc"
+version = "0.21.0"
+dependencies = [
+ "desurface-derive",
+ "desurface-geom",
+ "desurface-kernel",
+ "desurface-render",
+ "desurface-sketch",
+ "log",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "web-time",
+]
+
+[[package]]
+name = "desurface-engine"
+version = "0.21.0"
+dependencies = [
+ "desurface-doc",
+ "desurface-geom",
+ "desurface-io",
+ "desurface-kernel",
+ "desurface-render",
+ "desurface-sketch",
+ "log",
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_path_to_error",
+ "thiserror 2.0.21",
+ "web-time",
+]
+
+[[package]]
+name = "desurface-geom"
+version = "0.21.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+]
+
+[[package]]
+name = "desurface-gpu"
+version = "0.21.0"
+dependencies = [
+ "desurface-engine",
+ "desurface-geom",
+ "desurface-io",
+ "desurface-kernel",
+ "desurface-render",
+ "image",
+ "log",
+ "naga",
+ "pollster 0.4.0",
+ "robust",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "wgpu",
+]
+
+[[package]]
+name = "desurface-io"
+version = "0.21.0"
+dependencies = [
+ "cadmpeg-core",
+ "cadmpeg-ir",
+ "cadmpeg-registry",
+ "chardetng",
+ "desurface-doc",
+ "desurface-geom",
+ "desurface-kernel",
+ "encoding_rs",
+ "gltf",
+ "log",
+ "quick-xml",
+ "rustix 1.1.5",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "thiserror 2.0.21",
+ "zip",
+]
+
+[[package]]
+name = "desurface-kernel"
+version = "0.21.0"
+dependencies = [
+ "desurface-geom",
+ "log",
+ "proptest",
+ "rayon",
+ "serde",
+ "serde_json",
+ "spade",
+ "thiserror 2.0.21",
+ "truck-meshalgo",
+ "truck-modeling",
+ "truck-shapeops",
+ "truck-stepio",
+ "truck-topology",
+ "web-time",
+]
+
+[[package]]
+name = "desurface-mcp"
+version = "0.21.0"
+dependencies = [
+ "desurface-engine",
+ "desurface-gpu",
+ "serde_json",
+]
+
+[[package]]
+name = "desurface-render"
+version = "0.21.0"
+dependencies = [
+ "desurface-geom",
+ "image",
+ "moxcms",
+ "png",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "weezl",
+]
+
+[[package]]
+name = "desurface-sketch"
+version = "0.21.0"
+dependencies = [
+ "desurface-geom",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "ttf-parser",
+]
+
+[[package]]
+name = "desurface-space-mouse"
+version = "0.21.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
+name = "desurface-ui-egui"
+version = "0.21.0"
+dependencies = [
+ "arboard",
+ "desurface-engine",
+ "desurface-gpu",
+ "desurface-space-mouse",
+ "egui",
+ "egui-wgpu",
+ "image",
+ "log",
+ "minisign-verify",
+ "nix 0.31.3",
+ "pollster 0.4.0",
+ "proc-macro2",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "syn 2.0.119",
+ "tiny-skia",
+ "toml",
+ "ttf-parser",
+ "web-time",
+ "winreg",
+ "zip",
+]
+
+[[package]]
+name = "desurface-web"
+version = "0.21.0"
+dependencies = [
+ "desurface-engine",
+ "desurface-ui-egui",
+ "eframe",
+ "egui",
+ "js-sys",
+ "log",
+ "serde_json",
+ "wasm-bindgen",
+ "wasm-bindgen-futures",
+ "web-sys",
+]
+
+[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4204,257 +4455,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dd538fb6910ac1099850255cf94a94df6551fbdd602454387d0adb2d1ca6dead"
 dependencies = [
  "serde",
-]
-
-[[package]]
-name = "solidcraft"
-version = "0.21.0"
-dependencies = [
- "block2 0.6.2",
- "eframe",
- "egui",
- "embed-resource",
- "getrandom 0.3.4",
- "hidapi",
- "keyring",
- "log",
- "muda",
- "objc2 0.6.5",
- "objc2-app-kit 0.3.2",
- "objc2-foundation 0.3.2",
- "pollster 0.4.0",
- "quick-xml",
- "raw-window-handle",
- "rfd",
- "ron",
- "rustls",
- "serde_json",
- "solidcraft-3dx-client",
- "solidcraft-engine",
- "solidcraft-space-mouse",
- "solidcraft-ui-egui",
- "ureq",
- "windows-sys 0.61.2",
- "winit",
-]
-
-[[package]]
-name = "solidcraft-3dx-client"
-version = "0.21.0"
-
-[[package]]
-name = "solidcraft-cli"
-version = "0.21.0"
-dependencies = [
- "image",
- "log",
- "serde_json",
- "solidcraft-engine",
- "solidcraft-gpu",
- "solidcraft-mcp",
-]
-
-[[package]]
-name = "solidcraft-derive"
-version = "0.21.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.119",
-]
-
-[[package]]
-name = "solidcraft-doc"
-version = "0.21.0"
-dependencies = [
- "log",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "solidcraft-derive",
- "solidcraft-geom",
- "solidcraft-kernel",
- "solidcraft-render",
- "solidcraft-sketch",
- "thiserror 2.0.21",
- "web-time",
-]
-
-[[package]]
-name = "solidcraft-engine"
-version = "0.21.0"
-dependencies = [
- "log",
- "schemars",
- "serde",
- "serde_json",
- "serde_path_to_error",
- "solidcraft-doc",
- "solidcraft-geom",
- "solidcraft-io",
- "solidcraft-kernel",
- "solidcraft-render",
- "solidcraft-sketch",
- "thiserror 2.0.21",
- "web-time",
-]
-
-[[package]]
-name = "solidcraft-geom"
-version = "0.21.0"
-dependencies = [
- "serde",
- "serde_json",
- "thiserror 2.0.21",
-]
-
-[[package]]
-name = "solidcraft-gpu"
-version = "0.21.0"
-dependencies = [
- "image",
- "log",
- "naga",
- "pollster 0.4.0",
- "robust",
- "serde",
- "serde_json",
- "solidcraft-engine",
- "solidcraft-geom",
- "solidcraft-io",
- "solidcraft-kernel",
- "solidcraft-render",
- "thiserror 2.0.21",
- "wgpu",
-]
-
-[[package]]
-name = "solidcraft-io"
-version = "0.21.0"
-dependencies = [
- "cadmpeg-core",
- "cadmpeg-ir",
- "cadmpeg-registry",
- "chardetng",
- "encoding_rs",
- "gltf",
- "log",
- "quick-xml",
- "rustix 1.1.5",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "solidcraft-doc",
- "solidcraft-geom",
- "solidcraft-kernel",
- "thiserror 2.0.21",
- "zip",
-]
-
-[[package]]
-name = "solidcraft-kernel"
-version = "0.21.0"
-dependencies = [
- "log",
- "proptest",
- "rayon",
- "serde",
- "serde_json",
- "solidcraft-geom",
- "spade",
- "thiserror 2.0.21",
- "truck-meshalgo",
- "truck-modeling",
- "truck-shapeops",
- "truck-stepio",
- "truck-topology",
- "web-time",
-]
-
-[[package]]
-name = "solidcraft-mcp"
-version = "0.21.0"
-dependencies = [
- "serde_json",
- "solidcraft-engine",
- "solidcraft-gpu",
-]
-
-[[package]]
-name = "solidcraft-render"
-version = "0.21.0"
-dependencies = [
- "image",
- "moxcms",
- "png",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "solidcraft-geom",
- "weezl",
-]
-
-[[package]]
-name = "solidcraft-sketch"
-version = "0.21.0"
-dependencies = [
- "serde",
- "serde_json",
- "solidcraft-geom",
- "thiserror 2.0.21",
- "ttf-parser",
-]
-
-[[package]]
-name = "solidcraft-space-mouse"
-version = "0.21.0"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "solidcraft-ui-egui"
-version = "0.21.0"
-dependencies = [
- "arboard",
- "egui",
- "egui-wgpu",
- "image",
- "log",
- "minisign-verify",
- "nix 0.31.3",
- "pollster 0.4.0",
- "proc-macro2",
- "semver",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "solidcraft-engine",
- "solidcraft-gpu",
- "solidcraft-space-mouse",
- "syn 2.0.119",
- "tiny-skia",
- "toml",
- "ttf-parser",
- "web-time",
- "winreg",
- "zip",
-]
-
-[[package]]
-name = "solidcraft-web"
-version = "0.21.0"
-dependencies = [
- "eframe",
- "egui",
- "js-sys",
- "log",
- "serde_json",
- "solidcraft-engine",
- "solidcraft-ui-egui",
- "wasm-bindgen",
- "wasm-bindgen-futures",
- "web-sys",
 ]
 
 [[package]]

@@ -3,7 +3,7 @@
 use std::{fmt, marker::PhantomData};
 
 use serde::{Deserialize, Serialize};
-use solidcraft_render::{
+use desurface_render::{
     Camera,
     job::{
         CpuBudget, CpuProgressiveOptions, DirectionalLightOptions, JobOptions, LightingPreset, PunctualLightOptions, RaytraceEnvironmentOptions,
@@ -156,16 +156,16 @@ pub struct GpuJob {
     pub aging: crate::render_aging::SavedAgingStack,
     pub nested_media: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub volume: Option<solidcraft_render::job::volume::HomogeneousVolume>,
+    pub volume: Option<desurface_render::job::volume::HomogeneousVolume>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub adaptive: Option<solidcraft_render::job::adaptive::AdaptiveSampling>,
+    pub adaptive: Option<desurface_render::job::adaptive::AdaptiveSampling>,
     /// Conditional Fresnel strata per primary sample; one keeps the old stream.
     pub transmission_samples: u32,
 
-    #[serde(skip_serializing_if = "solidcraft_render::job::finishing::Finishing::is_identity")]
-    pub finishing: solidcraft_render::job::finishing::Finishing,
+    #[serde(skip_serializing_if = "desurface_render::job::finishing::Finishing::is_identity")]
+    pub finishing: desurface_render::job::finishing::Finishing,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub backdrop: Option<solidcraft_render::job::finishing::Backdrop>,
+    pub backdrop: Option<desurface_render::job::finishing::Backdrop>,
     pub linear_exr: bool,
     pub samples: u32,
     pub max_depth: u32,

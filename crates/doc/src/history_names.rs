@@ -17,8 +17,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, OnceLock};
 
-use solidcraft_geom::Vec3;
-use solidcraft_kernel::history::{FaceOrigin, FaceProv, History};
+use desurface_geom::Vec3;
+use desurface_kernel::history::{FaceOrigin, FaceProv, History};
 
 use crate::ModelBody;
 use crate::lineage::{Lineage, Operand};

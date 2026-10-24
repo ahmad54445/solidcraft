@@ -1,10 +1,10 @@
 # .deb and .rpm packages (nfpm: https://nfpm.goreleaser.com). Run by package.sh, which stages
 # the file tree, substitutes its path for ${STAGE} (nfpm doesn't expand env vars in `src`) and
 # exports VERSION and NFPM_ARCH. Adapted from PhotoCraft's (storytold/photocraft, Apache-2.0).
-name: solidcraft
+name: desurface
 # Compatibility shim (docs/compatibility.md): releases before the rename were packaged as `solvecraft`.
 # Installing this package replaces that one (Debian Replaces/Conflicts, set under overrides.deb;
-# nfpm writes `replaces` as RPM Obsoletes), so `apt install ./solidcraft-….deb` or `dnf install ./solidcraft-….rpm`
+# nfpm writes `replaces` as RPM Obsoletes), so `apt install ./desurface-….deb` or `dnf install ./desurface-….rpm`
 # upgrades an old install instead of failing on the shared desktop and icon files.
 replaces:
   - solvecraft
@@ -18,14 +18,14 @@ version_schema: semver
 release: 1
 section: graphics
 priority: optional
-maintainer: ${SOLIDCRAFT_MAINTAINER}
+maintainer: ${DESURFACE_MAINTAINER}
 vendor: SolidCraft contributors
 homepage: https://docs.solidcraft.io/
 license: MIT OR Apache-2.0
 description: |-
   Open-source, independent parametric 3D CAD
   Sketches with a constraint solver, a parametric feature timeline, components and
-  joints, sheet metal; STEP, IGES, 3MF, STL and OBJ. Includes solidcraft-cli, a
+  joints, sheet metal; STEP, IGES, 3MF, STL and OBJ. Includes desurface-cli, a
   headless command runner and MCP server for AI agents.
 
 # The binaries link only glibc and libgcc_s directly. Windowing (X11/Wayland, xkbcommon) and the
@@ -70,13 +70,13 @@ overrides:
       - xdg-desktop-portal
 
 contents:
-  - src: ${STAGE}/usr/bin/solidcraft
-    dst: /usr/bin/solidcraft
+  - src: ${STAGE}/usr/bin/desurface
+    dst: /usr/bin/desurface
     file_info: { mode: 0755 }
-  - src: ${STAGE}/usr/bin/solidcraft-cli
-    dst: /usr/bin/solidcraft-cli
+  - src: ${STAGE}/usr/bin/desurface-cli
+    dst: /usr/bin/desurface-cli
     file_info: { mode: 0755 }
-  # Compatibility shim (docs/compatibility.md): the old CLI name forwards to solidcraft-cli.
+  # Compatibility shim (docs/compatibility.md): the old CLI name forwards to desurface-cli.
   - src: ${STAGE}/usr/bin/solvecraft-cli
     dst: /usr/bin/solvecraft-cli
     file_info: { mode: 0755 }

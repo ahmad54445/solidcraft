@@ -148,7 +148,7 @@ def publish(session: Path, name: str, visual_review: bool) -> dict:
     require(not EXPORT.exists() and not MANIFEST.exists(), 'Never overwrite an existing showcase without a separate reviewed replacement')
     recipe = ROOT/'tools/render-library/selene_recipe.py'
     manifest = {
-        'schema': 'solidcraft-native-selene-showcase/1', 'title': 'SELENE — full-detail native studio render',
+        'schema': 'desurface-native-selene-showcase/1', 'title': 'SELENE — full-detail native studio render',
         'source': {'path': MODEL.relative_to(ROOT).as_posix(), 'sha256': MODEL_SHA,
                    'functional_master_commit': 'cf8e651022deee528b26c303fde58bf3eb8a22a5',
                    'original_author': '0xlillith', 'showcase_author': 'SychPL / Mateusz Sych',

@@ -1,10 +1,10 @@
 use super::*;
-use solidcraft_geom::Aabb3;
+use desurface_geom::Aabb3;
 fn emission_fixture(reverse: bool) -> (ProductScene, ImageRequest, RaytraceOptions) {
     use std::sync::Arc;
     let mut meshes = Vec::new();
     for (name, lo, hi) in [("emitter", -20.0, 0.0), ("receiver", 0.0, 20.0)] {
-        let mesh = solidcraft_geom::Mesh {
+        let mesh = desurface_geom::Mesh {
             positions: vec![Vec3::new(lo, -10.0, 0.0), Vec3::new(hi, -10.0, 0.0), Vec3::new(hi, 10.0, 0.0), Vec3::new(lo, 10.0, 0.0)],
             normals: vec![Vec3::Z; 4],
             triangles: if reverse { vec![[0, 2, 1], [0, 3, 2]] } else { vec![[0, 1, 2], [0, 2, 3]] },
@@ -265,7 +265,7 @@ fn resumable_cursor_matches_original_visibility_and_charges_each_unit() {
 #[test]
 fn actual_png_has_analytic_lit_and_cast_shadow_pixels() {
     use crate::ProductMesh;
-    use solidcraft_geom::Mesh;
+    use desurface_geom::Mesh;
     use std::sync::Arc;
     fn plane(z: f64, x0: f64, x1: f64) -> ProductMesh {
         let mesh = Mesh {
@@ -324,7 +324,7 @@ fn actual_png_has_analytic_lit_and_cast_shadow_pixels() {
 }
 fn triangle_task(cancel: CancelToken) -> ImageTask {
     use std::sync::Arc;
-    let mesh = solidcraft_geom::Mesh {
+    let mesh = desurface_geom::Mesh {
         positions: vec![Vec3::new(-20.0, -20.0, 0.0), Vec3::new(20.0, -20.0, 0.0), Vec3::new(0.0, 20.0, 0.0)],
         normals: vec![Vec3::Z; 3],
         triangles: vec![[0, 1, 2]],
@@ -498,14 +498,14 @@ fn emission_and_directional_point_area_terms_share_one_linear_output_transform()
 fn reflected_hit_adds_surface_emission_with_the_current_path_throughput() {
     use std::sync::Arc;
     let normal = Vec3::new(1.0, 0.0, 1.0) / 2.0_f64.sqrt();
-    let mirror_mesh = solidcraft_geom::Mesh {
+    let mirror_mesh = desurface_geom::Mesh {
         positions: vec![Vec3::new(-20.0, -20.0, 20.0), Vec3::new(20.0, -20.0, -20.0), Vec3::new(20.0, 20.0, -20.0), Vec3::new(-20.0, 20.0, 20.0)],
         normals: vec![normal; 4],
         triangles: vec![[0, 1, 2], [0, 2, 3]],
         tri_face: vec![0; 2],
         ..Default::default()
     };
-    let emitter_mesh = solidcraft_geom::Mesh {
+    let emitter_mesh = desurface_geom::Mesh {
         positions: vec![Vec3::new(10.0, -4.0, -2.0), Vec3::new(10.0, -4.0, 2.0), Vec3::new(10.0, 4.0, 2.0), Vec3::new(10.0, 4.0, -2.0)],
         normals: vec![-Vec3::X; 4],
         triangles: vec![[0, 1, 2], [0, 2, 3]],
@@ -569,7 +569,7 @@ fn reflected_hit_adds_surface_emission_with_the_current_path_throughput() {
 #[test]
 fn procedural_effects_change_completed_pngs_independently_and_zero_is_byte_identical() {
     use crate::{ProductMesh, surface_patterns::SurfaceEffect};
-    use solidcraft_geom::Mesh;
+    use desurface_geom::Mesh;
     use std::sync::Arc;
     let mesh = Arc::new(Mesh {
         positions: vec![Vec3::new(-10.0, -10.0, 0.0), Vec3::new(10.0, -10.0, 0.0), Vec3::new(10.0, 10.0, 0.0), Vec3::new(-10.0, 10.0, 0.0)],
@@ -647,7 +647,7 @@ fn surface_target_refusals_are_atomic_before_pixels_or_bvh_allocation() {
 
 fn surface_consumer_fixture() -> (ProductScene, ImageRequest, RaytraceOptions) {
     use crate::{ProductMesh, surface_patterns::SurfaceEffect};
-    use solidcraft_geom::Mesh;
+    use desurface_geom::Mesh;
     use std::sync::Arc;
     let mesh = Arc::new(Mesh {
         positions: vec![Vec3::new(-20.0, -20.0, 0.0), Vec3::new(20.0, -20.0, 0.0), Vec3::new(20.0, 20.0, 0.0), Vec3::new(-20.0, 20.0, 0.0)],
@@ -769,7 +769,7 @@ fn surface_effect_shared_hit_reaches_directional_point_area_and_hdr_consumers() 
 
 fn surface_at_thirty_two_binding_scan() -> ImageTask {
     use crate::{ProductMesh, surface_patterns::SurfaceEffect};
-    use solidcraft_geom::Mesh;
+    use desurface_geom::Mesh;
     use std::sync::Arc;
     let (mut scene, mut request, mut options) = surface_consumer_fixture();
     let visible = scene.meshes.pop().unwrap();
@@ -861,14 +861,14 @@ fn reflected_surface_effect_uses_changed_shading_and_resets_before_emitting_seco
     use crate::surface_patterns::SurfaceEffect;
     use std::sync::Arc;
     let normal = Vec3::new(1.0, 0.0, 1.0) / 2.0_f64.sqrt();
-    let mirror_mesh = solidcraft_geom::Mesh {
+    let mirror_mesh = desurface_geom::Mesh {
         positions: vec![Vec3::new(-20.0, -20.0, 20.0), Vec3::new(20.0, -20.0, -20.0), Vec3::new(20.0, 20.0, -20.0), Vec3::new(-20.0, 20.0, 20.0)],
         normals: vec![normal; 4],
         triangles: vec![[0, 1, 2], [0, 2, 3]],
         tri_face: vec![0; 2],
         ..Default::default()
     };
-    let emitter_mesh = solidcraft_geom::Mesh {
+    let emitter_mesh = desurface_geom::Mesh {
         positions: vec![Vec3::new(10.0, -20.0, -20.0), Vec3::new(10.0, -20.0, 20.0), Vec3::new(10.0, 20.0, 20.0), Vec3::new(10.0, 20.0, -20.0)],
         normals: vec![-Vec3::X; 4],
         triangles: vec![[0, 1, 2], [0, 2, 3]],
@@ -1046,7 +1046,7 @@ fn optical_sheet(name: &str, x: f64, z: f64) -> crate::ProductMesh {
     crate::ProductMesh {
         transmission: None,
         name: name.into(),
-        mesh: Arc::new(solidcraft_geom::Mesh {
+        mesh: Arc::new(desurface_geom::Mesh {
             positions: vec![Vec3::new(x - 20.0, -20.0, z), Vec3::new(x + 20.0, -20.0, z), Vec3::new(x + 20.0, 20.0, z), Vec3::new(x - 20.0, 20.0, z)],
             normals: vec![Vec3::Z; 4],
             triangles: vec![[0, 1, 2], [0, 2, 3]],

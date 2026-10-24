@@ -19,7 +19,7 @@
 //! - `{"choose_file": "part.step"}`: the next Open picker returns that file of the scenario's
 //!   folder (Save pickers save there)
 //! - `{"shot": "name"}`: a screenshot when run in a window; headless, a render of the model
-//!   into `$SOLIDCRAFT_SCENARIO_SHOTS` when that is set; `{"debug": 1}`
+//!   into `$DESURFACE_SCENARIO_SHOTS` when that is set; `{"debug": 1}`
 //!   prints the UI state (`"widgets"`: also every widget's text; `"handles"`: every published
 //!   handle, browser rows as `row:<label>` and their fold arrows as `fold:<label>`)
 //! - `{"camera": {"yaw": rad, "pitch": rad}}` puts the camera at an orbit; `{"view_anim": "top",
@@ -44,7 +44,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use serde_json::{Value, json};
-use solidcraft_engine::Session;
+use desurface_engine::Session;
 
 use crate::control::{ControlRequest, Outcome, handle};
 use crate::{Services, SolveApp};
@@ -134,7 +134,7 @@ fn with_dir(v: Value, dir: &str) -> Value {
 fn scratch_dir() -> PathBuf {
     use std::sync::atomic::{AtomicUsize, Ordering};
     static N: AtomicUsize = AtomicUsize::new(0);
-    let d = solidcraft_engine::io::vfs::temp_dir().join(format!("solidcraft-scenario-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
+    let d = desurface_engine::io::vfs::temp_dir().join(format!("desurface-scenario-{}-{}", std::process::id(), N.fetch_add(1, Ordering::Relaxed)));
     let _ = std::fs::create_dir_all(&d);
     d
 }
@@ -155,7 +155,7 @@ pub struct Harness {
     time: f64,
     size: egui::Vec2,
     /// The camera as the last `camera` step left it.
-    cam_mark: Option<solidcraft_engine::render::Camera>,
+    cam_mark: Option<desurface_engine::render::Camera>,
 }
 
 impl Default for Harness {
@@ -165,9 +165,9 @@ impl Default for Harness {
 }
 
 impl Drop for Harness {
-    /// The scenario's files go with it (kept with SOLIDCRAFT_SCENARIO_KEEP set).
+    /// The scenario's files go with it (kept with DESURFACE_SCENARIO_KEEP set).
     fn drop(&mut self) {
-        if solidcraft_engine::geom::env::var_os("SCENARIO_KEEP").is_none() {
+        if desurface_engine::geom::env::var_os("SCENARIO_KEEP").is_none() {
             let _ = std::fs::remove_dir_all(&self.dir);
         }
     }
@@ -383,7 +383,7 @@ impl Harness {
     /// frame may turn the view (its right or back vector) by more than `max_deg`, the last
     /// included, so the move ends without a jump.
     fn view_anim(&mut self, v: &str, max_deg: f64) -> Result<(), String> {
-        let basis = |c: &solidcraft_engine::render::Camera| c.basis();
+        let basis = |c: &desurface_engine::render::Camera| c.basis();
         let mut prev = basis(&self.app.cam);
         self.app.animate_view(v);
         if self.app.cam_anim.is_none() {
@@ -393,7 +393,7 @@ impl Harness {
         for i in 0..240 {
             self.frame();
             let now = basis(&self.app.cam);
-            let ang = |a: solidcraft_engine::geom::Vec3, b: solidcraft_engine::geom::Vec3| a.dot(b).clamp(-1.0, 1.0).acos().to_degrees();
+            let ang = |a: desurface_engine::geom::Vec3, b: desurface_engine::geom::Vec3| a.dot(b).clamp(-1.0, 1.0).acos().to_degrees();
             let d = ang(prev.0, now.0).max(ang(prev.2, now.2));
             if d > worst.0 {
                 worst = (d, i);
@@ -487,7 +487,7 @@ impl Harness {
                 v
             } else if let Some(f) = s.get("script").and_then(Value::as_str) {
                 // A command script (`{"commands": [{command, params}]}`, path from the repository
-                // root) run through the engine, as `solidcraft-cli run` does.
+                // root) run through the engine, as `desurface-cli run` does.
                 let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..").join(f);
                 let text = std::fs::read_to_string(&path).map_err(|e| format!("{f}: {e}"))?;
                 let v: Value = serde_json::from_str(&text).map_err(|e| format!("{f}: {e}"))?;
@@ -506,14 +506,14 @@ impl Harness {
             } else if s.get("note").is_some() || s.get("pending").is_some() {
                 return Ok(());
             } else if let Some(name) = s.get("shot").and_then(Value::as_str) {
-                // With SOLIDCRAFT_SCENARIO_SHOTS set: a render of the model as the camera sees it.
-                if let Ok(dir) = solidcraft_engine::geom::env::var("SCENARIO_SHOTS").ok_or(()) {
+                // With DESURFACE_SCENARIO_SHOTS set: a render of the model as the camera sees it.
+                if let Ok(dir) = desurface_engine::geom::env::var("SCENARIO_SHOTS").ok_or(()) {
                     // Drawn on the GPU: the headless device, as the CLI draws.
                     #[cfg(not(target_arch = "wasm32"))]
-                    if solidcraft_engine::capture::installed().is_none() {
-                        solidcraft_engine::capture::install(std::sync::Arc::new(|scene, cam, w, h| {
-                            let (rgba, renderer) = solidcraft_gpu::capture::headless_rgba(scene, cam, w, h)?;
-                            Ok(solidcraft_engine::capture::Picture { rgba, renderer })
+                    if desurface_engine::capture::installed().is_none() {
+                        desurface_engine::capture::install(std::sync::Arc::new(|scene, cam, w, h| {
+                            let (rgba, renderer) = desurface_gpu::capture::headless_rgba(scene, cam, w, h)?;
+                            Ok(desurface_engine::capture::Picture { rgba, renderer })
                         }));
                     }
                     let path = std::path::Path::new(&dir).join(format!("{name}.png"));

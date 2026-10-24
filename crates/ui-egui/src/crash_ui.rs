@@ -1,7 +1,7 @@
-//! The Crash Reports window (Help > Crash Reports…): the reports `solidcraft_engine::crash`
+//! The Crash Reports window (Help > Crash Reports…): the reports `desurface_engine::crash`
 //! keeps on this computer, each with a reviewed issue draft. It opens by itself after a crash.
 
-use solidcraft_engine::crash::{self, Summary};
+use desurface_engine::crash::{self, Summary};
 
 use crate::SolveApp;
 use crate::ui_kit;
@@ -180,13 +180,13 @@ mod tests {
     use serde_json::json;
 
     fn folder(tag: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("solidcraft-crash-ui-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("desurface-crash-ui-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         let id = "20261012-162341-bb60791ed6692f1d";
         std::fs::create_dir_all(d.join(id)).unwrap();
         let report = json!({
-            "format": "solidcraft-crash/1", "id": id, "kind": "unclean_exit", "count": 2,
-            "first_seen": "2026-10-12T16:23:41Z", "message": "SolidCraft ended without a clean exit while running `solid.fillet`",
+            "format": "desurface-crash/1", "id": id, "kind": "unclean_exit", "count": 2,
+            "first_seen": "2026-10-12T16:23:41Z", "message": "DeSurface ended without a clean exit while running `solid.fillet`",
             "location": "unclean exit in solid.fillet", "thread": "(unknown)", "backtrace": [],
             "command": {"command": "solid.fillet", "params": {"radius": 2}},
             "recent_commands": [{"command": "solid.box", "ok": true}],
@@ -207,14 +207,14 @@ mod tests {
         let id = "20261012-162341-bb60791ed6692f1d";
         let path = d.join(id).join("report.json");
         let mut report: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
-        report["message"] = json!("SolidCraft 0.3.2 (started 2026-10-01T10:00:00Z) ended without a clean exit between commands");
+        report["message"] = json!("DeSurface 0.3.2 (started 2026-10-01T10:00:00Z) ended without a clean exit between commands");
         report["command"] = serde_json::Value::Null;
         std::fs::write(&path, report.to_string()).unwrap();
-        super::announce(&mut h.app, &solidcraft_engine::crash::list(&d));
+        super::announce(&mut h.app, &desurface_engine::crash::list(&d));
         h.frames(6);
         assert!(h.app.crashes.open, "unclean exits still alert the user");
         let status = &h.app.status.as_ref().unwrap().0;
-        assert!(status.contains("earlier SolidCraft session"), "{status}");
+        assert!(status.contains("earlier DeSurface session"), "{status}");
         assert!(status.contains("detected at startup"), "{status}");
         assert!(h.widget("Detected 2026-10-12 16:23:41 UTC  Closed unexpectedly  ×2").is_some());
         assert!(h.widget(report["message"].as_str().unwrap()).is_some(), "keep the original session start visible");
@@ -232,7 +232,7 @@ mod tests {
         let mut report: serde_json::Value = serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
         report["kind"] = json!("command_panic");
         std::fs::write(&path, report.to_string()).unwrap();
-        super::announce(&mut h.app, &solidcraft_engine::crash::list(&d));
+        super::announce(&mut h.app, &desurface_engine::crash::list(&d));
         h.frames(6);
         assert!(h.app.crashes.open);
         assert!(h.widget("2026-10-12 16:23:41 UTC  Internal error in a command  ×2").is_some());
@@ -245,7 +245,7 @@ mod tests {
         let d = folder("draft");
         let mut h = crate::scenario::Harness::new();
         h.app.crashes.folder = Some(d.clone());
-        let fresh = solidcraft_engine::crash::list(&d);
+        let fresh = desurface_engine::crash::list(&d);
         assert_eq!(fresh.len(), 1);
         super::announce(&mut h.app, &fresh);
         assert!(h.app.crashes.open, "a real crash opens the window");
@@ -254,12 +254,12 @@ mod tests {
         h.step(&json!({"widget": "Report…"})).unwrap();
         h.frames(2);
         let draft = h.app.issue_report.draft.as_ref().expect("Report… opens the draft");
-        assert!(draft.title.starts_with("Crash: SolidCraft ended without a clean exit"), "{}", draft.title);
+        assert!(draft.title.starts_with("Crash: DeSurface ended without a clean exit"), "{}", draft.title);
         for want in [
             "while running `solid.fillet`",
             "\"radius\": 2",
             "solid.box",
-            "solidcraft-cli crashes replay 20261012-162341-bb60791ed6692f1d",
+            "desurface-cli crashes replay 20261012-162341-bb60791ed6692f1d",
             "Renderer: test",
             "Recorded 2 time(s)",
         ] {
@@ -270,7 +270,7 @@ mod tests {
         h.frames(2);
         h.step(&json!({"widget": "Delete all"})).unwrap();
         h.frames(2);
-        assert!(solidcraft_engine::crash::list(&d).is_empty());
+        assert!(desurface_engine::crash::list(&d).is_empty());
         let _ = std::fs::remove_dir_all(&d);
     }
 
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn recovered_kernel_errors_do_not_interrupt() {
         let mut h = crate::scenario::Harness::new();
-        let quiet = solidcraft_engine::crash::Summary {
+        let quiet = desurface_engine::crash::Summary {
             id: "x".into(),
             kind: "kernel_panic_recovered".into(),
             time: String::new(),

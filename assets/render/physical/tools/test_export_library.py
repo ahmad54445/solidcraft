@@ -12,7 +12,7 @@ import physical as p
 def modern_registry():
     rows = [{'id': name, 'params': ''} for name in ('file.new', 'material.create', 'material.inspect', 'library.export', 'library.inspect')]
     rows[1]['params'] = 'physical_card: schema 1'
-    rows[3]['params'] = 'format solidcraft-library/2'
+    rows[3]['params'] = 'format desurface-library/2'
     return rows
 
 
@@ -22,7 +22,7 @@ def projected_catalog(plan):
         params = row['command']['params']
         entries.append({'id': e.PACK_ID + '/material-' + str(i), 'revision': 'a'*64,
                         'definition': {'kind': 'material', 'value': copy.deepcopy(params)}})
-    return {'format': 'solidcraft-library/2', 'id': e.PACK_ID, 'entries': entries}
+    return {'format': 'desurface-library/2', 'id': e.PACK_ID, 'entries': entries}
 
 
 class ExportLibraryTests(unittest.TestCase):
@@ -112,7 +112,7 @@ class ExportLibraryTests(unittest.TestCase):
     def test_library_command_has_no_overwrite_and_no_body_targets(self):
         command = e.library_command(Path('review.json'))
         self.assertEqual(command['command'], 'library.export')
-        self.assertEqual(command['params']['format'], 'solidcraft-library/2')
+        self.assertEqual(command['params']['format'], 'desurface-library/2')
         self.assertIs(command['params']['overwrite'], False)
         self.assertNotIn('targets', command['params'])
 

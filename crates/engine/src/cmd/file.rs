@@ -7,8 +7,8 @@ mod thumbnail;
 pub(crate) mod import;
 
 use serde_json::{Value, json};
-use solidcraft_doc::Document;
-use solidcraft_io::Format;
+use desurface_doc::Document;
+use desurface_io::Format;
 
 use super::CommandSpec;
 use crate::params::{bad, bool_, num, str_, string_list};
@@ -75,7 +75,7 @@ struct StepOptions {
     /// `up: "y"`: the file has Y up, so the bodies it brings are turned a quarter turn about X
     /// (Y becomes Z), as the app's "Stand it up" offer does. `z` (the default) keeps the file's axes.
     y_up: bool,
-    names: solidcraft_io::StepNames,
+    names: desurface_io::StepNames,
 }
 
 fn step_options(p: &Value, cmd: &str) -> Result<StepOptions> {
@@ -88,37 +88,37 @@ fn step_options(p: &Value, cmd: &str) -> Result<StepOptions> {
         },
     };
     let names = match p.get("names") {
-        None | Some(Value::Null) => solidcraft_io::StepNames::default(),
+        None | Some(Value::Null) => desurface_io::StepNames::default(),
         Some(v) => v
             .as_str()
-            .and_then(solidcraft_io::StepNames::parse)
+            .and_then(desurface_io::StepNames::parse)
             .ok_or_else(|| bad(cmd, "`names` must be \"auto\", \"solid\", \"product\" or \"instance\""))?,
     };
     Ok(StepOptions { y_up, names })
 }
 
 /// Read a STEP file as an Import feature.
-fn read_step(path: &str, names: solidcraft_io::StepNames) -> Result<solidcraft_io::StepFeature> {
-    let bytes = solidcraft_io::vfs::read(path, solidcraft_io::MAX_STEP_BYTES).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
-    solidcraft_io::step_import_feature_named(&bytes, path, names).map_err(|e| EngineError::Other(format!("{path}: {e}")))
+fn read_step(path: &str, names: desurface_io::StepNames) -> Result<desurface_io::StepFeature> {
+    let bytes = desurface_io::vfs::read(path, desurface_io::MAX_STEP_BYTES).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    desurface_io::step_import_feature_named(&bytes, path, names).map_err(|e| EngineError::Other(format!("{path}: {e}")))
 }
 
 /// Which way is up in a STEP or IGES file, from the program its header names: `("y", name)` for
-/// an exporter whose files have Y up, `("z", name)` for SolidCraft's own (its STEP and IGES exports both name it), else `None`. Only
+/// an exporter whose files have Y up, `("z", name)` for DeSurface's own (its STEP and IGES exports both name it), else `None`. Only
 /// SolidWorks is listed as Y up: its STEP and IGES writers are well known to keep that program's
 /// Y-up front view, and its name is in FILE_NAME (originating system, preprocessor version) and
 /// often FILE_DESCRIPTION. Programs we aren't sure of stay unknown, so the file is only offered.
-fn exporter_up(import: &solidcraft_kernel::StepImport) -> Option<(&'static str, &'static str)> {
-    if import.system.trim().starts_with("SolidCraft") {
-        return Some(("z", "SolidCraft"));
+fn exporter_up(import: &desurface_kernel::StepImport) -> Option<(&'static str, &'static str)> {
+    if import.system.trim().starts_with("DeSurface") {
+        return Some(("z", "DeSurface"));
     }
     let named = [&import.system, &import.preprocessor, &import.description].iter().any(|h| h.to_ascii_lowercase().contains("solidworks"));
     named.then_some(("y", "SolidWorks"))
 }
 
 /// A quarter turn about X through the origin: a file's Y up becomes Z up.
-fn quarter_turn_x() -> solidcraft_doc::Mat {
-    solidcraft_doc::rigid(solidcraft_geom::Vec3::ZERO, solidcraft_geom::Vec3::ZERO, solidcraft_geom::Vec3::X, std::f64::consts::FRAC_PI_2)
+fn quarter_turn_x() -> desurface_doc::Mat {
+    desurface_doc::rigid(desurface_geom::Vec3::ZERO, desurface_geom::Vec3::ZERO, desurface_geom::Vec3::X, std::f64::consts::FRAC_PI_2)
 }
 
 /// Add an Import feature for a STEP file to the session's design, in a new component named
@@ -154,20 +154,20 @@ fn created_bodies(s: &Session, feature: u64) -> Vec<String> {
 /// file. A glTF file's nodes become components in it, and its materials the bodies' looks; it is
 /// in metres with Y up, so unless `y_up` is false its component is turned to Z up (#1505).
 fn add_mesh(s: &mut Session, path: &str, name: Option<&str>, y_up: Option<bool>) -> Result<Value> {
-    let err = |e: solidcraft_io::IoError| EngineError::Other(format!("{path}: {e}"));
-    let bytes = solidcraft_io::vfs::read(path, solidcraft_io::MAX_3MF_BYTES).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
-    let gltf = solidcraft_io::is_gltf_path(path);
+    let err = |e: desurface_io::IoError| EngineError::Other(format!("{path}: {e}"));
+    let bytes = desurface_io::vfs::read(path, desurface_io::MAX_3MF_BYTES).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    let gltf = desurface_io::is_gltf_path(path);
     let (mf, plan, looks) = if gltf {
         let dir = std::path::Path::new(path).parent().map(std::path::Path::to_path_buf).unwrap_or_default();
         let mut load =
-            |name: &str| solidcraft_io::vfs::read(&dir.join(name).to_string_lossy(), solidcraft_io::MAX_GLTF_BYTES).map_err(|e| e.to_string());
-        let mut g = solidcraft_io::read_gltf(&bytes, path, &mut load).map_err(err)?;
+            |name: &str| desurface_io::vfs::read(&dir.join(name).to_string_lossy(), desurface_io::MAX_GLTF_BYTES).map_err(|e| e.to_string());
+        let mut g = desurface_io::read_gltf(&bytes, path, &mut load).map_err(err)?;
         if !import::mesh_plan_fits(&g.plan) {
             g.flatten();
         }
         (g.feature, Some(g.plan), g.looks)
     } else {
-        (solidcraft_io::mesh_import_feature(&bytes, path).map_err(err)?, None, Vec::new())
+        (desurface_io::mesh_import_feature(&bytes, path).map_err(err)?, None, Vec::new())
     };
     let fname = name.filter(|n| !n.trim().is_empty()).unwrap_or(&mf.name).to_string();
     let cname = import::component_name(path, name);
@@ -201,7 +201,7 @@ fn add_mesh(s: &mut Session, path: &str, name: Option<&str>, y_up: Option<bool>)
 fn turn_up(s: &mut Session, placed: &import::Placed) -> Result<Option<u64>> {
     let occ = placed.occurrence.ok_or_else(|| EngineError::Other("the import has no placement to turn".into()))?;
     if let Some(o) = s.doc_mut().occurrences.iter_mut().find(|o| o.id == occ) {
-        o.transform = solidcraft_doc::mat_mul(&quarter_turn_x(), &o.transform);
+        o.transform = desurface_doc::mat_mul(&quarter_turn_x(), &o.transform);
     }
     s.refresh();
     Ok(Some(occ))
@@ -213,7 +213,7 @@ fn mesh_up(p: &Value, path: &str, cmd: &str) -> Result<Option<bool>> {
     if p.get("up").is_none_or(Value::is_null) {
         return Ok(None);
     }
-    if !solidcraft_io::is_gltf_path(path) {
+    if !desurface_io::is_gltf_path(path) {
         return Err(bad(cmd, "`up` applies to STEP, IGES and glTF files only"));
     }
     Ok(Some(step_options(p, cmd)?.y_up))
@@ -222,7 +222,7 @@ fn mesh_up(p: &Value, path: &str, cmd: &str) -> Result<Option<bool>> {
 fn insert_mesh(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "file.insert_mesh";
     let path = path_arg(p, cmd)?;
-    if !solidcraft_io::is_mesh_path(path) {
+    if !desurface_io::is_mesh_path(path) {
         return Err(bad(cmd, "only 3MF, STL, OBJ and glTF files (.3mf, .stl, .obj, .glb, .gltf) can be inserted as meshes"));
     }
     let up = mesh_up(p, path, cmd)?;
@@ -232,7 +232,7 @@ fn insert_mesh(s: &mut Session, p: &Value) -> Result<Value> {
 fn insert_step(s: &mut Session, p: &Value) -> Result<Value> {
     let cmd = "file.insert_step";
     let path = path_arg(p, cmd)?;
-    if !solidcraft_io::is_step_path(path) {
+    if !desurface_io::is_step_path(path) {
         return Err(bad(cmd, "only STEP, IGES, FreeCAD and Rhino files (.step, .stp, .igs, .iges, .fcstd, .3dm) can be inserted"));
     }
     let options = step_options(p, cmd)?;
@@ -244,7 +244,7 @@ fn insert_step(s: &mut Session, p: &Value) -> Result<Value> {
     if let Some(m) = placement {
         let occ = out["occurrence"].as_u64().ok_or_else(|| EngineError::Other("the import has no placement to move".into()))?;
         if let Some(o) = s.doc_mut().occurrences.iter_mut().find(|o| o.id == occ) {
-            o.transform = solidcraft_doc::mat_mul(&m, &o.transform);
+            o.transform = desurface_doc::mat_mul(&m, &o.transform);
             out["transform"] = json!(o.transform);
         }
         s.refresh();
@@ -254,17 +254,17 @@ fn insert_step(s: &mut Session, p: &Value) -> Result<Value> {
 
 fn open(s: &mut Session, p: &Value) -> Result<Value> {
     let path = path_arg(p, "doc.open")?;
-    if !solidcraft_io::is_step_path(path) && p.get("names").is_some_and(|v| !v.is_null()) {
+    if !desurface_io::is_step_path(path) && p.get("names").is_some_and(|v| !v.is_null()) {
         return Err(bad("doc.open", "`names` applies to STEP and IGES files only"));
     }
-    if !solidcraft_io::is_step_path(path) && !solidcraft_io::is_gltf_path(path) && p.get("up").is_some_and(|v| !v.is_null()) {
+    if !desurface_io::is_step_path(path) && !desurface_io::is_gltf_path(path) && p.get("up").is_some_and(|v| !v.is_null()) {
         return Err(bad("doc.open", "`up` applies to STEP, IGES and glTF files only"));
     }
-    if solidcraft_io::is_step_path(path) || solidcraft_io::is_mesh_path(path) {
+    if desurface_io::is_step_path(path) || desurface_io::is_mesh_path(path) {
         // A new, unsaved design holding the file's bodies.
         let stem = std::path::Path::new(path).file_stem().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| "Untitled".into());
         let mut fresh = Session::new(Document::new(&stem));
-        let r = if solidcraft_io::is_step_path(path) {
+        let r = if desurface_io::is_step_path(path) {
             add_step(&mut fresh, path, None, &step_options(p, "doc.open")?)?
         } else {
             add_mesh(&mut fresh, path, None, mesh_up(p, path, "doc.open")?)?
@@ -285,7 +285,7 @@ fn open(s: &mut Session, p: &Value) -> Result<Value> {
         }
         return Ok(out);
     }
-    let (mut doc, saved) = solidcraft_io::read_design_file(path, s.open_preview.take()).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    let (mut doc, saved) = desurface_io::read_design_file(path, s.open_preview.take()).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
     if let Some(stem) = default_name_for(&doc.name, path) {
         doc.name = stem;
     }
@@ -345,7 +345,7 @@ fn rename_design(s: &mut Session, from: &str, to: &str) {
 }
 
 fn write(s: &mut Session, path: &str, format: &str, compression: &str, preview: bool, cache: bool) -> Result<Value> {
-    solidcraft_io::vfs::check(path).map_err(|e| EngineError::Other(e.to_string()))?;
+    desurface_io::vfs::check(path).map_err(|e| EngineError::Other(e.to_string()))?;
     // Saving an unnamed design, or one named after the file it was saved as, names it after its
     // file (not an undoable edit).
     let renamed = saved_name(&s.doc.name, s.path.as_deref(), path).map(|stem| (s.doc.name.clone(), stem));
@@ -363,8 +363,8 @@ fn write(s: &mut Session, path: &str, format: &str, compression: &str, preview: 
 
 fn write_file(s: &mut Session, path: &str, format: &str, compression: &str, preview: bool, cache: bool) -> Result<Value> {
     let compression = match compression {
-        "fast" => solidcraft_io::DesignCompression::Fast,
-        "compact" => solidcraft_io::DesignCompression::Compact,
+        "fast" => desurface_io::DesignCompression::Fast,
+        "compact" => desurface_io::DesignCompression::Compact,
         _ => return Err(bad("file.save", "compression must be fast or compact")),
     };
     // Linked designs are kept relative to the folder the design is saved in.
@@ -383,17 +383,17 @@ fn write_bytes(
     s: &mut Session,
     path: &str,
     format: &str,
-    compression: solidcraft_io::DesignCompression,
+    compression: desurface_io::DesignCompression,
     preview: bool,
     cache: bool,
 ) -> Result<Value> {
     let bytes = match format {
         "container" => s.design_container(compression, preview, cache)?,
-        "json" => solidcraft_io::write_design(&s.design()),
+        "json" => desurface_io::write_design(&s.design()),
         _ => return Err(bad("file.save", "format must be container or json")),
     };
     // Atomic, keeping the version being replaced as `<file>.bak`.
-    solidcraft_io::write_atomic(std::path::Path::new(path), &bytes, true).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    desurface_io::write_atomic(std::path::Path::new(path), &bytes, true).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
     s.path = Some(path.to_string());
     s.mark_saved();
     Ok(json!({"path": path, "bytes": bytes.len(), "name": s.doc.name}))
@@ -418,18 +418,18 @@ impl Session {
 
     /// Container bytes for desktop and browser saves. Only already evaluated bodies
     /// and warm meshes are eligible; saving never forces evaluation or tessellation.
-    pub fn design_container(&self, compression: solidcraft_io::DesignCompression, preview: bool, cache: bool) -> solidcraft_io::Result<Vec<u8>> {
+    pub fn design_container(&self, compression: desurface_io::DesignCompression, preview: bool, cache: bool) -> desurface_io::Result<Vec<u8>> {
         let design = self.design();
         let geometry = cache.then(|| saved_geometry(self, &design)).flatten();
         let preview = preview.then(|| saved_preview(self)).flatten();
         let thumbnail = cache.then(|| thumbnail::saved(self)).flatten();
-        solidcraft_io::write_design_container_with_thumbnail(&design, compression, preview.as_ref(), geometry.as_ref(), thumbnail.as_deref())
+        desurface_io::write_design_container_with_thumbnail(&design, compression, preview.as_ref(), geometry.as_ref(), thumbnail.as_deref())
     }
 }
 
 /// The evaluated model a save keeps, so opening need not rebuild it: only the finished evaluation
 /// of `design`, the document saved (no sketch being edited, no uncaptured moves, no feature errors).
-fn saved_geometry(s: &Session, design: &Document) -> Option<solidcraft_doc::SavedModel> {
+fn saved_geometry(s: &Session, design: &Document) -> Option<desurface_doc::SavedModel> {
     if s.active_sketch.is_some() || !s.pending_moves.is_empty() || s.model.state().bodies.is_empty() {
         return None;
     }
@@ -437,7 +437,7 @@ fn saved_geometry(s: &Session, design: &Document) -> Option<solidcraft_doc::Save
 }
 
 /// Cache only warm display geometry. A save never waits for an unevaluated mesh.
-fn saved_preview(s: &Session) -> Option<solidcraft_io::DesignPreview> {
+fn saved_preview(s: &Session) -> Option<desurface_io::DesignPreview> {
     if s.active_sketch.is_some() || !s.pending_moves.is_empty() || s.model.results.iter().any(|r| r.error.is_some()) {
         return None;
     }
@@ -445,7 +445,7 @@ fn saved_preview(s: &Session) -> Option<solidcraft_io::DesignPreview> {
     if world.bodies.is_empty() || world.bodies.len() > 1024 {
         return None;
     }
-    let mut preview = solidcraft_io::DesignPreview::default();
+    let mut preview = desurface_io::DesignPreview::default();
     let mut bytes = 0usize;
     let mut triangles = 0usize;
     for body in &world.bodies {
@@ -456,7 +456,7 @@ fn saved_preview(s: &Session) -> Option<solidcraft_io::DesignPreview> {
         if bytes > 8 << 20 || triangles > 100_000 {
             return None;
         }
-        preview.meshes.push(solidcraft_doc::MeshData {
+        preview.meshes.push(desurface_doc::MeshData {
             name: body.name.clone(),
             positions: mesh.positions.iter().flat_map(|p| [p.x, p.y, p.z]).collect(),
             triangles: mesh.triangles.iter().flatten().copied().collect(),
@@ -504,15 +504,15 @@ fn export_to(s: &Session, path: &str, format: Format, bodies: &[String]) -> Resu
         if !bodies.is_empty() {
             return Err(bad("file.export", "design JSON exports the complete document; omit bodies"));
         }
-        solidcraft_io::write_design(&s.design())
+        desurface_io::write_design(&s.design())
     } else if format == Format::Step && bodies.is_empty() && !s.doc.occurrences.is_empty() {
-        solidcraft_io::step_assembly(&s.doc, &s.doc.painted(&s.model.state()), &name)?
+        desurface_io::step_assembly(&s.doc, &s.doc.painted(&s.model.state()), &name)?
     } else {
         // Bodies carry the colour they are shown in (appearance, material or imported), and the
         // file the design's properties where the format has a place for them.
-        solidcraft_io::export_with_metadata(&s.doc.painted(&s.world_state()), bodies, format, &name, &s.doc.metadata)?
+        desurface_io::export_with_metadata(&s.doc.painted(&s.world_state()), bodies, format, &name, &s.doc.metadata)?
     };
-    solidcraft_io::vfs::write(path, &bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
+    desurface_io::vfs::write(path, &bytes).map_err(|e| EngineError::Other(format!("{path}: {e}")))?;
     Ok(json!({"path": path, "bytes": bytes.len(), "format": format!("{format:?}")}))
 }
 
@@ -538,7 +538,7 @@ fn export_urdf(s: &Session, path: &str, p: &Value) -> Result<Value> {
     };
     // `io::urdf` refuses a prefix XML cannot hold.
     let mesh_prefix = str_(p, "mesh_prefix").unwrap_or("").to_string();
-    let options = solidcraft_io::UrdfOptions { mesh_prefix, effort: positive("effort")?, velocity: positive("velocity")? };
+    let options = desurface_io::UrdfOptions { mesh_prefix, effort: positive("effort")?, velocity: positive("velocity")? };
     let file = std::path::Path::new(path);
     let stem = file.file_stem().map(|x| x.to_string_lossy().to_string()).unwrap_or_else(|| s.doc.name.clone());
     // Occurrences where they are shown, uncaptured moves included, except those the joint solver
@@ -549,7 +549,7 @@ fn export_urdf(s: &Session, path: &str, p: &Value) -> Result<Value> {
     let doc = if s.pending_moves.is_empty() {
         std::borrow::Cow::Borrowed(&*s.doc)
     } else {
-        let placed = solidcraft_doc::joints::solve(&s.doc, &st).world;
+        let placed = desurface_doc::joints::solve(&s.doc, &st).world;
         let mut doc = (*s.doc).clone();
         for o in &mut doc.occurrences {
             match s.pending_moves.get(&o.id) {
@@ -560,7 +560,7 @@ fn export_urdf(s: &Session, path: &str, p: &Value) -> Result<Value> {
         }
         std::borrow::Cow::Owned(doc)
     };
-    let mut pkg = solidcraft_io::urdf(&doc, &doc.painted(&st), &stem, &options)?;
+    let mut pkg = desurface_io::urdf(&doc, &doc.painted(&st), &stem, &options)?;
     for name in held {
         pkg.warnings.push(format!("`{name}` was moved but the move is not captured: exported where its joints place it"));
     }
@@ -568,11 +568,11 @@ fn export_urdf(s: &Session, path: &str, p: &Value) -> Result<Value> {
     let mut targets: Vec<(String, &[u8])> = pkg.meshes.iter().map(|(n, b)| (dir.join(n).to_string_lossy().to_string(), b.as_slice())).collect();
     targets.push((path.to_string(), pkg.xml.as_bytes()));
     for (t, _) in &targets {
-        solidcraft_io::vfs::check(t).map_err(|e| EngineError::Other(format!("{t}: {e}")))?;
+        desurface_io::vfs::check(t).map_err(|e| EngineError::Other(format!("{t}: {e}")))?;
     }
     let mut written: Vec<String> = Vec::new();
     for (t, bytes) in &targets {
-        if let Err(e) = solidcraft_io::vfs::write(t, bytes) {
+        if let Err(e) = desurface_io::vfs::write(t, bytes) {
             let before = if written.is_empty() { "none".to_string() } else { written.join(", ") };
             return Err(EngineError::Other(format!("{t}: {e} (this file may be incomplete; written before it: {before})")));
         }
@@ -628,7 +628,7 @@ fn recovery_dir(p: &Value, cmd: &str) -> Result<std::path::PathBuf> {
         None => crate::recovery::default_dir().ok_or_else(|| bad(cmd, "no recovery folder on this system (give `dir`)"))?,
     };
     // An agent's commands reach the recovery folder only when it is one of their folders.
-    solidcraft_io::vfs::check(&dir.to_string_lossy()).map_err(|e| EngineError::Other(e.to_string()))?;
+    desurface_io::vfs::check(&dir.to_string_lossy()).map_err(|e| EngineError::Other(e.to_string()))?;
     Ok(dir)
 }
 
@@ -682,7 +682,7 @@ mod tests {
     /// the design named after its first file, its file, and nothing unsaved; undo keeps the name.
     #[test]
     fn a_save_run_on_a_copy_and_adopted_matches_saving_directly() {
-        let dir = std::env::temp_dir().join(format!("solidcraft-adopt-save-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-adopt-save-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let mut direct = Session::default();
         direct.execute("solid.box", &json!({"length": 10, "width": 10, "height": 10})).unwrap();
@@ -701,7 +701,7 @@ mod tests {
         assert_eq!(adopted.doc.name, "Bracket copy");
         assert_eq!(direct.doc.name, "Bracket");
         assert_eq!(adopted.undo.iter().map(|u| u.doc.name.clone()).collect::<Vec<_>>(), vec!["Bracket copy".to_string(); adopted.undo.len()]);
-        assert_eq!(solidcraft_io::read_design(&std::fs::read(&b).unwrap()).unwrap(), *adopted.doc);
+        assert_eq!(desurface_io::read_design(&std::fs::read(&b).unwrap()).unwrap(), *adopted.doc);
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -712,7 +712,7 @@ mod tests {
         // The mesh storage fixture intentionally does not evaluate geometry. Use
         // original valid STEP boxes for the engine/display-cache measurement.
         let input = target.join("issue303-step.json");
-        let doc = solidcraft_io::read_design(&std::fs::read(input).unwrap()).unwrap();
+        let doc = desurface_io::read_design(&std::fs::read(input).unwrap()).unwrap();
         let mut session = Session::new(doc);
         for body in &session.world_state().bodies {
             body.mesh();
@@ -730,12 +730,12 @@ mod tests {
             s.sort_by(f64::total_cmp);
         }
         let bytes = std::fs::read(target.join("issue303-warm.solidcraft")).unwrap();
-        assert!(solidcraft_io::read_design_preview(&bytes).is_some());
-        assert_eq!(solidcraft_io::read_design(&bytes).unwrap(), *session.doc);
+        assert!(desurface_io::read_design_preview(&bytes).is_some());
+        assert_eq!(desurface_io::read_design(&bytes).unwrap(), *session.doc);
         let mut reads = Vec::new();
         for _ in 0..9 {
             let began = std::time::Instant::now();
-            assert!(solidcraft_io::read_design_preview(&bytes).is_some());
+            assert!(desurface_io::read_design_preview(&bytes).is_some());
             reads.push(began.elapsed().as_secs_f64() * 1000.0);
         }
         reads.sort_by(f64::total_cmp);
@@ -757,13 +757,13 @@ mod tests {
         for body in &state.bodies {
             body.mesh();
         }
-        let save_path = std::env::temp_dir().join(format!("solidcraft-preview-save-{}.solidcraft", std::process::id()));
+        let save_path = std::env::temp_dir().join(format!("desurface-preview-save-{}.solidcraft", std::process::id()));
         s.execute("file.save", &json!({"path":save_path})).unwrap();
         let saved = std::fs::read(&save_path).unwrap();
-        assert!(solidcraft_io::read_design_geometry(&saved).is_some(), "ordinary saves keep the evaluated model");
+        assert!(desurface_io::read_design_geometry(&saved).is_some(), "ordinary saves keep the evaluated model");
         assert!(!saved.windows(b"cache/preview.bin".len()).any(|s| s == b"cache/preview.bin"), "ordinary saves omit redundant display meshes");
         s.execute("file.save", &json!({"path":save_path,"preview":true})).unwrap();
-        assert!(solidcraft_io::read_design_preview(&std::fs::read(&save_path).unwrap()).is_some());
+        assert!(desurface_io::read_design_preview(&std::fs::read(&save_path).unwrap()).is_some());
         let _ = std::fs::remove_file(&save_path);
         let _ = std::fs::remove_file(format!("{}.bak", save_path.display()));
         let mut preview = saved_preview(&s).unwrap();
@@ -771,8 +771,8 @@ mod tests {
         for mesh in &mut preview.meshes {
             mesh.positions = mesh.positions.iter().map(|c| c * 10.0).collect();
         }
-        let bytes = solidcraft_io::write_design_container_with_preview(&s.doc, solidcraft_io::DesignCompression::Fast, Some(&preview)).unwrap();
-        let path = std::env::temp_dir().join(format!("solidcraft-preview-{}.solidcraft", std::process::id()));
+        let bytes = desurface_io::write_design_container_with_preview(&s.doc, desurface_io::DesignCompression::Fast, Some(&preview)).unwrap();
+        let path = std::env::temp_dir().join(format!("desurface-preview-{}.solidcraft", std::process::id()));
         std::fs::write(&path, bytes).unwrap();
         let seen = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let callback_seen = seen.clone();
@@ -842,7 +842,7 @@ mod tests {
         for body in &world.bodies {
             body.mesh();
         }
-        let path = std::env::temp_dir().join(format!("solidcraft-cache-opt-in-{}.solidcraft", std::process::id()));
+        let path = std::env::temp_dir().join(format!("desurface-cache-opt-in-{}.solidcraft", std::process::id()));
         for command in ["file.save", "file.save_as"] {
             for cache in [None, Some(true), Some(false), None] {
                 let mut params = json!({"path":path});
@@ -851,13 +851,13 @@ mod tests {
                 }
                 session.execute(command, &params).unwrap();
                 let bytes = std::fs::read(&path).unwrap();
-                assert_eq!(solidcraft_io::read_design_geometry(&bytes).is_some(), cache != Some(false), "{command}: {cache:?}");
-                assert_eq!(solidcraft_io::read_design_thumbnail(&bytes).is_some(), cache != Some(false), "{command}: {cache:?}");
+                assert_eq!(desurface_io::read_design_geometry(&bytes).is_some(), cache != Some(false), "{command}: {cache:?}");
+                assert_eq!(desurface_io::read_design_thumbnail(&bytes).is_some(), cache != Some(false), "{command}: {cache:?}");
                 assert!(
                     !bytes.windows(b"cache/preview.bin".len()).any(|entry| entry == b"cache/preview.bin"),
                     "display meshes require preview: true"
                 );
-                assert_eq!(solidcraft_io::read_design(&bytes).unwrap(), *session.doc);
+                assert_eq!(desurface_io::read_design(&bytes).unwrap(), *session.doc);
             }
         }
         std::fs::remove_file(&path).unwrap();
@@ -870,13 +870,13 @@ mod tests {
         session.execute("solid.box", &json!({"length":10,"width":20,"height":30})).unwrap();
         let world = session.world_state();
         assert!(world.bodies.iter().all(|b| b.cached_mesh().is_none()));
-        let bytes = session.design_container(solidcraft_io::DesignCompression::Fast, false, true).unwrap();
+        let bytes = session.design_container(desurface_io::DesignCompression::Fast, false, true).unwrap();
         assert!(world.bodies.iter().all(|b| b.cached_mesh().is_none()), "saving the model must not triangulate");
-        assert!(solidcraft_io::read_design_geometry(&bytes).is_some());
+        assert!(desurface_io::read_design_geometry(&bytes).is_some());
         assert!(
-            solidcraft_io::read_design_geometry(&session.design_container(solidcraft_io::DesignCompression::Fast, false, false).unwrap()).is_none()
+            desurface_io::read_design_geometry(&session.design_container(desurface_io::DesignCompression::Fast, false, false).unwrap()).is_none()
         );
-        let path = std::env::temp_dir().join(format!("solidcraft-saved-model-{}.solidcraft", std::process::id()));
+        let path = std::env::temp_dir().join(format!("desurface-saved-model-{}.solidcraft", std::process::id()));
         std::fs::write(&path, &bytes).unwrap();
         let mut reopened = Session::default();
         reopened.execute("doc.open", &json!({"path":path})).unwrap();
@@ -887,11 +887,11 @@ mod tests {
         // The model of another document (a value edited in the file) is not taken: the design is
         // evaluated.
         let mut changed = (*session.doc).clone();
-        if let Some(solidcraft_doc::FeatureKind::Box { length, .. }) = changed.features.last_mut().map(|f| &mut f.kind) {
+        if let Some(desurface_doc::FeatureKind::Box { length, .. }) = changed.features.last_mut().map(|f| &mut f.kind) {
             *length = "20".into();
         }
         let saved = saved_geometry(&session, &session.doc).unwrap();
-        let other = solidcraft_io::write_design_container_with_cache(&changed, solidcraft_io::DesignCompression::Fast, None, Some(&saved)).unwrap();
+        let other = desurface_io::write_design_container_with_cache(&changed, desurface_io::DesignCompression::Fast, None, Some(&saved)).unwrap();
         std::fs::write(&path, other).unwrap();
         reopened.execute("doc.open", &json!({"path":path})).unwrap();
         let measured = reopened.execute("inspect.measure", &json!({})).unwrap();
@@ -903,8 +903,8 @@ mod tests {
     #[ignore = "manual native cache save benchmark; generate issue303-step.json first"]
     fn benchmark_native_cache_save() {
         let target = std::env::var_os("CARGO_TARGET_DIR").map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("target"));
-        let input = std::env::var_os("SOLIDCRAFT_BENCH_FILE").map(std::path::PathBuf::from).unwrap_or_else(|| target.join("issue303-step.json"));
-        let mut session = Session::new(solidcraft_io::read_design(&std::fs::read(input).unwrap()).unwrap());
+        let input = std::env::var_os("DESURFACE_BENCH_FILE").map(std::path::PathBuf::from).unwrap_or_else(|| target.join("issue303-step.json"));
+        let mut session = Session::new(desurface_io::read_design(&std::fs::read(input).unwrap()).unwrap());
         for body in &session.world_state().bodies {
             body.mesh();
         }
@@ -922,8 +922,8 @@ mod tests {
         for (i, times) in samples.iter_mut().enumerate() {
             times.sort_by(f64::total_cmp);
             let bytes = std::fs::read(target.join(format!("issue303-native-{i}.solidcraft"))).unwrap();
-            assert_eq!(solidcraft_io::read_design(&bytes).unwrap(), *session.doc);
-            assert_eq!(solidcraft_io::read_design_geometry(&bytes).is_some(), modes[i].1);
+            assert_eq!(desurface_io::read_design(&bytes).unwrap(), *session.doc);
+            assert_eq!(desurface_io::read_design_geometry(&bytes).is_some(), modes[i].1);
             eprintln!("native_save mode={i} median_ms={:.3} bytes={}", times[4], bytes.len());
         }
     }
@@ -932,7 +932,7 @@ mod tests {
     #[ignore = "manual fresh-process opening benchmark; one encoding per process"]
     fn benchmark_native_cache_open() {
         let target = std::env::var_os("CARGO_TARGET_DIR").map(std::path::PathBuf::from).unwrap_or_else(|| std::path::PathBuf::from("target"));
-        let mode = std::env::var("SOLIDCRAFT_BENCH_ENCODING").unwrap_or_else(|_| "2".into());
+        let mode = std::env::var("DESURFACE_BENCH_ENCODING").unwrap_or_else(|_| "2".into());
         let path = target.join(format!("issue303-native-{mode}.solidcraft"));
         let display = std::sync::Arc::new(std::sync::Mutex::new(None));
         let notify = display.clone();
@@ -960,7 +960,7 @@ mod tests {
     }
 
     fn name_dir(tag: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("solidcraft-name-{tag}-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-name-{tag}-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
     }
@@ -976,7 +976,7 @@ mod tests {
         assert_eq!(r["name"], "bracket");
         assert_eq!(s.doc.name, "bracket");
         assert!(!s.is_dirty(), "taking the file's name is part of the save");
-        assert_eq!(solidcraft_io::read_design(&std::fs::read(&path).unwrap()).unwrap().name, "bracket");
+        assert_eq!(desurface_io::read_design(&std::fs::read(&path).unwrap()).unwrap().name, "bracket");
         // Undoing the box does not bring the old name back.
         s.execute("edit.undo", &json!({})).unwrap();
         assert_eq!(s.doc.name, "bracket");
@@ -1019,7 +1019,7 @@ mod tests {
         let dir = name_dir("open");
         for (stored, file) in [("Untitled", "hinge.solidcraft"), ("", "spacer.json")] {
             let path = dir.join(file);
-            let bytes = solidcraft_io::write_design(&Document::new(stored));
+            let bytes = desurface_io::write_design(&Document::new(stored));
             std::fs::write(&path, bytes).unwrap();
             let mut s = Session::default();
             let r = s.execute("doc.open", &json!({"path":path})).unwrap();
@@ -1033,7 +1033,7 @@ mod tests {
 
     #[test]
     fn design_save_formats_reopen_and_preserve_atomic_backups() {
-        let dir = std::env::temp_dir().join(format!("solidcraft-container-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-container-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let packaged = dir.join("design.solidcraft");
         let plain = dir.join("design.json");
@@ -1042,7 +1042,7 @@ mod tests {
         session.execute("solid.box", &json!({"length":10,"width":20,"height":30})).unwrap();
         session.execute("file.save_as", &json!({"path":packaged})).unwrap();
         let original = std::fs::read(&packaged).unwrap();
-        assert!(solidcraft_io::is_design_container(&original));
+        assert!(desurface_io::is_design_container(&original));
         session.execute("file.save_as", &json!({"path":plain})).unwrap();
         assert!(std::fs::read_to_string(&plain).unwrap().contains("solidcraft/"));
         let path = session.path.clone();
@@ -1057,7 +1057,7 @@ mod tests {
             assert!((measure["bodies"][0]["volume_mm3"].as_f64().unwrap() - 6000.0).abs() < 1e-6);
         }
         session.execute("file.save", &json!({"path":packaged})).unwrap();
-        assert_eq!(std::fs::read(solidcraft_io::backup_path(&packaged)).unwrap(), original);
+        assert_eq!(std::fs::read(desurface_io::backup_path(&packaged)).unwrap(), original);
         let before = std::fs::read(&packaged).unwrap();
         assert!(session.execute("file.save", &json!({"path":packaged,"format":"invalid"})).is_err());
         assert_eq!(std::fs::read(&packaged).unwrap(), before);
@@ -1069,9 +1069,9 @@ mod tests {
     /// A watched open reports the timeline's progress; cancelled, it skips the rebuild.
     #[test]
     fn watched_open_reports_progress_and_stops_when_cancelled() {
-        use solidcraft_doc::progress::{Progress, watch};
+        use desurface_doc::progress::{Progress, watch};
         use std::sync::Arc;
-        let dir = std::env::temp_dir().join(format!("solidcraft-watched-open-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("desurface-watched-open-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let path = dir.join("three.solidcraft").to_string_lossy().to_string();
         let mut s = Session::default();
@@ -1100,7 +1100,7 @@ mod tests {
     /// so the registry and the commands can't drift apart.
     #[test]
     fn registry_options_name_documented_command_parameters() {
-        use solidcraft_io::formats;
+        use desurface_io::formats;
         let params_of = |id: &str| crate::find_command(id).map(|c| c.params).unwrap_or_else(|| panic!("registry names unknown command {id}"));
         for f in formats::FORMATS {
             if let Some(import) = &f.import {

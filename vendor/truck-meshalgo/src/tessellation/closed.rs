@@ -1,4 +1,4 @@
-//! SolidCraft: a local periodic chart for geometrically closed spline surfaces.
+//! DeSurface: a local periodic chart for geometrically closed spline surfaces.
 //! The stored spline still has a finite knot domain; only meshing wraps its parameters.
 use super::*;
 

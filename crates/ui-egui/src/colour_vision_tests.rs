@@ -909,7 +909,7 @@ fn the_sections_messages_are_in_every_catalog() {
 }
 
 fn app() -> crate::SolveApp {
-    crate::SolveApp::new(solidcraft_engine::Session::default(), crate::Services::default())
+    crate::SolveApp::new(desurface_engine::Session::default(), crate::Services::default())
 }
 
 #[test]
@@ -924,7 +924,7 @@ fn saved_preferences_load_the_mode_and_a_bad_one_loads_as_off() {
         assert_eq!(v["color_vision"], mode.id());
         assert_eq!(serde_json::from_value::<Prefs>(v).unwrap(), p);
     }
-    // A value this version doesn't know (a later SolidCraft's mode, a hand edit) is Off, and the
+    // A value this version doesn't know (a later DeSurface's mode, a hand edit) is Off, and the
     // rest of the preferences still load.
     for bad in [json!("achromat"), json!("PROTAN"), json!(""), json!(3), json!(null), json!(true), json!({"protan": 1}), json!(["tritan"])] {
         let p: Prefs = serde_json::from_value(json!({"theme": "light", "color_vision": bad})).unwrap();

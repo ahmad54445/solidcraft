@@ -2,7 +2,7 @@
 //! Sampling estimates the area integral; it is not an exact solid-angle integral.
 //! No emitter geometry, indirect bounce or calibrated photometric units are implied.
 
-use solidcraft_geom::Vec3;
+use desurface_geom::Vec3;
 
 use super::lighting::MAX_LINEAR_RADIANCE;
 use super::{MAX_COORDINATE_MM, MAX_DISTANCE_MM, Ray, Result, TraceError};

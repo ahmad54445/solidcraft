@@ -6,7 +6,7 @@ use crate::{
     theme::Tokens,
 };
 use serde_json::json;
-use solidcraft_engine::Sel;
+use desurface_engine::Sel;
 
 fn fixture() -> Harness {
     let mut h = Harness::new();
@@ -624,7 +624,7 @@ fn physical_material_clicked_save_then_cancel_persists_without_assigning_or_chan
     assert!(h.app.dialog.is_none());
     assert_eq!(h.app.session.doc.materials, assignments);
     assert_eq!(h.app.run("component.properties", json!({})).unwrap(), mass);
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     assert_eq!(reopened.user_materials, h.app.session.doc.user_materials);
     h.app.run("edit.undo", json!({})).unwrap();
     assert!(h.app.session.doc.user_material("Unassigned authored material").is_none());
@@ -730,7 +730,7 @@ fn physical_material_editor_preserves_all_sources_conditions_anisotropy_and_pbr_
     let mut editor = crate::material_editor::Editor::default();
     editor.begin(&h.app.session.doc, Some("Renamed complete substrate"), false);
     assert!(editor.draft.as_ref().unwrap().command(&h.app.session.doc).unwrap().is_none());
-    let reopened = solidcraft_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
+    let reopened = desurface_engine::doc::Document::from_json(&h.app.session.doc.to_json()).unwrap();
     assert_eq!(reopened.user_materials, h.app.session.doc.user_materials);
     h.app.run("edit.undo", json!({})).unwrap();
     assert_eq!(h.app.session.doc.user_material("Complete substrate"), Some(&original));

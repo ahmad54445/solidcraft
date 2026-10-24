@@ -3,7 +3,7 @@ use crate::SolveApp;
 use crate::ui_kit;
 use egui::Ui;
 use serde_json::{Value, json};
-use solidcraft_engine::doc::config::{Column, ConfigRule, RuleCondition, RuleEffect, RuleOperator};
+use desurface_engine::doc::config::{Column, ConfigRule, RuleCondition, RuleEffect, RuleOperator};
 
 #[derive(Clone, Debug)]
 pub struct Editor {

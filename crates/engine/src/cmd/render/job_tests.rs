@@ -1,5 +1,5 @@
 use super::*;
-use solidcraft_render::job::{CpuHost, JobId};
+use desurface_render::job::{CpuHost, JobId};
 
 fn session() -> (Session, CpuHost) {
     let host = CpuHost::cooperative();
@@ -69,37 +69,37 @@ fn saved_raster_jobs_and_legacy_requests_share_output_without_runtime_overrides(
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn saved_gpu_job_routes_before_dispatch_and_reaches_preflight_and_start_without_hardware() {
-    use solidcraft_render::job::{Admission, CancelToken, ImageExecutor, ImageHost, ImageRequest, ImageTask, ImageWork, JobOptions};
+    use desurface_render::job::{Admission, CancelToken, ImageExecutor, ImageHost, ImageRequest, ImageTask, ImageWork, JobOptions};
     // A protocol executor verifies the captured inputs without probing a physical GPU.
     struct NumericalGpu(&'static str);
     impl ImageExecutor for NumericalGpu {
-        fn descriptor(&self) -> solidcraft_render::job::Result<solidcraft_render::ExecutorDescriptor> {
+        fn descriptor(&self) -> desurface_render::job::Result<desurface_render::ExecutorDescriptor> {
             let mut descriptor = CpuHost::cooperative().descriptor()?;
-            descriptor.id = solidcraft_render::ExecutorId::new(self.0).unwrap();
-            descriptor.profiles[0].features.extend([solidcraft_render::RenderFeature::Progressive, solidcraft_render::RenderFeature::Hdri]);
+            descriptor.id = desurface_render::ExecutorId::new(self.0).unwrap();
+            descriptor.profiles[0].features.extend([desurface_render::RenderFeature::Progressive, desurface_render::RenderFeature::Hdri]);
             Ok(descriptor)
         }
         fn admit(
             &self,
-            scene: &solidcraft_render::ProductScene,
+            scene: &desurface_render::ProductScene,
             request: &ImageRequest,
             options: JobOptions,
-        ) -> solidcraft_render::job::Result<Admission> {
+        ) -> desurface_render::job::Result<Admission> {
             options.validate()?;
-            solidcraft_render::job::admit(scene, &ImageRequest { environment: None, textures: None, ..request.clone() })
+            desurface_render::job::admit(scene, &ImageRequest { environment: None, textures: None, ..request.clone() })
         }
         fn begin(
             &self,
-            scene: solidcraft_render::ProductScene,
+            scene: desurface_render::ProductScene,
             request: ImageRequest,
             _: JobOptions,
             cancel: CancelToken,
-        ) -> solidcraft_render::job::Result<Box<dyn ImageWork>> {
+        ) -> desurface_render::job::Result<Box<dyn ImageWork>> {
             Ok(Box::new(ImageTask::new(scene, ImageRequest { environment: None, textures: None, ..request }, cancel)?))
         }
     }
     let mut s = Session::default();
-    let camera = solidcraft_render::Camera { fov: 0.8, ..Default::default() };
+    let camera = desurface_render::Camera { fov: 0.8, ..Default::default() };
     s.execute("render.settings.set", &json!({"name":"GPU","set":{
         "width":4,"height":4,"camera":camera,"exposure_ev":1.75,"job":{"method":"gpu_path","transparent_background":true,"options":{
             "samples":7,"max_depth":3,"seed":456,"denoise":true,"tone_map":"aces_fitted",
@@ -109,7 +109,7 @@ fn saved_gpu_job_routes_before_dispatch_and_reaches_preflight_and_start_without_
         }}
     }})).unwrap();
     let saved = s.doc.render.setups["GPU"].clone();
-    s = Session::new(solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap());
+    s = Session::new(desurface_doc::Document::from_json(&s.doc.to_json()).unwrap());
     s.set_render_job_host(Some(CpuHost::cooperative())).unwrap();
     s.register_render_job_host(ImageHost::with_executor(Arc::new(NumericalGpu("another-progressive"))).unwrap()).unwrap();
     let named = json!({"setup":"GPU"});
@@ -134,7 +134,7 @@ fn saved_gpu_job_routes_before_dispatch_and_reaches_preflight_and_start_without_
     let started = s.execute("render.start", &named).unwrap();
     let id: JobId = serde_json::from_value(started["job"].clone()).unwrap();
     let status = s.render_job_handle(id).unwrap().wait_timeout(std::time::Duration::from_secs(10)).unwrap();
-    assert_eq!(status.progress.phase, solidcraft_render::job::Phase::Completed);
+    assert_eq!(status.progress.phase, desurface_render::job::Phase::Completed);
     assert_eq!(status.resolved.executor.as_str(), "gpu-path");
     assert_eq!(json!(status.options), checked["options"]);
     assert_eq!(json!(status.request), checked["request"]);
@@ -145,7 +145,7 @@ fn saved_gpu_job_routes_before_dispatch_and_reaches_preflight_and_start_without_
     // The same protocol executor exercises saved HDR lowering after source removal.
     // It verifies admission and immutable inputs, not physical GPU image quality.
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let path = std::env::temp_dir().join(format!("solidcraft-gpu-saved-hdr-{}-{nonce}.hdr", std::process::id()));
+    let path = std::env::temp_dir().join(format!("desurface-gpu-saved-hdr-{}-{nonce}.hdr", std::process::id()));
     let mut bytes = b"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\nPRIMARIES=0.64 0.33 0.30 0.60 0.15 0.06 0.3127 0.3290\n\n-Y 2 +X 4\n".to_vec();
     for _ in 0..8 {
         bytes.extend_from_slice(&[128, 64, 32, 129]);
@@ -153,7 +153,7 @@ fn saved_gpu_job_routes_before_dispatch_and_reaches_preflight_and_start_without_
     std::fs::write(&path, &bytes).unwrap();
     let info = s.execute("render.hdr.inspect", &json!({"path":path})).unwrap();
     let mut hdr_setup = saved.clone();
-    let Some(solidcraft_doc::render_settings::RenderJob::GpuPath { options, .. }) = &mut hdr_setup.job else { panic!("GPU fixture") };
+    let Some(desurface_doc::render_settings::RenderJob::GpuPath { options, .. }) = &mut hdr_setup.job else { panic!("GPU fixture") };
     options.environment = None;
     let captured = s
         .execute(
@@ -166,7 +166,7 @@ fn saved_gpu_job_routes_before_dispatch_and_reaches_preflight_and_start_without_
         json!({"progressive":true,"settings":{"width":4,"height":4},"environment":{"kind":"hdr","path":path,"expected_sha256":"0".repeat(64)}});
     assert!(s.execute("render.preflight", &bad_file).unwrap_err().to_string().contains("changed since selection"));
     std::fs::remove_file(path).unwrap();
-    let reopened = solidcraft_io::read_design(&solidcraft_io::write_design_container(&s.doc).unwrap()).unwrap();
+    let reopened = desurface_io::read_design(&desurface_io::write_design_container(&s.doc).unwrap()).unwrap();
     s = Session::new(reopened);
     s.register_render_job_host(gpu.clone()).unwrap();
     let doc = s.doc.clone();
@@ -185,7 +185,7 @@ fn saved_gpu_job_routes_before_dispatch_and_reaches_preflight_and_start_without_
     let started = s.execute("render.start", &json!({"setup":"HDR"})).unwrap();
     let id: JobId = serde_json::from_value(started["job"].clone()).unwrap();
     let status = s.render_job_handle(id).unwrap().wait_timeout(std::time::Duration::from_secs(10)).unwrap();
-    assert_eq!(status.progress.phase, solidcraft_render::job::Phase::Completed);
+    assert_eq!(status.progress.phase, desurface_render::job::Phase::Completed);
     assert_eq!(json!(status.environment), checked["environment"]);
     assert_eq!(json!(status.options), checked["options"]);
     assert!(Arc::ptr_eq(&doc, &s.doc));
@@ -209,7 +209,7 @@ fn saved_cpu_job_reopens_and_supplies_exact_options_and_one_exposure_to_check_an
     )
     .unwrap();
     let saved = s.doc.render.setups["CPU"].clone();
-    s = Session::new(solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap());
+    s = Session::new(desurface_doc::Document::from_json(&s.doc.to_json()).unwrap());
     s.set_render_job_host(Some(CpuHost::for_platform().unwrap())).unwrap();
     s.execute("render.scene", &json!({})).unwrap();
     let doc = s.doc.clone();
@@ -225,7 +225,7 @@ fn saved_cpu_job_reopens_and_supplies_exact_options_and_one_exposure_to_check_an
     let started = s.execute("render.start", &named).unwrap();
     let id: JobId = serde_json::from_value(started["job"].clone()).unwrap();
     let status = s.render_job_handle(id).unwrap().wait_timeout(std::time::Duration::from_secs(10)).unwrap();
-    assert_eq!(status.progress.phase, solidcraft_render::job::Phase::Completed, "{:?}", status.error);
+    assert_eq!(status.progress.phase, desurface_render::job::Phase::Completed, "{:?}", status.error);
     assert_eq!(json!(status.request), checked["request"]);
     assert_eq!(status.options.exposure_ev, 0.0, "GPU options must not introduce a second CPU exposure");
     assert_eq!(s.doc.render.setups["CPU"], saved);
@@ -239,7 +239,7 @@ fn saved_cpu_hdr_reopens_without_source_and_drives_identical_check_start_and_rea
     let mut s = Session::default();
     s.execute("solid.box", &json!({"length":20,"width":20,"height":20})).unwrap();
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let path = std::env::temp_dir().join(format!("solidcraft-cpu-saved-hdr-{}-{nonce}.hdr", std::process::id()));
+    let path = std::env::temp_dir().join(format!("desurface-cpu-saved-hdr-{}-{nonce}.hdr", std::process::id()));
     let mut bytes = b"#?RADIANCE\nFORMAT=32-bit_rle_rgbe\nPRIMARIES=0.64 0.33 0.30 0.60 0.15 0.06 0.3127 0.3290\n\n-Y 2 +X 4\n".to_vec();
     for _ in 0..8 {
         bytes.extend_from_slice(&[128, 64, 32, 129]);
@@ -256,7 +256,7 @@ fn saved_cpu_hdr_reopens_without_source_and_drives_identical_check_start_and_rea
         .unwrap();
     assert!(s.render_job_host().is_none());
     std::fs::remove_file(path).unwrap();
-    s = Session::new(solidcraft_io::read_design(&solidcraft_io::write_design_container(&s.doc).unwrap()).unwrap());
+    s = Session::new(desurface_io::read_design(&desurface_io::write_design_container(&s.doc).unwrap()).unwrap());
     let host = CpuHost::for_platform().unwrap();
     s.set_render_job_host(Some(host.clone())).unwrap();
     s.execute("render.scene", &json!({})).unwrap();
@@ -287,14 +287,14 @@ fn saved_cpu_hdr_reopens_without_source_and_drives_identical_check_start_and_rea
     let started = s.execute("render.start", &unlit).unwrap();
     let id: JobId = serde_json::from_value(started["job"].clone()).unwrap();
     let handle = s.render_job_handle(id).unwrap();
-    assert_eq!(handle.wait_timeout(std::time::Duration::from_secs(10)).unwrap().progress.phase, solidcraft_render::job::Phase::Completed);
+    assert_eq!(handle.wait_timeout(std::time::Duration::from_secs(10)).unwrap().progress.phase, desurface_render::job::Phase::Completed);
     let baseline = handle.frame().unwrap().unwrap().png().to_vec();
     let started = s.execute("render.start", &json!({"setup":"HDR"})).unwrap();
     assert_eq!(started["environment"], checked["environment"]);
     let id: JobId = serde_json::from_value(started["job"].clone()).unwrap();
     let handle = s.render_job_handle(id).unwrap();
     let status = handle.wait_timeout(std::time::Duration::from_secs(10)).unwrap();
-    assert_eq!(status.progress.phase, solidcraft_render::job::Phase::Completed, "{:?}", status.error);
+    assert_eq!(status.progress.phase, desurface_render::job::Phase::Completed, "{:?}", status.error);
     assert_eq!(json!(status.environment), checked["environment"]);
     assert_eq!(json!(status.request), checked["request"]);
     assert_eq!(status.options.exposure_ev, 0.0);
@@ -306,35 +306,35 @@ fn saved_cpu_hdr_reopens_without_source_and_drives_identical_check_start_and_rea
 #[cfg(not(target_arch = "wasm32"))]
 #[test]
 fn additional_executor_routes_by_capability_and_survives_document_adoption() {
-    use solidcraft_render::job::{Admission, CancelToken, ImageExecutor, ImageHost, ImageRequest, ImageTask, ImageWork, JobOptions};
+    use desurface_render::job::{Admission, CancelToken, ImageExecutor, ImageHost, ImageRequest, ImageTask, ImageWork, JobOptions};
     struct Progressive(&'static str);
     impl ImageExecutor for Progressive {
-        fn descriptor(&self) -> solidcraft_render::job::Result<solidcraft_render::ExecutorDescriptor> {
+        fn descriptor(&self) -> desurface_render::job::Result<desurface_render::ExecutorDescriptor> {
             let mut descriptor = CpuHost::cooperative().descriptor()?;
-            descriptor.id = solidcraft_render::ExecutorId::new(self.0).unwrap();
-            descriptor.profiles[0].features.push(solidcraft_render::RenderFeature::Progressive);
-            descriptor.profiles[0].features.push(solidcraft_render::RenderFeature::Hdri);
+            descriptor.id = desurface_render::ExecutorId::new(self.0).unwrap();
+            descriptor.profiles[0].features.push(desurface_render::RenderFeature::Progressive);
+            descriptor.profiles[0].features.push(desurface_render::RenderFeature::Hdri);
             Ok(descriptor)
         }
         fn admit(
             &self,
-            scene: &solidcraft_render::ProductScene,
+            scene: &desurface_render::ProductScene,
             request: &ImageRequest,
             options: JobOptions,
-        ) -> solidcraft_render::job::Result<Admission> {
+        ) -> desurface_render::job::Result<Admission> {
             options.validate()?;
             // admit_geometry counts source geometry only; this executor renders through the
             // CPU task, which ignores the environment and textures, so budget its pixels and
             // PNG with the CPU estimate for the same frame.
-            solidcraft_render::job::admit(scene, &ImageRequest { environment: None, textures: None, ..request.clone() })
+            desurface_render::job::admit(scene, &ImageRequest { environment: None, textures: None, ..request.clone() })
         }
         fn begin(
             &self,
-            scene: solidcraft_render::ProductScene,
+            scene: desurface_render::ProductScene,
             request: ImageRequest,
             _: JobOptions,
             cancel: CancelToken,
-        ) -> solidcraft_render::job::Result<Box<dyn ImageWork>> {
+        ) -> desurface_render::job::Result<Box<dyn ImageWork>> {
             Ok(Box::new(ImageTask::new(scene, request, cancel)?))
         }
     }
@@ -381,7 +381,7 @@ fn additional_executor_routes_by_capability_and_survives_document_adoption() {
     let status = session.render_job_handle(id).unwrap().wait_timeout(std::time::Duration::from_secs(10)).unwrap();
     assert_eq!(status.resolved.executor.as_str(), "test-progressive");
     assert_eq!(status.options.samples, 3);
-    assert_eq!(status.progress.phase, solidcraft_render::job::Phase::Completed);
+    assert_eq!(status.progress.phase, desurface_render::job::Phase::Completed);
     finish(&cpu);
     assert_eq!(session.execute("render.status", &json!({"job":cpu_id})).unwrap()["frame"]["executor"], "cpu-product");
     assert!(session.scratch().execute("render.status", &json!({"job":id})).is_err());
@@ -501,7 +501,7 @@ fn identities_are_isolated_across_documents_scratch_and_new() {
 #[cfg(all(feature = "raytrace-cpu", not(target_arch = "wasm32")))]
 #[test]
 fn saved_cpu_progressive_check_start_and_export_preserve_the_exact_final() {
-    use solidcraft_render::job::Phase;
+    use desurface_render::job::Phase;
     let host = CpuHost::for_platform().unwrap();
     let mut s = Session::default();
     s.execute(
@@ -511,7 +511,7 @@ fn saved_cpu_progressive_check_start_and_export_preserve_the_exact_final() {
         }}),
     )
     .unwrap();
-    s = Session::new(solidcraft_doc::Document::from_json(&s.doc.to_json()).unwrap());
+    s = Session::new(desurface_doc::Document::from_json(&s.doc.to_json()).unwrap());
     s.set_render_job_host(Some(host)).unwrap();
     s.execute("render.scene", &json!({})).unwrap();
     let doc = s.doc.clone();
@@ -530,7 +530,7 @@ fn saved_cpu_progressive_check_start_and_export_preserve_the_exact_final() {
     assert!(status.preview.is_none());
     assert!(handle.preview().unwrap().is_none());
     let frame = handle.frame().unwrap().unwrap();
-    let path = std::env::temp_dir().join(format!("solidcraft-film-final-{}-{}.png", std::process::id(), id.session));
+    let path = std::env::temp_dir().join(format!("desurface-film-final-{}-{}.png", std::process::id(), id.session));
     s.execute("render.export", &json!({"job":id,"path":path})).unwrap();
     assert_eq!(std::fs::read(&path).unwrap(), frame.png());
     assert_eq!(frame.info.png_sha256.len(), 64);
@@ -568,7 +568,7 @@ fn progressive_limits_and_incompatibilities_fail_before_hdr_or_scene_capture() {
 #[cfg(all(feature = "raytrace-cpu", not(target_arch = "wasm32")))]
 #[test]
 fn a_cancelled_progressive_preview_cannot_replace_or_export_over_the_last_completed_frame() {
-    use solidcraft_render::job::Phase;
+    use desurface_render::job::Phase;
     use std::time::{Duration, Instant};
     let mut s = Session::default();
     s.set_render_job_host(Some(CpuHost::for_platform().unwrap())).unwrap();
@@ -602,7 +602,7 @@ fn a_cancelled_progressive_preview_cannot_replace_or_export_over_the_last_comple
     assert!(handle.preview().unwrap().is_none());
     assert!(handle.frame().unwrap().is_none());
     assert!(s.render_jobs.frame(id).is_err());
-    let path = std::env::temp_dir().join(format!("solidcraft-film-cancel-{}-{}.png", std::process::id(), id.session));
+    let path = std::env::temp_dir().join(format!("desurface-film-cancel-{}-{}.png", std::process::id(), id.session));
     s.execute("render.export", &json!({"job":good,"path":path})).unwrap();
     assert!(s.execute("render.export", &json!({"job":id,"path":path,"overwrite":true})).is_err());
     assert_eq!(std::fs::read(&path).unwrap(), final_frame.png());
@@ -643,10 +643,10 @@ fn unsupported_intent_is_rejected_and_export_preserves_existing_files() {
         assert_eq!(host.admitted_bytes(), 0);
     }
     let id = start(&mut s);
-    let path = std::env::temp_dir().join(format!("solidcraft-job-{}-{}.png", std::process::id(), id.session));
+    let path = std::env::temp_dir().join(format!("desurface-job-{}-{}.png", std::process::id(), id.session));
     assert!(s.execute("render.export", &json!({"job":id,"path":path})).is_err());
     finish(&host);
-    let missing = path.with_file_name("solidcraft-render-missing-directory").join("image.png");
+    let missing = path.with_file_name("desurface-render-missing-directory").join("image.png");
     assert!(s.execute("render.export", &json!({"job":id,"path":missing})).is_err());
     assert!(s.render_jobs.frame(id).is_ok());
     s.execute("render.export", &json!({"job":id,"path":path})).unwrap();
@@ -662,30 +662,30 @@ fn unsupported_intent_is_rejected_and_export_preserves_existing_files() {
 #[test]
 fn open_close_and_host_replacement_cancel_work_and_reject_old_ids() {
     let (mut s, host) = session();
-    let path = std::env::temp_dir().join(format!("solidcraft-job-open-{}.solidcraft", std::process::id()));
+    let path = std::env::temp_dir().join(format!("desurface-job-open-{}.solidcraft", std::process::id()));
     s.execute("file.save", &json!({"path":path})).unwrap();
     let id = start(&mut s);
     let handle = s.render_job_handle(id).unwrap();
     s.execute("doc.open", &json!({"path":path})).unwrap();
-    assert_eq!(handle.status().unwrap().progress.phase, solidcraft_render::job::Phase::Cancelled);
+    assert_eq!(handle.status().unwrap().progress.phase, desurface_render::job::Phase::Cancelled);
     assert!(s.execute("render.status", &json!({"job":id})).is_err());
     assert!(s.render_job_host().unwrap().same_host(&host));
     let id = start(&mut s);
     let handle = s.render_job_handle(id).unwrap();
     s.replace_design(Session::default());
-    assert_eq!(handle.status().unwrap().progress.phase, solidcraft_render::job::Phase::Cancelled);
+    assert_eq!(handle.status().unwrap().progress.phase, desurface_render::job::Phase::Cancelled);
     assert!(s.execute("render.status", &json!({"job":id})).is_err());
     assert!(s.render_job_host().unwrap().same_host(&host));
     let id = start(&mut s);
     let handle = s.render_job_handle(id).unwrap();
     let replacement = CpuHost::cooperative();
     s.set_render_job_host(Some(replacement.clone())).unwrap();
-    assert_eq!(handle.status().unwrap().progress.phase, solidcraft_render::job::Phase::Cancelled);
+    assert_eq!(handle.status().unwrap().progress.phase, desurface_render::job::Phase::Cancelled);
     assert!(s.execute("render.status", &json!({"job":id})).is_err());
     let id = start(&mut s);
     let handle = s.render_job_handle(id).unwrap();
     drop(s);
-    assert_eq!(handle.status().unwrap().progress.phase, solidcraft_render::job::Phase::Cancelled);
+    assert_eq!(handle.status().unwrap().progress.phase, desurface_render::job::Phase::Cancelled);
     finish(&host);
     finish(&replacement);
     std::fs::remove_file(path).unwrap();
@@ -739,8 +739,8 @@ fn native_start_and_cancel_measure_cached_capture_without_timing_assertions() {
     let cancel_request_time = before.elapsed();
     let status = s.render_job_handle(id).unwrap().wait_timeout(Duration::from_secs(60)).unwrap();
     let cancellation_time = before.elapsed();
-    assert!(matches!(status.progress.phase, solidcraft_render::job::Phase::Cancelled | solidcraft_render::job::Phase::Completed));
-    if status.progress.phase == solidcraft_render::job::Phase::Cancelled {
+    assert!(matches!(status.progress.phase, desurface_render::job::Phase::Cancelled | desurface_render::job::Phase::Completed));
+    if status.progress.phase == desurface_render::job::Phase::Cancelled {
         assert!(status.frame.is_none());
     }
     eprintln!(
@@ -752,7 +752,7 @@ fn native_start_and_cancel_measure_cached_capture_without_timing_assertions() {
     let watch = Instant::now();
     let observed = loop {
         let phase = handle.status().unwrap().progress.phase;
-        if phase == solidcraft_render::job::Phase::Running || phase.terminal() {
+        if phase == desurface_render::job::Phase::Running || phase.terminal() {
             break phase;
         }
         assert!(watch.elapsed() < Duration::from_secs(60), "native worker did not advance");
@@ -780,14 +780,14 @@ fn native_raytrace_preflight_start_and_frame_preserve_document_and_roundtrip_req
     let before = (s.revision, s.evaluations, s.is_dirty(), s.undo.len(), s.redo.len());
     let params = json!({"integrator":"raytrace","settings":{"width":32,"height":32},"raytrace":{"preset":"neutral","shadows":true}});
     let preflight = s.execute("render.preflight", &params).unwrap();
-    let request: solidcraft_render::job::ImageRequest = serde_json::from_value(preflight["request"].clone()).unwrap();
-    assert_eq!(request.integrator, solidcraft_render::job::Integrator::Raytrace);
+    let request: desurface_render::job::ImageRequest = serde_json::from_value(preflight["request"].clone()).unwrap();
+    assert_eq!(request.integrator, desurface_render::job::Integrator::Raytrace);
     assert_eq!(preflight["resolved"]["executor"], "cpu-raytrace");
     let started = s.execute("render.start", &params).unwrap();
     let id: JobId = serde_json::from_value(started["job"].clone()).unwrap();
     let handle = s.render_job_handle(id).unwrap();
     let status = handle.wait_timeout(std::time::Duration::from_secs(60)).unwrap();
-    assert_eq!(status.progress.phase, solidcraft_render::job::Phase::Completed);
+    assert_eq!(status.progress.phase, desurface_render::job::Phase::Completed);
     let frame = handle.frame().unwrap().unwrap();
     assert_eq!(frame.info.job, id);
     assert_eq!(frame.info.executor.as_str(), "cpu-raytrace");
@@ -807,7 +807,7 @@ fn captured_hdr_input_lights_geometry_after_source_removal_and_preserves_history
     let mut s = Session::default();
     s.set_render_job_host(Some(host.clone())).unwrap();
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let dir = std::env::temp_dir().join(format!("solidcraft-hdri-{}-{nonce}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-hdri-{}-{nonce}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
     let source = dir.join("original.hdr");
     s.execute("solid.box", &json!({"length":20,"width":20,"height":20})).unwrap();
@@ -846,7 +846,7 @@ fn captured_hdr_input_lights_geometry_after_source_removal_and_preserves_history
     // Captured bytes remain sufficient after the source disappears.
     std::fs::remove_file(source).unwrap();
     let handle = s.render_jobs.handle(id).unwrap();
-    assert_eq!(handle.wait_timeout(std::time::Duration::from_secs(60)).unwrap().progress.phase, solidcraft_render::job::Phase::Completed);
+    assert_eq!(handle.wait_timeout(std::time::Duration::from_secs(60)).unwrap().progress.phase, desurface_render::job::Phase::Completed);
     assert_ne!(handle.frame().unwrap().unwrap().png(), baseline.as_slice(), "captured HDR must illuminate actual geometry");
     assert_eq!(serde_json::to_value(handle.status().unwrap()).unwrap()["environment"], preflight["environment"]);
     let output = dir.join("background.png");
@@ -868,9 +868,9 @@ fn native_spatial_aa_preflight_and_host_forwarding_change_actual_edge_png() {
     s.execute("render.scene", &json!({})).unwrap();
     let scene = crate::product_scene::extract(&s).unwrap();
     let center = scene.bounds.center();
-    let mut camera = solidcraft_render::Camera { distance: 2.0, fov: 0.0, ..Default::default() };
-    camera.set_view(solidcraft_render::StandardView::Top);
-    camera.target = solidcraft_geom::Vec3::new(scene.bounds.min.x, center.y, center.z);
+    let mut camera = desurface_render::Camera { distance: 2.0, fov: 0.0, ..Default::default() };
+    camera.set_view(desurface_render::StandardView::Top);
+    camera.target = desurface_geom::Vec3::new(scene.bounds.min.x, center.y, center.z);
     let doc = s.doc.clone();
     let before = (s.revision, s.evaluations, s.is_dirty(), s.undo.len(), s.redo.len());
     let mut legacy: Option<Vec<u8>> = None;
@@ -882,7 +882,7 @@ fn native_spatial_aa_preflight_and_host_forwarding_change_actual_edge_png() {
             "raytrace":{"primary_samples":samples,"lights":[],"shadows":false}});
         let admitted = host.admitted_bytes();
         let checked = s.execute("render.preflight", &params).unwrap();
-        let request: solidcraft_render::job::ImageRequest = serde_json::from_value(checked["request"].clone()).unwrap();
+        let request: desurface_render::job::ImageRequest = serde_json::from_value(checked["request"].clone()).unwrap();
         assert_eq!(request.raytrace.as_ref().unwrap().primary_samples, samples);
         assert_eq!(checked["resolved"]["executor"], "cpu-raytrace");
         assert_eq!(host.admitted_bytes(), admitted, "preflight reserved host memory");
@@ -890,7 +890,7 @@ fn native_spatial_aa_preflight_and_host_forwarding_change_actual_edge_png() {
         let id: JobId = serde_json::from_value(started["job"].clone()).unwrap();
         let handle = s.render_job_handle(id).unwrap();
         let status = handle.wait_timeout(std::time::Duration::from_secs(60)).unwrap();
-        assert_eq!(status.progress.phase, solidcraft_render::job::Phase::Completed);
+        assert_eq!(status.progress.phase, desurface_render::job::Phase::Completed);
         assert_eq!(status.request.raytrace.as_ref().unwrap().primary_samples, samples);
         let frame = handle.frame().unwrap().unwrap();
         assert_eq!(frame.info.executor.as_str(), "cpu-raytrace");
@@ -973,7 +973,7 @@ fn completed_png_content_identity_matches_status_and_exact_retained_export() {
     assert_eq!(digest.len(), 64);
     assert!(digest.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c)));
     let nonce = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos();
-    let dir = std::env::temp_dir().join(format!("solidcraft-frame-digest-{}-{nonce}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("desurface-frame-digest-{}-{nonce}", std::process::id()));
     std::fs::create_dir(&dir).unwrap();
     let path = dir.join("retained.png");
     assert!(!path.exists());
@@ -1065,7 +1065,7 @@ fn dielectric_preflight_and_start_resolve_refraction_without_broadening_boundari
             let handle = s.render_job_handle(id).unwrap();
             s.execute("render.cancel", &json!({"job":id})).unwrap();
             let status = handle.wait_timeout(std::time::Duration::from_secs(10)).unwrap();
-            assert!(matches!(status.progress.phase, solidcraft_render::job::Phase::Cancelled | solidcraft_render::job::Phase::Completed));
+            assert!(matches!(status.progress.phase, desurface_render::job::Phase::Cancelled | desurface_render::job::Phase::Completed));
         }
     }
     for boundary in ["closed_mesh", "thin_sheet"] {
@@ -1108,7 +1108,7 @@ fn dielectric_preflight_refuses_wrong_captured_identity_without_changing_design(
 fn registered_product_camera_fit_changes_only_view_and_keeps_orientation() {
     let mut s = Session::default();
     s.execute("solid.box", &json!({"length":20,"width":15,"height":10})).unwrap();
-    let camera = solidcraft_render::Camera { yaw: 0.2, pitch: 0.3, roll: 0.1, ..Default::default() };
+    let camera = desurface_render::Camera { yaw: 0.2, pitch: 0.3, roll: 0.1, ..Default::default() };
     s.execute("render.camera.set", &json!({"camera":camera})).unwrap();
     let doc = s.doc.to_json();
     let undo = s.undo.len();
@@ -1130,8 +1130,8 @@ fn explicit_render_camera_preserves_orientation_and_refuses_invalid_state_atomic
     let mut s = Session::default();
     let document = s.doc.clone();
     let before = (s.revision, s.evaluations, s.is_dirty(), s.undo.len(), s.redo.len(), s.model.is_stale());
-    for up in [solidcraft_render::UpAxis::Z, solidcraft_render::UpAxis::Y] {
-        let camera = solidcraft_render::Camera { roll: 0.41, yaw: -0.3, pitch: 0.5, up, ..Default::default() };
+    for up in [desurface_render::UpAxis::Z, desurface_render::UpAxis::Y] {
+        let camera = desurface_render::Camera { roll: 0.41, yaw: -0.3, pitch: 0.5, up, ..Default::default() };
         let reply = s.execute("render.camera.set", &json!({"camera":camera})).unwrap();
         assert_eq!(s.camera, Some(camera));
         assert_eq!(reply["camera"], json!(camera));
@@ -1163,7 +1163,7 @@ fn explicit_render_camera_preserves_orientation_and_refuses_invalid_state_atomic
     }
     s.execute("render.camera.set", &json!({"camera":{"target":[0,0,0],"yaw":0.2,"pitch":0.3,"distance":100,"fov":0}})).unwrap();
     assert_eq!(s.camera.unwrap().roll, 0.0);
-    assert_eq!(s.camera.unwrap().up, solidcraft_render::UpAxis::Z);
+    assert_eq!(s.camera.unwrap().up, desurface_render::UpAxis::Z);
     // The Design API still rejects explicit up, as specified by upstream #5094.
     let before_camera = s.camera;
     assert!(s.execute("view.apply", &json!({"camera":before_camera.unwrap()})).is_err());

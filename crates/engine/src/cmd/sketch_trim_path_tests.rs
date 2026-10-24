@@ -2,8 +2,8 @@
 //! with `sketch.trim` would, in one undo step.
 
 use serde_json::{Value, json};
-use solidcraft_geom::Vec2;
-use solidcraft_sketch::Shape;
+use desurface_geom::Vec2;
+use desurface_sketch::Shape;
 
 use crate::Session;
 
@@ -18,7 +18,7 @@ fn ids(v: &Value) -> Vec<String> {
     v.as_array().map(|a| a.iter().filter_map(|x| x.as_str().map(str::to_string)).collect()).unwrap_or_default()
 }
 
-fn sketch(s: &Session) -> solidcraft_sketch::Sketch {
+fn sketch(s: &Session) -> desurface_sketch::Sketch {
     let id = s.active_sketch.unwrap();
     s.model.state().sketch(id).unwrap().sketch.clone()
 }

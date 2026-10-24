@@ -126,7 +126,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -279,7 +279,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -462,7 +462,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -613,7 +613,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -767,7 +767,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -887,7 +887,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -1037,7 +1037,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -1190,7 +1190,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -1275,7 +1275,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently.",
         "Keep existing display emission unchanged and record its material source; do not create an equivalent screen light."
       ],
@@ -1431,7 +1431,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -1551,7 +1551,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -1671,7 +1671,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -1789,7 +1789,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -1979,7 +1979,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -2099,7 +2099,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently."
       ],
       "validation": [
@@ -2253,7 +2253,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently.",
         "Check source clearance against the user-declared robot swept volume; retain the same stage across pose snapshots."
       ],
@@ -2409,7 +2409,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently.",
         "Label output as an integration studio; do not present it as natural space illumination."
       ],
@@ -2530,7 +2530,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently.",
         "The analytic led_strip is the sole LED energy owner. Existing diffuser material remains unchanged.",
         "The source-to-diffuser clearance must be confirmed against actual free space; block an unresolved aperture frame."
@@ -2618,7 +2618,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "For the calibrated studio comparison, require zero unaccounted environment illumination. Preserve existing environment data; ask for an explicit compatible lighting variant rather than changing it silently.",
         "No light is added at the guide exit. Guide material, absorption and surface topology remain unchanged."
       ],
@@ -2694,7 +2694,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "The rig owns the only sun. Block application if the environment already emits an equivalent sun unless ownership is explicitly transferred.",
         "Require no atmospheric sky illumination, atmospheric haze or unexplained ambient fill. Preserve real terrain-reflected light.",
         "Solar direction and size are illustrative authoring inputs, not a mission ephemeris or measured irradiance."
@@ -2741,7 +2741,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "Require exactly one resolved environment-owned sun and record its parameters. This preset never creates a second sun.",
         "Require no atmospheric sky or haze. No studio fill or constant ambient is introduced.",
         "Low solar elevation is an explicit environment input, not an inferred date or mission condition."
@@ -2787,7 +2787,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "Require explicitly zero incident environment radiance and no enabled local emitters for this diagnostic; black background color alone is insufficient.",
         "Do not create a sun, Earth source, atmosphere, sky fill or exposure compensation.",
         "Any visible energy must be traced to a declared source or reported as a diagnostic discrepancy."
@@ -2837,7 +2837,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "Require one resolved environment-owned sun. Rig adds no atmospheric sky, haze or fill.",
         "Arm pose and sample geometry are supplied externally and do not change when applying this preset.",
         "Hold environment solar state and manual camera exposure fixed between arm snapshots."
@@ -2925,7 +2925,7 @@
         "Resolve source and modifier clearance before authoring. Block unresolved or intersecting placements instead of silently moving geometry.",
         "One energy owner per physical emitter. Analytic and visible mesh representations must not double-count emission.",
         "Check every required capability before authoring or rendering. If any is unavailable, keep the scene unchanged and report the missing capability IDs.",
-        "All samples are specified_unbound: no SolidCraft runtime adapter, asset installation or renderer support is promised.",
+        "All samples are specified_unbound: no DeSurface runtime adapter, asset installation or renderer support is promised.",
         "Require exactly one environment-owned sun and do not modify it.",
         "Calibrate CAL-ENV-SUN-001 from the environment sun alone in the reference scene, then set this fill relative to that signal. Block if the reference is unresolved.",
         "Mark the result lunar_editorial. The fill is deliberate added energy and must never be labeled unassisted natural lunar illumination.",

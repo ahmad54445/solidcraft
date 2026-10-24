@@ -3,7 +3,7 @@ use crate::{
     ProductMesh,
     job::{CancelToken, DielectricBoundary, ImageRequest, Integrator, RaytraceOptions, TaskPoll},
 };
-use solidcraft_geom::Mesh;
+use desurface_geom::Mesh;
 use std::sync::Arc;
 
 pub(in crate::raytrace) fn box_body(thickness: f64) -> ProductMesh {
