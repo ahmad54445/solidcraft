@@ -10,7 +10,8 @@ pub fn midas(_ctx: &mut Ctx, _params: &Value) -> Result<Value> {
     Err(Error::from("MIDAS Civil NX connection is not available yet"))
 }
 
-/// CSI (SAP2000 / CSiBridge): import model, load cases/combinations and results.
+/// CSiBridge v25: selected shells/frames, ticked load cases/combinations, geometry and results
+/// (workflow and API calls: docs/08-csi-bridge.md). SAP2000 later through the same agent.
 pub fn csi(_ctx: &mut Ctx, _params: &Value) -> Result<Value> {
-    Err(Error::from("CSI connection is not available yet"))
+    Err(Error::from("CSiBridge connection is not available yet"))
 }

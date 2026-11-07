@@ -21,8 +21,8 @@ commands! {
           params: "width?: mm (default 80); depth?: mm (default 50); thickness?: mm (default 10); hole?: diameter mm (default 0: none)" },
         { id: "factory.connect.midas", label: "MIDAS Civil NX", run: connect::midas, icon: "import",
           planned: "MIDAS adapter" },
-        { id: "factory.connect.csi", label: "CSI", run: connect::csi, icon: "import",
-          planned: "CSI adapter" },
+        { id: "factory.connect.csi", label: "CSiBridge", run: connect::csi, icon: "import",
+          planned: "CSiBridge v25 adapter (docs/08-csi-bridge.md)" },
     ];
 }
 

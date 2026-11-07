@@ -54,7 +54,7 @@ In `custom/features/src/lib.rs`:
 - `APP_NAME` = Produktname (Fenstertitel, Anwendungsleiste, alle Texte), gelesen aus `custom/branding/name.txt`, derzeit `Factory`
 - `TOOLBAR_TABS` = einzige sichtbare Toolbar-Tabs, derzeit nur `MODEL`
   (Namen aus `custom/bridge/src/names.rs`, Modul `tabs`)
-- `EXTRA_TABS` = eigene Toolbar-Tabs mit Panels und Befehlen, derzeit `CONNECT` › `PROGRAMS` (MIDAS Civil NX, CSI; beide noch „planned“)
+- `EXTRA_TABS` = eigene Toolbar-Tabs mit Panels und Befehlen, derzeit `CONNECT` › `PROGRAMS` (MIDAS Civil NX, CSiBridge v25; beide noch „planned“, siehe `docs/08-csi-bridge.md` im Factory-Repo)
 - `HIDDEN_BROWSER_ITEMS` = ausgeblendete Browser-Ordner, derzeit `origin`
 - Browser: `ui_browser.rs` (Structure-Baum, Load Case / Load Combination › Properties)
 - Statusleiste: `ui_status.rs` (Selected, LC, Units, Programm, RAM/Cache, Backend)
