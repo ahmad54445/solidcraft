@@ -12,5 +12,7 @@ ui = ["custom-bridge/ui", "dep:memory-stats"]
 
 [dependencies]
 custom-bridge = { path = "../bridge" }
+# Agent protocol (JSON lines); workspace version, the same SolidCraft uses
+serde_json = { workspace = true }
 # RAM in the status bar (not a SolidCraft crate, so allowed here; see rules/01-layering.md)
 memory-stats = { version = "1", optional = true }

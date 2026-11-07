@@ -995,6 +995,7 @@ version = "0.1.0"
 dependencies = [
  "custom-bridge",
  "memory-stats",
+ "serde_json",
 ]
 
 [[package]]
