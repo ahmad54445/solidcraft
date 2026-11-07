@@ -2561,6 +2561,9 @@ pub fn model_bounds(app: &SolveApp) -> solidcraft_engine::geom::Aabb3 {
     for point in crate::sketch_attachment_ui::guide_lines(app).into_iter().flatten() {
         b.add(point);
     }
+    for [x, y, z] in crate::custom_hook::extra_bounds().into_iter().flatten() {
+        b.add(Vec3::new(x, y, z)); // [CUSTOM] fork's elements in Fit view
+    }
     b
 }
 
@@ -5033,7 +5036,7 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
             back: proj.cam.back().to_f32(),
             size_px,
             images: crate::ref_images::gpu_images(app),
-            clouds: crate::point_clouds::gpu_clouds(app, ui.ctx()),
+            clouds: crate::point_clouds::gpu_clouds(app, ui.ctx()).into_iter().chain(crate::custom_hook::extra_clouds()).collect(), // [CUSTOM] fork's elements
             analysis: analysis_uniform(app),
             analysis_colors: crate::gpu::analysis_colors(&t.analysis),
             access: crate::access::map(app),
@@ -5069,6 +5072,9 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     }
     let overlay_rect = crate::shell::bottom_overlay_rect(app, rect);
     crate::viewport_details::legacy_legends(app, ui, overlay_rect);
+    if let Some(draw) = crate::custom_hook::viewport_overlay() {
+        draw(ui, overlay_rect); // [CUSTOM] fork's overlay (result legend)
+    }
     placement_note(app, &painter, overlay_rect);
     crate::frame_rate::paint(app, ui, &painter, overlay_rect);
 

@@ -150,3 +150,39 @@ pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, 
     let out = crate::browser::draw_row(ui, ui.scope_id().with(("custom_row", key)), &row);
     TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary }
 }
+
+// ---- 3D view: the fork's own elements and their overlay (docs/10-viewport-results.md) ----
+
+static EXTRA_CLOUDS: std::sync::RwLock<Vec<solidcraft_gpu::view::GpuCloud>> = std::sync::RwLock::new(Vec::new());
+static EXTRA_BOUNDS: std::sync::RwLock<Option<[[f64; 3]; 2]>> = std::sync::RwLock::new(None);
+static VIEWPORT_OVERLAY: OnceLock<fn(&mut egui::Ui, egui::Rect)> = OnceLock::new();
+
+/// Clouds (segments and triangles with values per corner) drawn with the model, in the same depth,
+/// section cut and colour ramp as SolidCraft's point clouds. Replaces the previous set; their
+/// records are shared (`Arc`), so this and [`extra_clouds`] copy no geometry.
+pub fn set_extra_clouds(clouds: Vec<solidcraft_gpu::view::GpuCloud>) {
+    *EXTRA_CLOUDS.write().unwrap_or_else(std::sync::PoisonError::into_inner) = clouds;
+}
+
+/// The fork's clouds for this frame (empty while none are set).
+pub fn extra_clouds() -> Vec<solidcraft_gpu::view::GpuCloud> {
+    EXTRA_CLOUDS.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+}
+
+/// The box of the fork's elements (min, max), so Fit view includes them.
+pub fn set_extra_bounds(bounds: Option<[[f64; 3]; 2]>) {
+    *EXTRA_BOUNDS.write().unwrap_or_else(std::sync::PoisonError::into_inner) = bounds;
+}
+
+pub fn extra_bounds() -> Option<[[f64; 3]; 2]> {
+    *EXTRA_BOUNDS.read().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Drawn over the 3D view every frame (e.g. a result legend), with the view's free area. First call wins.
+pub fn set_viewport_overlay(draw: fn(&mut egui::Ui, egui::Rect)) {
+    let _ = VIEWPORT_OVERLAY.set(draw);
+}
+
+pub fn viewport_overlay() -> Option<fn(&mut egui::Ui, egui::Rect)> {
+    VIEWPORT_OVERLAY.get().copied()
+}

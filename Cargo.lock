@@ -986,6 +986,7 @@ dependencies = [
  "egui",
  "serde_json",
  "solidcraft-engine",
+ "solidcraft-gpu",
  "solidcraft-ui-egui",
 ]
 

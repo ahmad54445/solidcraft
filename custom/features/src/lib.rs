@@ -7,12 +7,15 @@
 mod connect;
 pub mod csi;
 pub mod transfer;
+pub mod results_view;
 pub mod model;
 mod plate;
 #[cfg(feature = "ui")]
 mod ui_browser;
 #[cfg(feature = "ui")]
 mod ui_csi;
+#[cfg(feature = "ui")]
+mod ui_results;
 #[cfg(feature = "ui")]
 mod ui_status;
 pub mod units;
@@ -69,5 +72,6 @@ pub fn install() {
         custom_bridge::ui::hide_browser_items(HIDDEN_BROWSER_ITEMS);
         custom_bridge::ui::set_browser_contents(ui_browser::draw);
         custom_bridge::ui::set_status_bar(ui_status::draw);
+        custom_bridge::view::set_overlay(ui_results::legend);
     }
 }

@@ -8,13 +8,16 @@ use crate::units::{Force, Length, Moment, Stress};
 
 /// Draw the bar. Called by SolidCraft every frame.
 pub fn draw(ui: &mut egui::Ui) {
+    // Workers (result colouring) ask for a new frame through this.
+    let ctx = ui.ctx().clone();
+    crate::results_view::set_repaint(Box::new(move || ctx.request_repaint()));
     let (status, units) = model::read(|f| (f.status.clone(), f.units));
     let ram = ram_mb(ui.ctx());
     ui.horizontal_centered(|ui| {
         ui.add_space(8.0);
         ui.label(format!("Selected: {} shells, {} frames", status.selected_shells, status.selected_frames));
         ui.separator();
-        ui.label(format!("LC: {}", status.current_load.as_deref().unwrap_or("—")));
+        crate::ui_results::status_controls(ui);
         ui.separator();
         let units_button = ui.button(format!("Units: {} ▾", units.short()));
         if units_button.clicked() {

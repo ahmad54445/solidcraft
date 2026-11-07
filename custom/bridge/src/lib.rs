@@ -12,6 +12,8 @@
 pub mod names;
 #[cfg(feature = "ui")]
 pub mod ui;
+#[cfg(feature = "ui")]
+pub mod view;
 
 pub use serde_json::{Value, json};
 

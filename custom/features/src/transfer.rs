@@ -243,6 +243,8 @@ fn publish(geometry: Geometry, blocks: Vec<ResultBlock>) {
         s.finished = true;
         s.done = s.total;
     });
+    // Draw the elements, coloured by the first load (docs/10-viewport-results.md).
+    crate::results_view::show_first();
 }
 
 /// One frame: u32 header length, JSON header, u64 payload length, payload.
