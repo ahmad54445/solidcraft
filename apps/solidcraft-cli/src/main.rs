@@ -138,6 +138,7 @@ const COMMANDS: &[Command] = &[
 ];
 
 fn main() -> ExitCode {
+    custom_features::install(); // [CUSTOM] register the fork's commands
     let mut args: Vec<String> = std::env::args().skip(1).collect();
     logger::init(&mut args);
     // `--profile` / `--profile-out` (run, eval, bench-open) or SOLIDCRAFT_PROFILE (any command):

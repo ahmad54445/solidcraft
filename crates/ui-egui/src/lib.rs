@@ -21,6 +21,7 @@ pub mod browser_canvas;
 pub mod browser_prompts;
 pub mod canvas;
 pub mod cli_link;
+pub mod custom_hook; // [CUSTOM] fork hook, see custom/README.md
 #[cfg(test)]
 mod colour_tokens_tests;
 #[cfg(test)]

@@ -33,6 +33,7 @@ mod component;
 mod component_clone;
 mod component_clone_assembly;
 mod construct;
+mod custom_hook; // [CUSTOM] fork hook, see custom/README.md
 mod delete;
 pub(crate) mod diagnostics;
 mod edit;
@@ -374,8 +375,11 @@ pub fn command_specs() -> Vec<&'static CommandSpec> {
     v.extend(diagnostics::COMMANDS.iter());
     v.extend(render::COMMANDS.iter());
     v.extend(render_ui::COMMANDS.iter());
+    v.extend(custom_hook::commands()); // [CUSTOM] fork hook, see custom/README.md
     v
 }
+
+pub use custom_hook::register_extension_commands; // [CUSTOM] fork hook, see custom/README.md
 
 pub fn find_command(id: &str) -> Option<&'static CommandSpec> {
     let all = command_specs();

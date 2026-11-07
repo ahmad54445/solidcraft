@@ -646,7 +646,7 @@ pub fn tab_icon(tab: &str) -> &'static str {
 /// Tabs shown by default, in row order. Sketch has its own visibility preference and the Render
 /// workspace owns its controls, so neither is on this list.
 pub fn choosable_tabs() -> impl Iterator<Item = &'static str> {
-    TABS.iter().copied().chain(SPECIALTY_TABS.iter().map(|o| o.tab))
+    TABS.iter().copied().chain(SPECIALTY_TABS.iter().map(|o| o.tab)).filter(|t| crate::custom_hook::tab_allowed(t)) // [CUSTOM] tab allowlist
 }
 
 /// The person's choice. Every tab is on until explicitly hidden.

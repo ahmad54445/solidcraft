@@ -1,0 +1,37 @@
+# [CUSTOM] Fork only: merge tangency-labs/solidcraft (main) into branch "factory" every day and
+# check the adapter layer. On a merge conflict or a failing bridge test nothing is pushed and the
+# run fails, so the fork stays on its last good state (fix locally with custom/update-upstream.ps1).
+name: Factory – sync upstream
+
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    if: github.repository != 'tangency-labs/solidcraft'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: factory
+          fetch-depth: 0
+
+      - name: Merge upstream main
+        shell: bash
+        run: |
+          git config user.name "factory-sync"
+          git config user.email "factory-sync@users.noreply.github.com"
+          git remote add upstream https://github.com/tangency-labs/solidcraft
+          git fetch upstream main
+          git merge --no-edit upstream/main
+
+      - name: Check the bridge
+        run: cargo test -p custom-bridge -p custom-features --features custom-bridge/ui
+
+      - name: Push
+        run: git push origin factory

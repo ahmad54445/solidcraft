@@ -980,6 +980,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27ae1dd37df86211c42e150270f82743308803d90a6f6e6651cd730d5e1732f"
 
 [[package]]
+name = "custom-bridge"
+version = "0.1.0"
+dependencies = [
+ "serde_json",
+ "solidcraft-engine",
+ "solidcraft-ui-egui",
+]
+
+[[package]]
+name = "custom-features"
+version = "0.1.0"
+dependencies = [
+ "custom-bridge",
+]
+
+[[package]]
 name = "dbus"
 version = "0.9.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4071,6 +4087,7 @@ name = "solidcraft"
 version = "0.40.0-rc.2"
 dependencies = [
  "block2 0.6.2",
+ "custom-features",
  "eframe",
  "egui",
  "embed-resource",
@@ -4112,6 +4129,7 @@ version = "0.40.0-rc.2"
 name = "solidcraft-cli"
 version = "0.40.0-rc.2"
 dependencies = [
+ "custom-features",
  "image",
  "log",
  "serde_json",
