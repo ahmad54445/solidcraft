@@ -36,6 +36,7 @@ custom/features   ← das eigene Programm
 | `crates/ui-egui/src/lib.rs` | `pub mod custom_hook;` |
 | `crates/ui-egui/src/workspace.rs` | `choosable_tabs()` filtert über `custom_hook::tab_allowed` |
 | `crates/ui-egui/src/toolbar.rs` | Name in der Anwendungsleiste aus `custom_hook::app_name()` |
+| `crates/ui-egui/src/i18n.rs` | `Catalog::shown()` ersetzt „SolidCraft“ durch den Produktnamen (alle Sprachen); englischer Fallback über `shown()` |
 
 ## Oberfläche anpassen (Feature `ui`, nur Desktop-App)
 

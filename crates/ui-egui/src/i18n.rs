@@ -38,10 +38,17 @@ impl Catalog {
     fn shown(&'static self) -> &'static Messages {
         let shown = self.shown.get_or_init(|| {
             let messages = self.messages();
-            messages
-                .values()
-                .any(|text| crate::bidi::has_rtl(text))
-                .then(|| messages.iter().map(|(id, text)| (id.clone(), crate::bidi::visual_template(text).into_owned())).collect())
+            let rtl = messages.values().any(|text| crate::bidi::has_rtl(text));
+            // [CUSTOM] product name: shown text says the fork's name instead of "SolidCraft".
+            (rtl || crate::custom_hook::renames()).then(|| {
+                messages
+                    .iter()
+                    .map(|(id, text)| {
+                        let text = crate::custom_hook::rename(text);
+                        (id.clone(), if rtl { crate::bidi::visual_template(&text).into_owned() } else { text.into_owned() })
+                    })
+                    .collect()
+            })
         });
         match shown {
             Some(shown) => shown,
@@ -226,7 +233,7 @@ impl Locale {
 
     /// Stable message ID → translation → English → ID, in display order (see [`crate::bidi`]).
     pub fn text(self, id: &str) -> &str {
-        self.0.shown().get(id).or_else(|| ENGLISH.messages().get(id)).map_or(id, String::as_str)
+        self.0.shown().get(id).or_else(|| ENGLISH.shown().get(id)).map_or(id, String::as_str) // [CUSTOM] English fallback also renamed
     }
 
     /// Translate source labels from engine/UI tables, preserving unknown labels.

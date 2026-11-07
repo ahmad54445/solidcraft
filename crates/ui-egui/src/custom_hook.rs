@@ -25,6 +25,20 @@ pub fn set_app_name(name: &'static str) {
     let _ = APP_NAME.set(name);
 }
 
+/// Whether shown text is renamed (a product name other than "SolidCraft" is set).
+pub fn renames() -> bool {
+    APP_NAME.get().is_some_and(|name| *name != "SolidCraft")
+}
+
+/// `text` with "SolidCraft" replaced by the product name (unchanged while nothing is set).
+/// Only the capitalised product name is replaced; ids, file names and URLs in lower case stay.
+pub fn rename(text: &str) -> std::borrow::Cow<'_, str> {
+    match APP_NAME.get() {
+        Some(name) if text.contains("SolidCraft") => std::borrow::Cow::Owned(text.replace("SolidCraft", name)),
+        _ => std::borrow::Cow::Borrowed(text),
+    }
+}
+
 /// The product name ("SolidCraft" while nothing is set).
 pub fn app_name() -> &'static str {
     APP_NAME.get().copied().unwrap_or("SolidCraft")
