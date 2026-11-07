@@ -5,10 +5,13 @@
 //! scripts and MCP, like any built-in command.
 
 mod connect;
+pub mod csi;
 pub mod model;
 mod plate;
 #[cfg(feature = "ui")]
 mod ui_browser;
+#[cfg(feature = "ui")]
+mod ui_csi;
 #[cfg(feature = "ui")]
 mod ui_status;
 pub mod units;
@@ -21,8 +24,7 @@ commands! {
           params: "width?: mm (default 80); depth?: mm (default 50); thickness?: mm (default 10); hole?: diameter mm (default 0: none)" },
         { id: "factory.connect.midas", label: "MIDAS Civil NX", run: connect::midas, icon: "import",
           planned: "MIDAS adapter" },
-        { id: "factory.connect.csi", label: "CSiBridge", run: connect::csi, icon: "import",
-          planned: "CSiBridge v25 adapter (docs/08-csi-bridge.md)" },
+        { id: "factory.connect.csi", label: "CSiBridge", run: connect::csi, icon: "import" },
     ];
 }
 

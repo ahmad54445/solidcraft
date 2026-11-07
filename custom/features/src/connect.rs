@@ -10,8 +10,9 @@ pub fn midas(_ctx: &mut Ctx, _params: &Value) -> Result<Value> {
     Err(Error::from("MIDAS Civil NX connection is not available yet"))
 }
 
-/// CSiBridge v25: selected shells/frames, ticked load cases/combinations, geometry and results
-/// (workflow and API calls: docs/08-csi-bridge.md). SAP2000 later through the same agent.
+/// CSiBridge v25: opens the selection dialog (load cases / combinations with check boxes).
+/// Workflow and API calls: docs/08-csi-bridge.md. SAP2000 later through the same agent.
 pub fn csi(_ctx: &mut Ctx, _params: &Value) -> Result<Value> {
-    Err(Error::from("CSiBridge connection is not available yet"))
+    crate::csi::open();
+    Ok(custom_bridge::json!({ "dialog": "csi" }))
 }
