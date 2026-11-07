@@ -979,7 +979,7 @@ impl crate::SolveApp {
         crate::browser::publish_row_prefs(self, ui.ctx());
         let mut placement = render_domain;
         self.shell.status_bar = if crate::status_bar::shown(self) {
-            let height = crate::status_bar::HEIGHT.min(placement.height().max(0.0));
+            let height = crate::status_bar::height(self).min(placement.height().max(0.0)); // [CUSTOM] fork's bar
             let bar = egui::Rect::from_min_max(egui::pos2(placement.left(), placement.bottom() - height), placement.max);
             placement.max.y = bar.top();
             Some(bar)

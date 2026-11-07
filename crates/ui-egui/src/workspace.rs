@@ -505,7 +505,7 @@ pub const PLACEMENTS: &[(&str, &str, &str, &str)] = &[
 ];
 
 pub fn panels(tab: &str) -> Vec<&'static str> {
-    SECTIONS.iter().filter(|s| s.tab == tab).map(|s| s.panel).collect()
+    SECTIONS.iter().chain(crate::custom_hook::extra_sections()).filter(|s| s.tab == tab).map(|s| s.panel).collect() // [CUSTOM] extra tabs
 }
 
 pub fn destination(c: &CommandSpec) -> Option<(&'static str, &'static str)> {
@@ -525,14 +525,14 @@ pub(crate) fn legacy_render_destination(c: &CommandSpec) -> Option<(&'static str
         _ => None,
     };
     primary
-        .or_else(|| SECTIONS.iter().chain(LEGACY_RENDER_SECTIONS).find(|s| s.ids.contains(&c.id)).map(|s| (s.tab, s.panel)))
+        .or_else(|| SECTIONS.iter().chain(LEGACY_RENDER_SECTIONS).chain(crate::custom_hook::extra_sections()).find(|s| s.ids.contains(&c.id)).map(|s| (s.tab, s.panel))) // [CUSTOM] extra tabs
         .or_else(|| PLACEMENTS.iter().find(|(t, p, ..)| *t == c.tab && *p == c.panel).map(|(_, _, t, p)| (*t, *p)))
 }
 
 /// Ordered menu commands, with the promoted commands first. Empty sections are omitted by
 /// panel_lists, except the selection filter, which has its own existing controls.
 pub fn layout<'a>(tab: &str, panel: &str, specs: &[&'a CommandSpec]) -> Option<(Vec<&'a CommandSpec>, usize)> {
-    let section = SECTIONS.iter().find(|s| s.tab == tab && s.panel == panel)?;
+    let section = SECTIONS.iter().chain(crate::custom_hook::extra_sections()).find(|s| s.tab == tab && s.panel == panel)?; // [CUSTOM] extra tabs
     let mut out: Vec<_> = section.ids.iter().filter_map(|id| specs.iter().find(|c| c.id == *id).copied()).collect();
     for c in specs.iter().filter(|c| destination(c) == Some((section.tab, section.panel))) {
         if !out.iter().any(|o| o.id == c.id) {
@@ -639,14 +639,14 @@ pub fn tab_icon(tab: &str) -> &'static str {
         "INSPECT" => "measure",
         "MANAGE" => "params",
         "VIEW" => "camera",
-        _ => SPECIALTY_TABS.iter().find(|o| o.tab == tab).map_or("", |o| o.icon),
+        _ => crate::custom_hook::extra_tab_icon(tab).unwrap_or_else(|| SPECIALTY_TABS.iter().find(|o| o.tab == tab).map_or("", |o| o.icon)), // [CUSTOM] extra tabs
     }
 }
 
 /// Tabs shown by default, in row order. Sketch has its own visibility preference and the Render
 /// workspace owns its controls, so neither is on this list.
 pub fn choosable_tabs() -> impl Iterator<Item = &'static str> {
-    TABS.iter().copied().chain(SPECIALTY_TABS.iter().map(|o| o.tab)).filter(|t| crate::custom_hook::tab_allowed(t)) // [CUSTOM] tab allowlist
+    TABS.iter().copied().chain(crate::custom_hook::extra_tabs()).chain(SPECIALTY_TABS.iter().map(|o| o.tab)).filter(|t| crate::custom_hook::tab_allowed(t)) // [CUSTOM] extra tabs, tab allowlist
 }
 
 /// The person's choice. Every tab is on until explicitly hidden.
@@ -670,7 +670,7 @@ pub fn visible_tabs(app: &crate::SolveApp) -> Vec<&'static str> {
     if crate::render_workspace::active(app) {
         return Vec::new();
     }
-    let mut tabs: Vec<_> = TABS.iter().copied().filter(|tab| tab_turned_on(app, tab)).collect();
+    let mut tabs: Vec<_> = TABS.iter().copied().chain(crate::custom_hook::extra_tabs()).filter(|tab| tab_turned_on(app, tab)).collect(); // [CUSTOM] extra tabs
     if app.preferences.sketch_tab_always {
         // Right after MODEL, whether a sketch is open or not (#7904).
         let at = tabs.iter().position(|t| *t == "MODEL").map_or(0, |i| i + 1);

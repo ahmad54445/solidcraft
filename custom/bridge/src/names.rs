@@ -36,3 +36,9 @@ pub mod tabs {
     /// Every name above, for the upstream contract test.
     pub const ALL: &[&str] = &[MODEL, SURFACE, ASSEMBLE, INSERT, INSPECT, MANAGE, VIEW, SHEET_METAL, WELDMENTS];
 }
+
+/// Browser folder names. Used with [`crate::ui::hide_browser_items`].
+pub mod browser {
+    /// The Origin folder (origin point, planes and axes).
+    pub const ORIGIN: &str = "origin";
+}

@@ -25,7 +25,13 @@ pub(crate) const HEIGHT: f32 = 24.0;
 /// The bar is drawn: the preference is on, outside the compact browser embed (which has no
 /// application chrome).
 pub(crate) fn shown(app: &SolveApp) -> bool {
-    app.preferences.status_bar && !app.embedded
+    (app.preferences.status_bar || crate::custom_hook::status_bar().is_some()) && !app.embedded // [CUSTOM] fork's bar
+}
+
+/// [CUSTOM] The bar's height: one row per bar (SolidCraft's while its preference is on, the
+/// fork's while it is set).
+pub(crate) fn height(app: &SolveApp) -> f32 {
+    HEIGHT * f32::from(u8::from(app.preferences.status_bar) + u8::from(crate::custom_hook::status_bar().is_some()))
 }
 
 /// The open sketch's state as its solve reports it.
@@ -120,8 +126,19 @@ pub(crate) fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     let t = Tokens::get();
     let contents = contents(app);
     let host = Container::new(ui.ctx(), Surface::ApplicationBar);
-    let panel = host.edge("sc_status_bar", Edge::Bottom).exact_size(HEIGHT).show_separator_line(false);
-    let response = host.show_edge(ui, panel, host.edge_frame(t.toolbar), |ui| paint(app, ui, &contents)).response;
+    let panel = host.edge("sc_status_bar", Edge::Bottom).exact_size(height(app)).show_separator_line(false); // [CUSTOM] height
+    let response = host
+        .show_edge(ui, panel, host.edge_frame(t.toolbar), |ui| {
+            // [CUSTOM] the fork's bar in the bottom row, SolidCraft's above it while its preference is on
+            let Some(draw) = crate::custom_hook::status_bar() else { return paint(app, ui, &contents) };
+            let r = ui.max_rect();
+            let split = egui::pos2(r.left(), r.bottom() - HEIGHT);
+            if app.preferences.status_bar {
+                paint(app, &mut ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_max(r.min, egui::pos2(r.right(), split.y)))), &contents);
+            }
+            draw(&mut ui.new_child(egui::UiBuilder::new().max_rect(Rect::from_min_max(split, r.max))));
+        })
+        .response;
     app.shell.status_bar = Some(response.rect);
     crate::scenario::publish_target("status:bar", response.rect);
 }

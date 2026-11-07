@@ -8,9 +8,10 @@ publish = false
 
 [features]
 # UI settings (toolbar tabs, product name). Only the desktop app turns it on; the CLI stays headless.
-ui = ["dep:solidcraft-ui-egui"]
+ui = ["dep:solidcraft-ui-egui", "dep:egui"]
 
 [dependencies]
 solidcraft-engine = { workspace = true }
 solidcraft-ui-egui = { workspace = true, optional = true }
+egui = { workspace = true, optional = true }
 serde_json = { workspace = true }

@@ -3,13 +3,46 @@
 //! This is the only ui-egui file that belongs to the fork. Upstream code knows nothing about the
 //! custom crates; the app calls `custom_features::install()` at start-up, which ends up here.
 //! Nothing set (tests, plain SolidCraft) = upstream behaviour unchanged.
-//! Set: visible toolbar tabs, product name (window, bar, all UI text), product logo.
+//! Set: visible toolbar tabs, product name (window, bar, all UI text), product logo, extra
+//! toolbar tabs, hidden browser folders, the browser's rows, an extra status bar.
 
 use std::sync::OnceLock;
 
 static TOOLBAR_TABS: OnceLock<&'static [&'static str]> = OnceLock::new();
 static APP_NAME: OnceLock<&'static str> = OnceLock::new();
 static LOGO_PNG: OnceLock<&'static [u8]> = OnceLock::new();
+static EXTRA_TABS: OnceLock<(&'static [(&'static str, &'static str)], &'static [crate::workspace::Section])> = OnceLock::new();
+static HIDDEN_BROWSER: OnceLock<&'static [&'static str]> = OnceLock::new();
+
+/// Extra toolbar tabs `(name, icon)` after SolidCraft's own, with their panels. First call wins.
+pub fn add_toolbar_tabs(tabs: &'static [(&'static str, &'static str)], sections: &'static [crate::workspace::Section]) {
+    let _ = EXTRA_TABS.set((tabs, sections));
+}
+
+/// The extra tab names, in order.
+pub fn extra_tabs() -> impl Iterator<Item = &'static str> {
+    EXTRA_TABS.get().map_or(&[][..], |(tabs, _)| tabs).iter().map(|(name, _)| *name)
+}
+
+/// The icon of an extra tab.
+pub fn extra_tab_icon(tab: &str) -> Option<&'static str> {
+    EXTRA_TABS.get()?.0.iter().find(|(name, _)| *name == tab).map(|(_, icon)| *icon)
+}
+
+/// The panels of the extra tabs.
+pub fn extra_sections() -> &'static [crate::workspace::Section] {
+    EXTRA_TABS.get().map_or(&[], |(_, sections)| sections)
+}
+
+/// Browser folders to leave out (e.g. `["origin"]`). First call wins.
+pub fn hide_browser_items(items: &'static [&'static str]) {
+    let _ = HIDDEN_BROWSER.set(items);
+}
+
+/// Whether a browser folder is left out.
+pub fn browser_hidden(item: &str) -> bool {
+    HIDDEN_BROWSER.get().is_some_and(|items| items.contains(&item))
+}
 
 /// The product logo as PNG bytes (square, e.g. 256 x 256). First call wins.
 pub fn set_logo_png(png: &'static [u8]) {
@@ -71,4 +104,49 @@ pub fn rename(text: &str) -> std::borrow::Cow<'_, str> {
 /// The product name ("SolidCraft" while nothing is set).
 pub fn app_name() -> &'static str {
     APP_NAME.get().copied().unwrap_or("SolidCraft")
+}
+
+/// A part of the window the fork draws itself: called once per frame with the area's `Ui`.
+pub type DrawFn = fn(&mut egui::Ui);
+
+static BROWSER_CONTENTS: OnceLock<DrawFn> = OnceLock::new();
+static STATUS_BAR: OnceLock<DrawFn> = OnceLock::new();
+
+/// Draw the browser's rows with `draw` instead of SolidCraft's (the header stays). First call wins.
+pub fn set_browser_contents(draw: DrawFn) {
+    let _ = BROWSER_CONTENTS.set(draw);
+}
+
+/// The fork's browser rows, if set.
+pub fn browser_contents() -> Option<DrawFn> {
+    BROWSER_CONTENTS.get().copied()
+}
+
+/// An extra status bar the fork draws, always shown along the window's bottom edge (SolidCraft's
+/// own bar is added above it while its preference is on). First call wins.
+pub fn set_status_bar(draw: DrawFn) {
+    let _ = STATUS_BAR.set(draw);
+}
+
+/// The fork's status bar, if set.
+pub fn status_bar() -> Option<DrawFn> {
+    STATUS_BAR.get().copied()
+}
+
+/// What a [`tree_row`] reported this frame.
+pub struct TreeRow {
+    /// The row was clicked (primary button).
+    pub clicked: bool,
+    /// The fold arrow was clicked.
+    pub toggled: bool,
+    /// The row was right-clicked here.
+    pub context_at: Option<egui::Pos2>,
+}
+
+/// One browser row drawn exactly like SolidCraft's: `open` is `Some` for rows that fold,
+/// `count` is the text at the row's end. `key` must be unique among the rows.
+pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, icon: &str, label: &str, count: &str) -> TreeRow {
+    let row = crate::ui_kit::Row { depth, fold: open, icon, label, name: true, count, ..Default::default() };
+    let out = crate::browser::draw_row(ui, ui.scope_id().with(("custom_row", key)), &row);
+    TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary }
 }

@@ -109,6 +109,7 @@ pub mod testing {
 }
 
 /// Declare custom commands. Each `run` is `fn(&mut Ctx, &Value) -> bridge::Result<Value>`.
+/// `planned: "…"` marks a command that is registered but not built yet (the UI says so).
 ///
 /// ```ignore
 /// custom_bridge::commands! {
@@ -122,7 +123,7 @@ macro_rules! commands {
     (
         $vis:vis static $name:ident = [
             $( { id: $id:literal, label: $label:literal, run: $run:path
-                 $(, icon: $icon:literal)? $(, params: $params:literal)? $(,)? } ),* $(,)?
+                 $(, icon: $icon:literal)? $(, params: $params:literal)? $(, planned: $planned:literal)? $(,)? } ),* $(,)?
         ];
     ) => {
         $vis static $name: $crate::CommandList = &[ $( {
@@ -134,7 +135,7 @@ macro_rules! commands {
                 $run(&mut ctx, params).map_err(|e: $crate::Error| $crate::__private::engine::EngineError::Other(e.0))
             }
             $crate::__private::engine::cmd::CommandSpec::new($id, $label, __run)
-                $(.icon($icon))? $(.params($params))?
+                $(.icon($icon))? $(.params($params))? $(.planned($planned))?
         } ),* ];
     };
 }

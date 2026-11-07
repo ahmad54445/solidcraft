@@ -1429,6 +1429,10 @@ fn browser_contents(app: &mut SolveApp, ui: &mut egui::Ui, collapsible: bool) {
         t.secondary_hline(ui.painter(), ui.max_rect().x_range(), ui.cursor().top() + 1.0, t.toolbar.lerp_to_gamma(t.border, 0.5));
         ui.add_space(t.space_3);
     }
+    if let Some(draw) = crate::custom_hook::browser_contents() {
+        draw(ui); // [CUSTOM] the fork's browser rows
+        return;
+    }
     crate::edit_in_place::browser_strip(app, ui);
     if collapsible && !stacked {
         browser_rows_hugging(app, ui);
@@ -2120,6 +2124,9 @@ fn origin_things() -> [(&'static str, &'static str, Option<Thing>); 7] {
 }
 
 fn origin_rows(app: &mut SolveApp, ui: &mut egui::Ui, depth: usize, acts: &mut Actions) {
+    if crate::custom_hook::browser_hidden("origin") {
+        return; // [CUSTOM] browser folder left out by the fork
+    }
     let key = "origin";
     let open = is_open(app, key, false);
     let lit = |thing: &Option<Thing>| thing.as_ref().map_or((false, false), |t| acts.lit.thing(t));

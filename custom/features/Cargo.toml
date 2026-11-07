@@ -8,7 +8,9 @@ publish = false
 
 [features]
 # Desktop UI settings (toolbar tabs, product name); turned on by apps/solidcraft only.
-ui = ["custom-bridge/ui"]
+ui = ["custom-bridge/ui", "dep:memory-stats"]
 
 [dependencies]
 custom-bridge = { path = "../bridge" }
+# RAM in the status bar (not a SolidCraft crate, so allowed here; see rules/01-layering.md)
+memory-stats = { version = "1", optional = true }
