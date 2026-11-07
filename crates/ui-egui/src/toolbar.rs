@@ -416,7 +416,9 @@ pub fn app_bar(app: &mut SolveApp, ui: &mut egui::Ui) {
         // (viewBox 357 x 412). Same 20 px height and centre as the old block.
         {
             let c = pos2(left + 20.0, r.center().y);
-            crate::icons::glyphs::brand_mark(ui.painter(), c);
+            if !crate::custom_hook::draw_logo(ui.painter(), c, 20.0) {
+                crate::icons::glyphs::brand_mark(ui.painter(), c); // [CUSTOM] product logo first
+            }
         }
         if !compact_actions {
             ui.painter().text(

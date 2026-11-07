@@ -25,7 +25,6 @@ custom/features   ← das eigene Programm
 
 | Datei | Änderung |
 |---|---|
-| `Cargo.toml` | `"custom/*"` in `members` |
 | `crates/engine/src/cmd/custom_hook.rs` | neue Datei: Laufzeit-Registrierung von Befehlen |
 | `crates/engine/src/cmd/mod.rs` | `mod custom_hook;`, `v.extend(custom_hook::commands());`, `pub use …register_extension_commands;` |
 | `apps/solidcraft/Cargo.toml`, `apps/solidcraft-cli/Cargo.toml` | Abhängigkeit `custom-features` |
@@ -36,15 +35,21 @@ custom/features   ← das eigene Programm
 | `crates/ui-egui/src/lib.rs` | `pub mod custom_hook;` |
 | `crates/ui-egui/src/workspace.rs` | `choosable_tabs()` filtert über `custom_hook::tab_allowed` |
 | `crates/ui-egui/src/toolbar.rs` | Name in der Anwendungsleiste aus `custom_hook::app_name()` |
+| `Cargo.toml` (Workspace) | `members` nennt `custom/bridge` und `custom/features` ausdrücklich (statt `custom/*`) |
+| `apps/solidcraft/Cargo.toml` | `[[bin]] name = "factory"`, `default-run = "factory"` (Paketname bleibt `solidcraft`) |
+| `apps/solidcraft/build.rs` | Icon und Versionsangaben der EXE aus `custom/branding` (Fallback: SolidCraft) |
+| `apps/solidcraft/src/main.rs` | Fenster-/Taskleisten-Icon aus `custom_hook::logo_rgba()` (Fallback: SolidCraft-Icon) |
+| `crates/ui-egui/src/toolbar.rs` | Logo in der Anwendungsleiste über `custom_hook::draw_logo` (Fallback: SolidCraft-Marke) |
 | `crates/ui-egui/src/i18n.rs` | `Catalog::shown()` ersetzt „SolidCraft“ durch den Produktnamen (alle Sprachen); englischer Fallback über `shown()` |
 
 ## Oberfläche anpassen (Feature `ui`, nur Desktop-App)
 
 In `custom/features/src/lib.rs`:
 
-- `APP_NAME` = Produktname (Fenstertitel, Anwendungsleiste), derzeit `"Factory"`
+- `APP_NAME` = Produktname (Fenstertitel, Anwendungsleiste, alle Texte), gelesen aus `custom/branding/name.txt`, derzeit `Factory`
 - `TOOLBAR_TABS` = einzige sichtbare Toolbar-Tabs, derzeit nur `MODEL`
   (Namen aus `custom/bridge/src/names.rs`, Modul `tabs`)
+- Name und Logo: `custom/branding/` (`name.txt`, `logo.png`, `logo.ico`; `make_logo.py` erzeugt das Platzhalter-Logo)
 
 Prüfen: `git grep -n "\[CUSTOM\]" -- . ":(exclude)custom"`
 

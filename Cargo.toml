@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/*", "apps/*", "xtask", "custom/*"] # [CUSTOM] custom/*
+members = ["crates/*", "apps/*", "xtask", "custom/bridge", "custom/features"] # [CUSTOM] custom crates
 # Third-party code kept with local fixes (see vendor/README.md); not linted as ours.
 exclude = ["vendor"]
 

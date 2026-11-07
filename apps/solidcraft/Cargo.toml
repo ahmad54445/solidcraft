@@ -5,7 +5,13 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 publish = false
-default-run = "solidcraft"
+default-run = "factory" # [CUSTOM] executable named after the product
+
+# [CUSTOM] The executable is factory.exe (same main.rs). The package keeps its name, so
+# `cargo run -p solidcraft` and upstream scripts still work.
+[[bin]]
+name = "factory"
+path = "src/main.rs"
 
 [features]
 default = ["raytrace-cpu", "bundled-render-library", "profile"]

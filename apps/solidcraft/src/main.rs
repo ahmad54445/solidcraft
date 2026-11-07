@@ -911,8 +911,11 @@ fn app_viewport(custom_titlebar: bool) -> Result<egui::ViewportBuilder, eframe::
     #[cfg(target_os = "macos")]
     let icon = egui::IconData::default();
     #[cfg(not(target_os = "macos"))]
-    let icon =
-        egui::IconData { rgba: app_icon::rgba(64).map_err(|e| eframe::Error::AppCreation(std::io::Error::other(e).into()))?, width: 64, height: 64 };
+    let icon = match solidcraft_ui_egui::custom_hook::logo_rgba() {
+        // [CUSTOM] product logo as the window and taskbar icon
+        Some((rgba, width, height)) => egui::IconData { rgba, width, height },
+        None => egui::IconData { rgba: app_icon::rgba(64).map_err(|e| eframe::Error::AppCreation(std::io::Error::other(e).into()))?, width: 64, height: 64 },
+    };
     Ok(egui::ViewportBuilder::default()
         .with_title(solidcraft_ui_egui::custom_hook::app_name()) // [CUSTOM] product name
         .with_icon(icon)

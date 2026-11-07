@@ -15,8 +15,14 @@ commands! {
     ];
 }
 
-/// The product name shown in the window title and the application bar.
-pub const APP_NAME: &str = "Factory";
+/// The product name: window title, application bar, every UI text. Single source:
+/// `custom/branding/name.txt` (also read by the build for the executable's details).
+pub const APP_NAME: &str = include_str!("../../branding/name.txt");
+
+/// The product logo (application bar, window and taskbar icon). The executable's icon is
+/// `custom/branding/logo.ico`. Both are made by `custom/branding/make_logo.py`.
+#[cfg(feature = "ui")]
+pub const LOGO_PNG: &[u8] = include_bytes!("../../branding/logo.png");
 
 /// The only toolbar tabs Factory shows; every other SolidCraft tab is hidden.
 #[cfg(feature = "ui")]
@@ -27,7 +33,8 @@ pub fn install() {
     custom_bridge::register(COMMANDS);
     #[cfg(feature = "ui")]
     {
-        custom_bridge::ui::set_app_name(APP_NAME);
+        custom_bridge::ui::set_app_name(APP_NAME.trim());
+        custom_bridge::ui::set_logo_png(LOGO_PNG);
         custom_bridge::ui::show_toolbar_tabs(TOOLBAR_TABS);
     }
 }
