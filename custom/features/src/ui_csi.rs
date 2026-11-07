@@ -4,6 +4,7 @@
 use custom_bridge::ui::egui;
 
 use crate::csi::{self, Dialog, Item, Phase};
+use crate::transfer;
 
 /// Draw the dialog while it is open. Called every frame (from the status bar).
 pub fn show(ctx: &egui::Context) {
@@ -52,14 +53,24 @@ pub fn show(ctx: &egui::Context) {
                 }
             }
             Phase::Ready => action = ready(ui, &mut d),
+            Phase::Sending => action = sending(ui),
         });
     match action {
-        _ if !open => csi::close(),
-        Some(Action::Cancel) => csi::close(),
+        // Closing the window while sending cancels the transfer.
+        _ if !open => {
+            transfer::cancel();
+            transfer::reset();
+            csi::close();
+        }
+        Some(Action::Cancel) => {
+            transfer::cancel();
+            transfer::reset();
+            csi::close();
+        }
         Some(Action::Choose(pid)) => csi::choose(pid),
         Some(Action::Send) => {
             d.send();
-            csi::close();
+            if d.phase == Phase::Sending { csi::store(d) } else { csi::close() }
         }
         None if d != before => csi::store(d),
         None => {}
@@ -70,6 +81,35 @@ enum Action {
     Cancel,
     Choose(u32),
     Send,
+}
+
+/// Geometry and results on their way: progress, the step, Cancel, and a warning when CSiBridge
+/// has not answered for a while. Closes itself when the transfer is complete.
+fn sending(ui: &mut egui::Ui) -> Option<Action> {
+    let s = transfer::state();
+    if s.finished {
+        return Some(Action::Cancel); // closes the dialog; the data is in Factory
+    }
+    if let Some(error) = &s.error {
+        ui.colored_label(ui.visuals().error_fg_color, error);
+        ui.add_space(8.0);
+        return ui.button("Close").clicked().then_some(Action::Cancel);
+    }
+    let fraction = if s.total == 0 { 0.0 } else { s.done as f32 / s.total as f32 };
+    ui.add(egui::ProgressBar::new(fraction).text(format!("{}/{}", s.done, s.total)));
+    ui.label(&s.label);
+    if let Some(t) = s.started {
+        ui.weak(format!("{:.0} s", t.elapsed().as_secs_f32()));
+    }
+    if s.silent() {
+        ui.colored_label(
+            ui.visuals().warn_fg_color,
+            "CSiBridge is not responding (no answer for 30 s). Wait, or Cancel – CSiBridge is not changed.",
+        );
+    }
+    ui.add_space(6.0);
+    ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
+    ui.button("Cancel").clicked().then_some(Action::Cancel)
 }
 
 fn ready(ui: &mut egui::Ui, d: &mut Dialog) -> Option<Action> {

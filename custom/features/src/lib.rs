@@ -6,6 +6,7 @@
 
 mod connect;
 pub mod csi;
+pub mod transfer;
 pub mod model;
 mod plate;
 #[cfg(feature = "ui")]

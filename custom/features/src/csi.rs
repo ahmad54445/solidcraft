@@ -78,6 +78,10 @@ pub trait Source: Send + Sync {
     fn instances(&self) -> Result<Vec<Instance>, String>;
     /// What the instance `pid` reports.
     fn read(&self, pid: u32) -> Result<Snapshot, String>;
+    /// The agent that transfers geometry and results; `None` = this source cannot (demo).
+    fn agent(&self) -> Option<PathBuf> {
+        None
+    }
 }
 
 /// The csi-agent (agents/csi-agent in the Factory repository).
@@ -153,6 +157,10 @@ impl Source for AgentSource {
 
     fn read(&self, pid: u32) -> Result<Snapshot, String> {
         parse_snapshot(&self.call(json!({"cmd": "snapshot", "pid": pid}))?)
+    }
+
+    fn agent(&self) -> Option<PathBuf> {
+        self.exe.clone()
     }
 }
 
@@ -239,12 +247,17 @@ pub enum Phase {
     Choose(Vec<Instance>),
     Error(String),
     Ready,
+    /// Geometry and results are on their way (see [`crate::transfer`]).
+    Sending,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Dialog {
     pub phase: Phase,
     pub title: String,
+    /// The CSiBridge process and the agent that reads it (`None` for demo data).
+    pub pid: u32,
+    pub agent: Option<PathBuf>,
     /// Program version and model file.
     pub program: String,
     pub model: String,
@@ -263,6 +276,8 @@ impl Dialog {
             Ok(s) => Self {
                 phase: Phase::Ready,
                 title,
+                pid,
+                agent: source.agent(),
                 program: s.program,
                 model: s.model,
                 shells: s.shells,
@@ -303,9 +318,9 @@ impl Dialog {
         self.phase == Phase::Ready && self.shells + self.frames > 0 && self.ticked_cases() + self.ticked_combos() > 0
     }
 
-    /// Store the ticked cases and combinations in Factory's model and the selection in the status.
-    /// Geometry and results follow in protocol v2 (docs/09-agent-protocol.md).
-    pub fn send(&self) -> bool {
+    /// Store the ticked cases and combinations in Factory's model and the selection in the status,
+    /// then start the transfer of geometry and results (protocol v2) when an agent reads CSiBridge.
+    pub fn send(&mut self) -> bool {
         if !self.can_send() {
             return false;
         }
@@ -328,6 +343,11 @@ impl Dialog {
             f.status.selected_shells = self.shells;
             f.status.selected_frames = self.frames;
         });
+        if let Some(agent) = self.agent.clone() {
+            let ticked = |items: &[Item]| items.iter().filter(|i| i.checked).map(|i| i.name.clone()).collect::<Vec<_>>();
+            crate::transfer::start(agent, self.pid, ticked(&self.cases), ticked(&self.combos));
+            self.phase = Phase::Sending;
+        }
         true
     }
 }
