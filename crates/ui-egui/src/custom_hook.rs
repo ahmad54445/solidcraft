@@ -155,7 +155,18 @@ pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, 
 
 static EXTRA_CLOUDS: std::sync::RwLock<Vec<solidcraft_gpu::view::GpuCloud>> = std::sync::RwLock::new(Vec::new());
 static EXTRA_BOUNDS: std::sync::RwLock<Option<[[f64; 3]; 2]>> = std::sync::RwLock::new(None);
-static VIEWPORT_OVERLAY: OnceLock<fn(&mut egui::Ui, egui::Rect)> = OnceLock::new();
+/// The view as the overlay sees it this frame.
+pub struct ViewInfo<'a> {
+    /// World point (m) → screen position, `None` behind the camera.
+    pub project: &'a dyn Fn([f64; 3]) -> Option<egui::Pos2>,
+    /// Camera position (m), for "closest to the viewer".
+    pub eye: [f64; 3],
+}
+
+/// What the fork draws over the 3D view.
+pub type OverlayFn = fn(&mut egui::Ui, egui::Rect, &ViewInfo<'_>);
+
+static VIEWPORT_OVERLAY: OnceLock<OverlayFn> = OnceLock::new();
 
 /// Clouds (segments and triangles with values per corner) drawn with the model, in the same depth,
 /// section cut and colour ramp as SolidCraft's point clouds. Replaces the previous set; their
@@ -179,10 +190,10 @@ pub fn extra_bounds() -> Option<[[f64; 3]; 2]> {
 }
 
 /// Drawn over the 3D view every frame (e.g. a result legend), with the view's free area. First call wins.
-pub fn set_viewport_overlay(draw: fn(&mut egui::Ui, egui::Rect)) {
+pub fn set_viewport_overlay(draw: OverlayFn) {
     let _ = VIEWPORT_OVERLAY.set(draw);
 }
 
-pub fn viewport_overlay() -> Option<fn(&mut egui::Ui, egui::Rect)> {
+pub fn viewport_overlay() -> Option<OverlayFn> {
     VIEWPORT_OVERLAY.get().copied()
 }

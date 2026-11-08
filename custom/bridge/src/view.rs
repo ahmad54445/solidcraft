@@ -121,8 +121,10 @@ pub fn clear() {
     solidcraft_ui_egui::custom_hook::set_extra_bounds(None);
 }
 
-/// Draw `draw` over the 3D view every frame (legend). Call once.
-pub fn set_overlay(draw: fn(&mut egui::Ui, egui::Rect)) {
+pub use solidcraft_ui_egui::custom_hook::ViewInfo;
+
+/// Draw `draw` over the 3D view every frame (legend, value snap), with the view's projection. Call once.
+pub fn set_overlay(draw: solidcraft_ui_egui::custom_hook::OverlayFn) {
     solidcraft_ui_egui::custom_hook::set_viewport_overlay(draw);
 }
 

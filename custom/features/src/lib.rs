@@ -72,6 +72,6 @@ pub fn install() {
         custom_bridge::ui::hide_browser_items(HIDDEN_BROWSER_ITEMS);
         custom_bridge::ui::set_browser_contents(ui_browser::draw);
         custom_bridge::ui::set_status_bar(ui_status::draw);
-        custom_bridge::view::set_overlay(ui_results::legend);
+        custom_bridge::view::set_overlay(ui_results::overlay);
     }
 }

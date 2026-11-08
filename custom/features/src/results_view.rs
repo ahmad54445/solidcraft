@@ -3,7 +3,7 @@
 //! Building runs on a worker thread (rule V1); the UI only reads [`shown`]. Values stay SI in the
 //! result store and are scaled to the display units here.
 
-use std::sync::{LazyLock, OnceLock, PoisonError, RwLock};
+use std::sync::{Arc, LazyLock, OnceLock, PoisonError, RwLock};
 
 use crate::transfer::{self, Geometry, ResultBlock};
 use crate::units::Units;
@@ -51,6 +51,23 @@ pub struct Legend {
 }
 
 static SHOWN: LazyLock<RwLock<Shown>> = LazyLock::new(|| RwLock::new(Shown::default()));
+static SNAP: LazyLock<RwLock<Arc<SnapData>>> = LazyLock::new(|| RwLock::new(Arc::new(SnapData::default())));
+
+/// What value snap needs: the shown values in display units (shared, swapped per result).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct SnapData {
+    /// Per shell, the value at its corners n1..n4.
+    pub shell_values: Vec<[f32; 4]>,
+    /// Frame result stations: world position (m) and value.
+    pub frame_points: Vec<([f64; 3], f32)>,
+    pub shell_unit: String,
+    pub frame_unit: String,
+}
+
+/// The values of the shown result, for value snap.
+pub fn snap_data() -> Arc<SnapData> {
+    SNAP.read().unwrap_or_else(PoisonError::into_inner).clone()
+}
 static REPAINT: OnceLock<Box<dyn Fn() + Send + Sync>> = OnceLock::new();
 
 pub fn shown() -> Shown {
@@ -92,6 +109,7 @@ pub fn select(choice: Choice, units: Units) {
             Ok(built) => {
                 #[cfg(feature = "ui")]
                 custom_bridge::view::show(&built.layers, built.bounds);
+                *SNAP.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(built.snap.clone());
                 s.shell = built.shell;
                 s.frame = built.frame;
                 s.envelope = built.envelope;
@@ -124,6 +142,8 @@ pub struct Built {
     /// Per shell corner (n1..n4) the shown value; per frame its (station, value) points.
     pub shell_values: Vec<[f32; 4]>,
     pub frame_values: Vec<Vec<(f64, f32)>>,
+    /// The same values arranged for value snap.
+    pub snap: SnapData,
 }
 
 /// Shell colours when no result is shown.
@@ -211,9 +231,27 @@ pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units
         ]
     };
 
+    // Frame stations as world points (m) for value snap.
+    let mut frame_points = Vec::new();
+    for (e, f) in g.frames.iter().enumerate() {
+        let (Some(a), Some(b)) = (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize)) else { continue };
+        let len = ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2) + (b[2] - a[2]).powi(2)).sqrt().max(f64::EPSILON);
+        for (sta, v) in frame_values.get(e).into_iter().flatten() {
+            let t = (sta / len).clamp(0.0, 1.0);
+            frame_points.push(([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t], *v));
+        }
+    }
+    let snap = SnapData {
+        shell_values: if shell_range.is_some() { shell_values.clone() } else { Vec::new() },
+        frame_points,
+        shell_unit: shell_unit.clone(),
+        frame_unit: frame_unit.clone(),
+    };
+
     Ok(Built {
         #[cfg(feature = "ui")]
         layers,
+        snap,
         bounds,
         shell: shell_range.map(|range| Legend { title: format!("Shells: {}", label(&choice.load, SHELL_COMPONENTS[choice.shell.min(7)])), unit: shell_unit, range }),
         frame: frame_range.map(|range| Legend { title: format!("Frames: {}", label(&choice.load, FRAME_COMPONENTS[choice.frame.min(5)])), unit: frame_unit, range }),
@@ -341,4 +379,82 @@ fn frame_station_values(g: &Geometry, b: &Block, value_column: usize, step: Step
         pts.sort_by(|a, b| a.0.total_cmp(&b.0));
     }
     Ok((out, envelope))
+}
+
+/// A value under the cursor.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Snap {
+    /// World point (m) of the corner or station.
+    pub at: [f64; 3],
+    pub value: f32,
+    pub unit: String,
+}
+
+/// The value under `cursor`: on the shell under the cursor closest to the viewer, its nearest
+/// corner; or a frame station within `radius` pixels (frames win when at least as close).
+/// `project` maps a world point to the screen. Linear in the number of elements (fine for the
+/// selections of phase 1; a bounding-volume tree follows for millions).
+pub fn snap(g: &Geometry, d: &SnapData, cursor: [f32; 2], project: &dyn Fn([f64; 3]) -> Option<[f32; 2]>, eye: [f64; 3], radius: f32) -> Option<Snap> {
+    let dist_eye = |p: [f64; 3]| ((p[0] - eye[0]).powi(2) + (p[1] - eye[1]).powi(2) + (p[2] - eye[2]).powi(2)).sqrt();
+    let dist_px = |s: [f32; 2]| ((s[0] - cursor[0]).powi(2) + (s[1] - cursor[1]).powi(2)).sqrt();
+
+    // Shell under the cursor, closest to the viewer.
+    let mut shell: Option<(f64, usize)> = None;
+    if !d.shell_values.is_empty() {
+        let screen: Vec<Option<[f32; 2]>> = g.joints.iter().map(|p| project(*p)).collect();
+        for (e, s) in g.shells.iter().enumerate() {
+            let n = if s[3] == u32::MAX { 3 } else { 4 };
+            let corner = |k: usize| screen.get(s[k] as usize).copied().flatten();
+            let tris: &[[usize; 3]] = if n == 4 { &[[0, 1, 2], [0, 2, 3]] } else { &[[0, 1, 2]] };
+            let inside = tris.iter().any(|t| match (corner(t[0]), corner(t[1]), corner(t[2])) {
+                (Some(a), Some(b), Some(c)) => in_triangle(cursor, a, b, c),
+                _ => false,
+            });
+            if inside {
+                let depth = (0..n).filter_map(|k| g.joints.get(s[k] as usize)).map(|p| dist_eye(*p)).fold(f64::INFINITY, f64::min);
+                if shell.is_none_or(|(d0, _)| depth < d0) {
+                    shell = Some((depth, e));
+                }
+            }
+        }
+    }
+
+    // Frame station within the radius, closest to the viewer.
+    let mut frame: Option<(f64, usize)> = None;
+    for (k, (p, _)) in d.frame_points.iter().enumerate() {
+        if let Some(s) = project(*p)
+            && dist_px(s) <= radius
+        {
+            let depth = dist_eye(*p);
+            if frame.is_none_or(|(d0, _)| depth < d0) {
+                frame = Some((depth, k));
+            }
+        }
+    }
+
+    match (shell, frame) {
+        (_, Some((fd, k))) if shell.is_none_or(|(sd, _)| fd <= sd + 1e-6) => {
+            let (p, v) = d.frame_points[k];
+            Some(Snap { at: p, value: v, unit: d.frame_unit.clone() })
+        }
+        (Some((_, e)), _) => {
+            let s = g.shells[e];
+            let n = if s[3] == u32::MAX { 3 } else { 4 };
+            let k = (0..n)
+                .filter_map(|k| g.joints.get(s[k] as usize).and_then(|p| project(*p)).map(|sp| (k, dist_px(sp))))
+                .min_by(|a, b| a.1.total_cmp(&b.1))?
+                .0;
+            let at = *g.joints.get(s[k] as usize)?;
+            Some(Snap { at, value: d.shell_values.get(e)?[k], unit: d.shell_unit.clone() })
+        }
+        _ => None,
+    }
+}
+
+fn in_triangle(p: [f32; 2], a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> bool {
+    let side = |u: [f32; 2], v: [f32; 2]| (v[0] - u[0]) * (p[1] - u[1]) - (v[1] - u[1]) * (p[0] - u[0]);
+    let (d1, d2, d3) = (side(a, b), side(b, c), side(c, a));
+    let neg = d1 < 0.0 || d2 < 0.0 || d3 < 0.0;
+    let pos = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
+    !(neg && pos)
 }

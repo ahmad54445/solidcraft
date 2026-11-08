@@ -2,7 +2,7 @@
 //! 3D view (docs/10-viewport-results.md).
 
 use custom_bridge::ui::egui;
-use custom_bridge::view::ramp;
+use custom_bridge::view::{ViewInfo, ramp};
 
 use crate::results_view::{self, Choice, FRAME_COMPONENTS, Legend, SHELL_COMPONENTS, Step};
 
@@ -55,8 +55,36 @@ pub fn status_controls(ui: &mut egui::Ui) {
     }
 }
 
+/// Drawn over the 3D view every frame: the legend and the value under the cursor.
+pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
+    legend(ui, area);
+    value_snap(ui, area, view);
+}
+
+/// The value under the cursor, as in CSiBridge: a small square on the corner/station and its value.
+fn value_snap(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
+    let Some(cursor) = ui.input(|i| i.pointer.hover_pos()).filter(|p| area.contains(*p)) else { return };
+    let data = results_view::snap_data();
+    if data.shell_values.is_empty() && data.frame_points.is_empty() {
+        return;
+    }
+    let geometry = crate::transfer::geometry();
+    let project = |p: [f64; 3]| (view.project)(p).map(|s| [s.x, s.y]);
+    let Some(hit) = results_view::snap(&geometry, &data, [cursor.x, cursor.y], &project, view.eye, 10.0) else { return };
+    let Some(at) = (view.project)(hit.at) else { return };
+    let painter = ui.painter_at(area);
+    let orange = egui::Color32::from_rgb(240, 130, 30);
+    painter.rect_stroke(egui::Rect::from_center_size(at, egui::vec2(9.0, 9.0)), 0.0, egui::Stroke::new(1.5, orange), egui::StrokeKind::Middle);
+    let text = format!("{} {}", format_value(hit.value), hit.unit);
+    let font = egui::FontId::proportional(13.0);
+    let galley = painter.layout_no_wrap(text, font, egui::Color32::BLACK);
+    let pos = at + egui::vec2(8.0, -8.0 - galley.size().y);
+    painter.rect_filled(egui::Rect::from_min_size(pos, galley.size()).expand(2.0), 2.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210));
+    painter.galley(pos, galley, egui::Color32::BLACK);
+}
+
 /// The legend: one colour bar per shown layer, at the right edge of the 3D view.
-pub fn legend(ui: &mut egui::Ui, area: egui::Rect) {
+fn legend(ui: &mut egui::Ui, area: egui::Rect) {
     let shown = results_view::shown();
     let bars: Vec<&Legend> = shown.shell.iter().chain(shown.frame.iter()).collect();
     if bars.is_empty() {

@@ -45,6 +45,7 @@ custom/features   ← das eigene Programm
 | `crates/ui-egui/src/browser.rs` | `browser_contents`: zeichnet die Zeilen über `custom_hook::browser_contents()` (Structure-Baum), sonst SolidCraft |
 | `crates/ui-egui/src/status_bar.rs` | `shown()`/`height()`: eigene Leiste immer sichtbar; SolidCraft-Leiste darüber, wenn ihre Einstellung an ist |
 | `crates/ui-egui/src/panel_runtime/app.rs` | Höhe der Statusleiste aus `status_bar::height()` |
+| `crates/ui-egui/src/viewport.rs` | `Frame.clouds` + `custom_hook::extra_clouds()`; Overlay über der Ansicht mit `ViewInfo` (Projektion, Kamera); Fit view + `custom_hook::extra_bounds()` |
 | `crates/ui-egui/src/i18n.rs` | `Catalog::shown()` ersetzt „SolidCraft“ durch den Produktnamen (alle Sprachen); englischer Fallback über `shown()` |
 
 ## Oberfläche anpassen (Feature `ui`, nur Desktop-App)
