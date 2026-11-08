@@ -55,112 +55,146 @@ pub fn status_controls(ui: &mut egui::Ui) {
     }
 }
 
-/// Drawn over the 3D view every frame: the legend and the value under the cursor.
+/// Drawn over the 3D view every frame: the legend and the value under the cursor. Labels,
+/// sections and values are drawn by the GPU (see `stable_labels`).
 pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     let flags = crate::vv::overlay();
-    if flags.values || flags.shell_labels.is_some() || flags.shell_sections.is_some() || flags.frame_labels.is_some() || flags.frame_sections.is_some() {
-        stable_labels(ui, area, view, flags);
-    }
+    stable_labels(ui, area, view, flags);
     if flags.legend {
         legend(ui, area);
     }
     value_snap(ui, area, view);
 }
 
-/// Texts of one shell, top to bottom, laid flat on its surface.
+/// One text block in the view: lines (text, colour) stacked around a world anchor, lifted toward
+/// the eye by `lift` (world units; half the thickness when extruded).
 #[derive(Clone, Debug)]
-struct ShellText {
-    shell: usize,
-    lines: Vec<(String, egui::Color32)>,
-}
-
-/// A frame text: 2D, next to the frame's midpoint (frames have no surface to lie on).
-#[derive(Clone, Debug)]
-struct FrameText {
+struct Placed {
     anchor: [f64; 3],
-    text: String,
-    colour: egui::Color32,
-    dy: f32,
+    lift: f64,
+    lines: Vec<(String, [u8; 3])>,
 }
 
-/// What was decided at the last camera stop.
-#[derive(Clone)]
+/// What the texts were last chosen for.
+#[derive(Clone, PartialEq)]
 struct LabelSet {
     camera: [f32; 7],
-    key: (usize, usize, crate::vv::Overlay, bool),
-    shells: std::sync::Arc<Vec<ShellText>>,
-    frames: std::sync::Arc<Vec<FrameText>>,
+    key: (usize, usize, crate::vv::Overlay, bool, u32),
 }
 
-/// Values, Labels and Sections (docs/10 P4, docs/12 §2.1).
-/// - On **shells** the text lies **flat on the shell** (UI font, along local axes 1 and 2, sized
-///   to the shell, turned so it is never mirrored or upside down).
-/// - On **frames** it is 2D text next to the midpoint (one per 64 px cell, element order).
-/// Which texts are shown – and which are hidden behind shown shells (ray test, screen-bucketed)
-/// – is decided **once per camera stop**. While the camera moves the chosen texts stay and move
-/// with their elements (a text may show through a surface until the camera stops).
+/// Text size (points per em) and line distance (points).
+const TEXT_PT: f32 = 12.0;
+const LINE_PT: f32 = 13.0;
+/// The SDF atlas as uploaded (one, built once).
+const ATLAS_ID: u64 = 1;
+
+fn atlas() -> &'static std::sync::Arc<custom_bridge::view::SpriteAtlas> {
+    static ATLAS: std::sync::OnceLock<std::sync::Arc<custom_bridge::view::SpriteAtlas>> = std::sync::OnceLock::new();
+    ATLAS.get_or_init(|| {
+        let f = crate::sdf::font();
+        std::sync::Arc::new(custom_bridge::view::SpriteAtlas { size: f.size, texels: f.texels.clone() })
+    })
+}
+
+/// Values, Labels and Sections (docs/10 P4, docs/12 §2.1) as **GPU text** (signed distance field
+/// font, `sdf.rs`): 2D, facing the screen, constant size, drawn by the GPU every frame at its
+/// element with the model's depth – a surface in front hides it, also while orbiting.
+/// **Which** texts are shown is decided once per camera stop (0.2 s still): element order, a text
+/// only where it does not overlap one already placed and not behind a shown shell. While the
+/// camera moves, the chosen texts stay (no jumping) and move with their elements.
 fn stable_labels(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay) {
     let g = crate::transfer::geometry();
     let data = results_view::snap_data();
-    if g.joints.is_empty() {
+    let ctx = ui.ctx().clone();
+    let (set_id, moved_id) = (egui::Id::unique("factory_label_set"), egui::Id::unique("factory_label_moved"));
+    let wanted = flags.values || flags.shell_labels.is_some() || flags.shell_sections.is_some() || flags.frame_labels.is_some() || flags.frame_sections.is_some();
+    if !wanted || g.joints.is_empty() {
+        if ctx.data(|d| d.get_temp::<LabelSet>(set_id)).is_some() {
+            custom_bridge::view::clear_sprites();
+            ctx.data_mut(|d| d.remove::<LabelSet>(set_id));
+            ctx.request_repaint();
+        }
         return;
     }
     let probe = |p: [f64; 3]| (view.project)(p).map_or([f32::NAN; 2], |s| [s.x, s.y]);
     let (p0, p1) = (probe(g.joints[0]), probe(g.joints[g.joints.len() - 1]));
     let camera = [view.eye[0] as f32, view.eye[1] as f32, view.eye[2] as f32, p0[0], p0[1], p1[0], p1[1]];
     let extrude = crate::vv::settings().view.view_type == crate::vv::ViewType::Extrude;
-    let key = (std::sync::Arc::as_ptr(&g) as usize, std::sync::Arc::as_ptr(&data) as usize, flags, extrude);
-    let ctx = ui.ctx().clone();
-    let (set_id, moved_id) = (egui::Id::unique("factory_label_set"), egui::Id::unique("factory_label_moved"));
+    let ppp = ctx.pixels_per_point();
+    let key = (std::sync::Arc::as_ptr(&g) as usize, std::sync::Arc::as_ptr(&data) as usize, flags, extrude, ppp.to_bits());
     let now = ctx.input(|i| i.time);
     let same = |a: &[f32; 7], b: &[f32; 7]| a.iter().zip(b).all(|(x, y)| (x - y).abs() <= 0.5 || (x.is_nan() && y.is_nan()));
     let (last_camera, last_move) = ctx.data(|d| d.get_temp::<([f32; 7], f64)>(moved_id)).unwrap_or((camera, f64::NEG_INFINITY));
     let last_move = if same(&last_camera, &camera) { last_move } else { now };
     ctx.data_mut(|d| d.insert_temp(moved_id, (camera, last_move)));
     let set = ctx.data(|d| d.get_temp::<LabelSet>(set_id));
-    let settled = now - last_move >= 0.2;
-    let stale = set.as_ref().is_none_or(|s| s.key != key || (settled && !same(&s.camera, &camera)));
-    let set = if stale && (settled || set.as_ref().is_none_or(|s| s.key != key)) {
-        let (shells, frames) = choose(&g, &data, area, view, flags);
-        let fresh = LabelSet { camera, key, shells: std::sync::Arc::new(shells), frames: std::sync::Arc::new(frames) };
-        ctx.data_mut(|d| d.insert_temp(set_id, fresh.clone()));
-        fresh
-    } else {
-        if !settled {
-            ctx.request_repaint_after(std::time::Duration::from_millis(220)); // decide again once it stops
-        }
-        let Some(set) = set else { return };
-        set
-    };
-    let painter = ui.painter_at(area);
-    for t in set.shells.iter() {
-        shell_decal(&painter, &g, t, view, extrude);
+    let changed = set.as_ref().is_none_or(|s| s.key != key);
+    let moved = set.as_ref().is_some_and(|s| !same(&s.camera, &camera));
+    if !changed && !moved {
+        return;
     }
-    let font = egui::FontId::proportional(11.0);
-    for t in set.frames.iter() {
-        if let Some(s) = (view.project)(t.anchor).filter(|s| area.contains(*s)) {
-            painter.text(s + egui::vec2(0.0, t.dy), egui::Align2::CENTER_CENTER, &t.text, font.clone(), t.colour);
-        }
+    if !changed && now - last_move < 0.2 {
+        ctx.request_repaint_after(std::time::Duration::from_millis(220)); // choose again once it stops
+        return;
     }
+    let placed = choose(&g, &data, area, view, flags, extrude);
+    custom_bridge::view::show_sprites(atlas(), ATLAS_ID, sprites(&placed, ppp));
+    ctx.data_mut(|d| d.insert_temp(set_id, LabelSet { camera, key }));
+    ctx.request_repaint();
 }
 
-/// Decide the texts for this camera: shells with their lines (not hidden behind other shells),
-/// frames one per 64 px cell in element order (not hidden).
-fn choose(g: &crate::transfer::Geometry, data: &results_view::SnapData, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay) -> (Vec<ShellText>, Vec<FrameText>) {
+/// The glyph sprites of the placed texts (physical pixels).
+fn sprites(placed: &[Placed], ppp: f32) -> Vec<custom_bridge::view::Sprite> {
+    let font = crate::sdf::font();
+    let (px, line) = (TEXT_PT * ppp, LINE_PT * ppp);
+    let mut out = Vec::new();
+    for t in placed {
+        let n = t.lines.len() as f32;
+        for (i, (text, [r, g, b])) in t.lines.iter().enumerate() {
+            let dy = (i as f32 - (n - 1.0) / 2.0) * line;
+            for (rect, uv) in font.layout(text, px, dy) {
+                out.push(custom_bridge::view::Sprite { anchor: t.anchor.map(|v| v as f32), lift: t.lift as f32, rect, uv, rgba: [*r, *g, *b, 255] });
+            }
+        }
+    }
+    out
+}
+
+/// Decide the texts for this camera, in element order (shells, then frames, then frame values):
+/// a block is taken where its screen rectangle overlaps no block taken before (16 px grid) and no
+/// shown shell lies in front of it (ray test, screen-bucketed).
+fn choose(g: &crate::transfer::Geometry, data: &results_view::SnapData, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay, extrude: bool) -> Vec<Placed> {
     let project = |p: [f64; 3]| (view.project)(p).map(|s| [s.x, s.y]);
     let occluder = results_view::Occluder::new(g, &data.shell_shown, view.eye, &project, 32.0);
-    let rgb = |[r, g_, b]: [u8; 3]| egui::Color32::from_rgb(r, g_, b);
     let name = |list: &Vec<String>, k: usize| list.get(k).cloned().unwrap_or_default();
-    let value_colour = egui::Color32::from_rgb(20, 20, 24);
-
-    let mut shells = Vec::new();
+    let value_colour = [20, 20, 24];
+    let font = crate::sdf::font();
+    let mut taken: std::collections::HashSet<(i32, i32)> = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    // Take a block if it fits; `own` is its shell (not counted as in front of it).
+    let mut take = |p: Placed, own: Option<usize>| {
+        let lines: Vec<(String, [u8; 3])> = p.lines.into_iter().filter(|(t, _)| !t.is_empty()).collect();
+        if lines.is_empty() {
+            return;
+        }
+        let Some(sp) = project(p.anchor).filter(|s| area.contains(egui::pos2(s[0], s[1]))) else { return };
+        let w = lines.iter().map(|(t, _)| font.width(t)).fold(0.0f32, f32::max) * TEXT_PT + 4.0;
+        let h = lines.len() as f32 * LINE_PT;
+        let cells = |lo: f32, hi: f32| ((lo / 16.0).floor() as i32)..=((hi / 16.0).floor() as i32);
+        let block: Vec<(i32, i32)> = cells(sp[0] - w / 2.0, sp[0] + w / 2.0).flat_map(|x| cells(sp[1] - h / 2.0, sp[1] + h / 2.0).map(move |y| (x, y))).collect();
+        if block.iter().any(|c| taken.contains(c)) || occluder.hidden(p.anchor, sp, own) {
+            return;
+        }
+        taken.extend(block);
+        out.push(Placed { lines, ..p });
+    };
     for (e, s) in g.shells.iter().enumerate() {
         if !data.shell_shown.get(e).copied().unwrap_or(true) {
             continue;
         }
         let mut lines = Vec::new();
         if let Some(c) = flags.shell_labels {
-            lines.push((name(&g.shell_names, e), rgb(c)));
+            lines.push((name(&g.shell_names, e), c));
         }
         if flags.values
             && let Some(v) = data.shell_values.get(e).filter(|v| !v[0].is_nan())
@@ -169,52 +203,32 @@ fn choose(g: &crate::transfer::Geometry, data: &results_view::SnapData, area: eg
             lines.push((format_value(v[..n].iter().sum::<f32>() / n as f32), value_colour));
         }
         if let Some(c) = flags.shell_sections {
-            lines.push((name(&g.shell_sections, s[4] as usize), rgb(c)));
+            lines.push((name(&g.shell_sections, s[4] as usize), c));
         }
-        lines.retain(|(t, _)| !t.is_empty());
-        if lines.is_empty() {
+        let lift = if extrude { g.shell_thickness.get(s[4] as usize).copied().unwrap_or(0.0) / 2.0 } else { 0.0 };
+        take(Placed { anchor: shell_centre(g, e), lift, lines }, Some(e));
+    }
+    for (e, f) in g.frames.iter().enumerate() {
+        if !data.frame_shown.get(e).copied().unwrap_or(true) {
             continue;
         }
-        let c = shell_centre(g, e);
-        let Some(sc) = project(c).filter(|p| area.contains(egui::pos2(p[0], p[1]))) else { continue };
-        if !occluder.hidden(c, sc, Some(e)) {
-            shells.push(ShellText { shell: e, lines });
+        let (Some(a), Some(b)) = (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize)) else { continue };
+        let mut lines = Vec::new();
+        if let Some(c) = flags.frame_labels {
+            lines.push((name(&g.frame_names, e), c));
         }
-    }
-
-    let mut frames = Vec::new();
-    let mid = |e: usize| {
-        let f = g.frames[e];
-        match (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize)) {
-            (Some(a), Some(b)) => Some([(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0, (a[2] + b[2]) / 2.0]),
-            _ => None,
+        if let Some(c) = flags.frame_sections {
+            lines.push((name(&g.frame_sections, f[2] as usize), c));
         }
-    };
-    let mut kinds: Vec<(Vec<([f64; 3], String)>, egui::Color32, f32)> = Vec::new();
-    if let Some(col) = flags.frame_labels {
-        kinds.push(((0..g.frames.len()).filter(|e| data.frame_shown.get(*e).copied().unwrap_or(true)).filter_map(|e| mid(e).map(|p| (p, name(&g.frame_names, e)))).collect(), rgb(col), 12.0));
+        take(Placed { anchor: [0, 1, 2].map(|i| (a[i] + b[i]) / 2.0), lift: 0.0, lines }, None);
     }
     if flags.values {
-        kinds.push((data.frame_points.iter().map(|(p, v)| (*p, format_value(*v))).collect(), value_colour, 0.0));
-    }
-    if let Some(col) = flags.frame_sections {
-        kinds.push(((0..g.frames.len()).filter(|e| data.frame_shown.get(*e).copied().unwrap_or(true)).filter_map(|e| mid(e).map(|p| (p, name(&g.frame_sections, g.frames[e][2] as usize)))).collect(), rgb(col), 24.0));
-    }
-    for (candidates, colour, dy) in kinds {
-        let mut taken = std::collections::HashSet::new();
-        for (anchor, text) in candidates {
-            if text.is_empty() {
-                continue;
-            }
-            let Some(sp) = project(anchor).filter(|p| area.contains(egui::pos2(p[0], p[1]))) else { continue };
-            let slot = ((sp[0] / 64.0) as i32, (sp[1] / 64.0) as i32);
-            if !taken.contains(&slot) && !occluder.hidden(anchor, sp, None) {
-                taken.insert(slot);
-                frames.push(FrameText { anchor, text, colour, dy });
-            }
+        for (p, v) in &data.frame_points {
+            take(Placed { anchor: *p, lift: 0.0, lines: vec![(format_value(*v), value_colour)] }, None);
         }
     }
-    (shells, frames)
+    drop(take);
+    out
 }
 
 fn shell_centre(g: &crate::transfer::Geometry, e: usize) -> [f64; 3] {
@@ -229,94 +243,6 @@ fn shell_centre(g: &crate::transfer::Geometry, e: usize) -> [f64; 3] {
         }
     }
     c
-}
-
-/// Lines of text laid flat on a shell: the UI font's glyph mesh mapped onto the shell plane (local
-/// axes 1 and 2 from CSiBridge; the first edge and the normal when missing), sized to the shell
-/// (each line ≤ 22 % of its height, ≤ 85 % of its width), turned so it reads correctly from the
-/// side and the angle it is seen from. On the top face when extruded.
-fn shell_decal(painter: &egui::Painter, g: &crate::transfer::Geometry, t: &ShellText, view: &ViewInfo<'_>, extrude: bool) {
-    let s = g.shells[t.shell];
-    let n = if s[3] == u32::MAX { 3 } else { 4 };
-    let corners: Vec<[f64; 3]> = s[..n].iter().filter_map(|j| g.joints.get(*j as usize).copied()).collect();
-    if corners.len() < 3 {
-        return;
-    }
-    let sub = |a: [f64; 3], b: [f64; 3]| [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-    let dot = |a: [f64; 3], b: [f64; 3]| a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    let cross = |u: [f64; 3], v: [f64; 3]| [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
-    let unit = |v: [f64; 3]| {
-        let l = dot(v, v).sqrt();
-        if l > 1e-12 { Some(v.map(|c| c / l)) } else { None }
-    };
-    let c = shell_centre(g, t.shell);
-    let axes = g.shell_axes.get(t.shell).and_then(crate::transfer::local_axes);
-    let (mut right, mut up, normal) = match axes {
-        Some([a1, a2, a3]) => (a1, a2, a3),
-        None => {
-            let Some(r) = unit(sub(corners[1], corners[0])) else { return };
-            let Some(nrm) = unit(cross(sub(corners[1], corners[0]), sub(corners[2], corners[0]))) else { return };
-            (r, cross(nrm, r), nrm)
-        }
-    };
-    // The face toward the eye (top face when extruded); seen from behind, mirror back.
-    let facing = dot(normal, sub(view.eye, c)) >= 0.0;
-    let half = if extrude { g.shell_thickness.get(s[4] as usize).copied().unwrap_or(0.0) / 2.0 } else { 0.0 };
-    let side = if facing { 1.0 } else { -1.0 };
-    let origin = [0, 1, 2].map(|i| c[i] + normal[i] * side * half);
-    if !facing {
-        right = right.map(|x| -x);
-    }
-    // Upside down on screen → turn by 180°.
-    let (Some(o), Some(u)) = ((view.project)(origin), (view.project)([origin[0] + up[0], origin[1] + up[1], origin[2] + up[2]])) else { return };
-    if u.y > o.y {
-        right = right.map(|x| -x);
-        up = up.map(|x| -x);
-    }
-    // The shell's extent along right / up.
-    let (mut w, mut h) = (0.0f64, 0.0f64);
-    for p in &corners {
-        let d = sub(*p, c);
-        w = w.max(dot(d, right).abs() * 2.0);
-        h = h.max(dot(d, up).abs() * 2.0);
-    }
-    if w <= 0.0 || h <= 0.0 {
-        return;
-    }
-    let font = egui::FontId::proportional(32.0);
-    let galleys: Vec<_> = t.lines.iter().map(|(text, colour)| painter.layout_no_wrap(text.clone(), font.clone(), *colour)).collect();
-    let line_px = galleys.iter().map(|g| g.size().y).fold(0.0f32, f32::max).max(1.0);
-    let widest_px = galleys.iter().map(|g| g.size().x).fold(0.0f32, f32::max).max(1.0);
-    // World units per galley pixel: line height ≤ 22 % of the shell, width ≤ 85 %.
-    let k = (0.22 * h / f64::from(line_px)).min(0.85 * w / f64::from(widest_px));
-    // Too small on screen to read: skip.
-    let Some(top) = (view.project)([origin[0] + up[0] * k * f64::from(line_px), origin[1] + up[1] * k * f64::from(line_px), origin[2] + up[2] * k * f64::from(line_px)]) else { return };
-    if (top - o).length() < 5.0 {
-        return;
-    }
-    let tex = painter.fonts(|f| f.font_image_size());
-    let uv_scale = egui::vec2(1.0 / tex[0] as f32, 1.0 / tex[1] as f32);
-    let total = f64::from(line_px) * galleys.len() as f64;
-    let mut mesh = egui::Mesh::default();
-    for (i, galley) in galleys.iter().enumerate() {
-        let gw = f64::from(galley.size().x);
-        // Line i's top, measured down from the block's top (block centred on the shell).
-        let y_top = total / 2.0 - f64::from(line_px) * i as f64;
-        let colour = t.lines[i].1;
-        for row in &galley.rows {
-            let base = mesh.vertices.len() as u32;
-            for v in &row.row.visuals.mesh.vertices {
-                let (gx, gy) = (f64::from(row.pos.x + v.pos.x), f64::from(row.pos.y + v.pos.y));
-                let (x, y) = ((gx - gw / 2.0) * k, (y_top - gy) * k);
-                let world = [0, 1, 2].map(|j| origin[j] + right[j] * x + up[j] * y);
-                let Some(p) = (view.project)(world) else { return };
-                let col = if v.color == egui::Color32::PLACEHOLDER { colour } else { v.color };
-                mesh.vertices.push(egui::epaint::Vertex { pos: p, uv: (v.uv.to_vec2() * uv_scale).to_pos2(), color: col });
-            }
-            mesh.indices.extend(row.row.visuals.mesh.indices.iter().map(|ix| base + ix));
-        }
-    }
-    painter.add(egui::Shape::mesh(mesh));
 }
 
 /// The value under the cursor, as in CSiBridge: a small square on the corner/station and its value.

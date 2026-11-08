@@ -46,6 +46,8 @@ custom/features   ← das eigene Programm
 | `crates/ui-egui/src/status_bar.rs` | `shown()`/`height()`: eigene Leiste immer sichtbar; SolidCraft-Leiste darüber, wenn ihre Einstellung an ist |
 | `crates/ui-egui/src/panel_runtime/app.rs` | Höhe der Statusleiste aus `status_bar::height()` |
 | `crates/ui-egui/src/viewport.rs` | `Frame.clouds` + `custom_hook::extra_clouds()`; Overlay über der Ansicht mit `ViewInfo` (Projektion, Kamera); Fit view + `custom_hook::extra_bounds()` |
+| `crates/gpu/src/view/sprites.rs` | Neue Datei: bildschirmparallele Sprites aus einem Alpha-Atlas (SDF-Text), mit Tiefe der Szene; `set_sprites()` |
+| `crates/gpu/src/view.rs` | `mod sprites` + Re-Export; Renderer-Felder `sprite_pipes`/`sprites`; Pipeline-Erzeugung; `hash_sprites` im Frame-Key; `prepare` nach den Clouds; `paint` nach den Clouds im Hauptpass |
 | `crates/ui-egui/src/i18n.rs` | `Catalog::shown()` ersetzt „SolidCraft“ durch den Produktnamen (alle Sprachen); englischer Fallback über `shown()` |
 
 ## Oberfläche anpassen (Feature `ui`, nur Desktop-App)

@@ -158,3 +158,22 @@ fn style(coloring: Coloring) -> CloudStyle {
         Coloring::Ramp(r) => CloudStyle { mode: ColorMode::Ramp, range: r, point_size: 0.0, ..Default::default() },
     }
 }
+
+/// One screen-facing text glyph (docs/12 §2.1): drawn by the GPU at a world anchor with the
+/// model's depth, constant size in pixels; see [`show_sprites`].
+pub use solidcraft_gpu::view::{Sprite, SpriteAtlas};
+
+static SPRITE_VERSION: AtomicU64 = AtomicU64::new(1);
+
+/// Draw `sprites` from `atlas` (an alpha distance field; `atlas_id` changes when it does) in every
+/// viewport from now on, every frame, until replaced or cleared.
+pub fn show_sprites(atlas: &Arc<SpriteAtlas>, atlas_id: u64, sprites: Vec<Sprite>) {
+    let version = SPRITE_VERSION.fetch_add(1, Ordering::Relaxed);
+    let set = solidcraft_gpu::view::SpriteSet { atlas_version: atlas_id, atlas: atlas.clone(), version, sprites: Arc::new(sprites) };
+    solidcraft_gpu::view::set_sprites(Some(Arc::new(set)));
+}
+
+/// Remove all sprites.
+pub fn clear_sprites() {
+    solidcraft_gpu::view::set_sprites(None);
+}

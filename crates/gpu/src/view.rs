@@ -21,6 +21,8 @@ mod ao;
 pub use ao::GroundAo;
 mod clouds;
 pub use clouds::{CELL_SIZE, Cell, CloudFilter, CloudStyle, ColorMode, FILTERS, GpuCloud, cloud_cell};
+mod sprites; // [CUSTOM] Factory: screen-facing sprites (SDF text)
+pub use sprites::{SPRITE_SIZE, Sprite, SpriteAtlas, SpriteSet, set_sprites}; // [CUSTOM]
 #[cfg(not(target_arch = "wasm32"))]
 mod msaa_check;
 mod oit;
@@ -2253,6 +2255,8 @@ pub struct Renderer {
     quads: Vec<(u64, Batch)>,
     cloud_pipes: clouds::CloudPipes,
     clouds: clouds::CloudDraws,
+    sprite_pipes: sprites::SpritePipes, // [CUSTOM]
+    sprites: sprites::SpriteDraws, // [CUSTOM]
     access_bgl: wgpu::BindGroupLayout,
     /// The accessibility depth map (a 1 × 1 stand-in when there is none) and its version.
     access_bind: wgpu::BindGroup,
@@ -3104,6 +3108,7 @@ impl Renderer {
             )
         };
         let cloud_pipes = || clouds::CloudPipes::new(device, &module, &bgl, t, depth(wgpu::CompareFunction::Less, true));
+        let sprite_pipes = || sprites::SpritePipes::new(device, &bgl, t, depth(wgpu::CompareFunction::LessEqual, false)); // [CUSTOM]
         let guide_trans = || pipeline("sc_guide_trans", "vs_tri", "fs_tri_all", tri_layout(), depth(wgpu::CompareFunction::LessEqual, false), alpha);
         // Each job on a thread of its own where the device allows it: D3D12 compiles every shader
         // as its pipeline is made, which took seconds one after another (#4860).
@@ -3121,6 +3126,7 @@ impl Renderer {
             let lines_all = jobs.spawn(lines_all);
             let guide_trans = jobs.spawn(guide_trans);
             let cloud_pipes = jobs.spawn(cloud_pipes);
+            let sprite_pipes = jobs.spawn(sprite_pipes); // [CUSTOM]
             let image = jobs.spawn(image);
             let ao = jobs.spawn(ao);
             let ground_ao = jobs.spawn(ground_ao);
@@ -3176,6 +3182,8 @@ impl Renderer {
                 quads: Vec::new(),
                 cloud_pipes: cloud_pipes.join(),
                 clouds: Default::default(),
+                sprite_pipes: sprite_pipes.join(), // [CUSTOM]
+                sprites: Default::default(), // [CUSTOM]
                 tri,
                 tri_cut: cut(tri_marks, tri_cap),
                 tri_planned,
@@ -3552,6 +3560,7 @@ pub fn frame_key(cb: &Frame) -> u64 {
         img.opacity.to_bits().hash(&mut h);
     }
     clouds::hash_clouds(&cb.clouds, &mut h);
+    sprites::hash_sprites(&mut h); // [CUSTOM]
     match &cb.access {
         Some(a) => {
             true.hash(&mut h);
@@ -3719,6 +3728,7 @@ impl Renderer {
             }
         }
         res.clouds.prepare(device, queue, &res.cloud_pipes, &cb.clouds);
+        res.sprites.prepare(device, queue, &res.sprite_pipes); // [CUSTOM]
         res.ss_ready = (cb.ssaa != 1.0 || see_through || res.window_differs()) && res.supersample(device, encoder, cb, see_through);
         res.ss_key = res.ss_ready.then_some(key);
     }
@@ -3999,6 +4009,7 @@ impl Renderer {
         tris(pass, &res.pbr, &m.pbr);
         if !cb.product {
             res.clouds.paint(pass, &res.cloud_pipes, tally);
+            res.sprites.paint(pass, &res.sprite_pipes, tally); // [CUSTOM]
         }
         in_moving(pass, &|pass, mv| tris(pass, &res.pbr, &mv.pbr));
         // Whole-body tints first, so a face or an edge highlighted over the body (in `h.tris`

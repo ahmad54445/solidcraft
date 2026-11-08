@@ -11,6 +11,7 @@ pub mod vv;
 pub mod transfer;
 pub mod results_view;
 pub mod model;
+pub mod sdf;
 mod plate;
 #[cfg(feature = "ui")]
 mod ui_browser;
