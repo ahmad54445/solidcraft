@@ -137,3 +137,47 @@ fn a_hidden_category_hides_its_subcategories_which_keep_their_setting() {
     assert!(vv::settings().frames.labels.visible);
     vv::apply(Settings::default());
 }
+
+#[test]
+fn view_options_shape_the_drawn_shells() {
+    use custom_features::vv::{SHRINK, ViewType};
+    let d = dir("view");
+    let (g, blocks) = two_quads(&d);
+    let choice = Choice { load: Some("DC".into()), shell: 3, ..Default::default() };
+    let count = |s: &Settings| {
+        let b = build_with(&g, &blocks, &choice, Units::default(), s).unwrap();
+        let tris: usize = b.layers.iter().map(|l| l.triangles.len()).sum();
+        let segs: usize = b.layers.iter().map(|l| l.segments.len()).sum();
+        (tris, segs, b.layers)
+    };
+    // Standard: 2 triangles per quad
+    let (t, s, _) = count(&Settings::default());
+    assert_eq!((t, s), (4, 0));
+    // Extrude: bottom + top (2 + 2) and 4 sides (8) per quad
+    let mut ext = Settings::default();
+    ext.view.view_type = ViewType::Extrude;
+    let (t, _, layers) = count(&ext);
+    assert_eq!(t, 24);
+    // the slab of element 0 (thickness 0.3 m, normal +z from its corners) spans z = ±0.15
+    let zs: Vec<f32> = layers[0].triangles.iter().flat_map(|tr| tr.corners.map(|c| c[2])).collect();
+    let (lo, hi) = zs.iter().fold((f32::MAX, f32::MIN), |(l, h), z| (l.min(*z), h.max(*z)));
+    assert!((lo + 0.35).abs() < 1e-6 && (hi - 0.35).abs() < 1e-6, "thicker element 1 (0.7 m) sets the extremes: {lo} {hi}");
+    // Fill off: outlines only, 4 edges per quad
+    let mut outline = Settings::default();
+    outline.view.fill = false;
+    assert_eq!(count(&outline).0, 0);
+    assert_eq!(count(&outline).1, 8);
+    // Show Edges: an extra plain layer with 4 edges per quad
+    let mut edges = Settings::default();
+    edges.view.edges = true;
+    let (t, s, layers) = count(&edges);
+    assert_eq!((t, s), (4, 8));
+    assert_eq!(layers.last().unwrap().segments.len(), 8);
+    // Shrink: corners move toward the centre (quad 0 centre (0.5, 0.5))
+    let mut shrink = Settings::default();
+    shrink.view.shrink = true;
+    let (_, _, layers) = count(&shrink);
+    let first = layers[0].triangles[0].corners[0];
+    let expected = 0.5 - 0.5 * SHRINK as f32;
+    assert!((first[0] - expected).abs() < 1e-6 && (first[1] - expected).abs() < 1e-6);
+}

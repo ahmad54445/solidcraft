@@ -73,9 +73,43 @@ pub struct Filter {
     pub action: Action,
 }
 
+/// View Type (tab View Options, docs/12 §2.2).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum ViewType {
+    /// Frames on their centre line, shells on their mid-surface.
+    #[default]
+    Standard,
+    /// Shells as slabs of their thickness along local axis 3 (frames stay lines until their
+    /// section dimensions are transferred).
+    Extrude,
+}
+
+/// How all objects are drawn (tab View Options › View Type, General).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ViewOptions {
+    pub view_type: ViewType,
+    /// Every element slightly smaller around its centre, so element borders show.
+    pub shrink: bool,
+    /// Surfaces filled; off = outlines only.
+    pub fill: bool,
+    /// Element edges as lines (in the category's line colour).
+    pub edges: bool,
+}
+
+impl Default for ViewOptions {
+    fn default() -> Self {
+        Self { view_type: ViewType::Standard, shrink: false, fill: true, edges: false }
+    }
+}
+
+/// Shrink factor of Shrink Objects (size kept around the element centre).
+pub const SHRINK: f64 = 0.85;
+
 /// All settings of the (current) view.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Settings {
+    /// Tab View Options.
+    pub view: ViewOptions,
     pub shells: Category,
     pub frames: Category,
     /// Results tab.
@@ -89,6 +123,7 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
+            view: ViewOptions::default(),
             shells: Category {
                 visible: true,
                 line: [60, 60, 70],

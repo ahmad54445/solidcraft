@@ -201,6 +201,7 @@ enum Tab {
     Model,
     Imported,
     Filters,
+    View,
 }
 
 /// Visibility/Graphic Overrides (docs/12): Model Categories, Imported Categories, Filters.
@@ -214,6 +215,7 @@ fn visibility_graphics(ctx: &egui::Context) {
     let mut tab = ctx.data(|d| d.get_temp::<u8>(tab_id)).map_or(Tab::Model, |t| match t {
         1 => Tab::Imported,
         2 => Tab::Filters,
+        3 => Tab::View,
         _ => Tab::Model,
     });
     let geometry = crate::transfer::geometry();
@@ -221,7 +223,7 @@ fn visibility_graphics(ctx: &egui::Context) {
     let mut close = false;
     egui::Window::new("Visibility/Graphic Overrides").id(egui::Id::unique("factory_vv")).open(&mut open).resizable(true).default_width(760.0).show(ctx, |ui| {
         ui.horizontal(|ui| {
-            for (t, name) in [(Tab::Model, "Model Categories"), (Tab::Imported, "Imported Categories"), (Tab::Filters, "Filters")] {
+            for (t, name) in [(Tab::Model, "Model Categories"), (Tab::Imported, "Imported Categories"), (Tab::Filters, "Filters"), (Tab::View, "View Options")] {
                 if ui.selectable_label(tab == t, name).clicked() {
                     tab = t;
                 }
@@ -232,6 +234,7 @@ fn visibility_graphics(ctx: &egui::Context) {
             Tab::Model => model_tab(ui, &mut edit, &geometry),
             Tab::Imported => imported_tab(ui),
             Tab::Filters => filters_tab(ui, &mut edit, &geometry),
+            Tab::View => view_tab(ui, &mut edit),
         }
         ui.separator();
         ui.horizontal(|ui| {
@@ -415,6 +418,27 @@ fn model_tab(ui: &mut egui::Ui, s: &mut Settings, g: &crate::transfer::Geometry)
         }
     });
     ui.weak("Category Visibility unticked = CSiBridge's \"Not in View\"; its subcategories keep their setting. Subcategory Lines = text colour. Contour, legend and values: Results panel.");
+}
+
+/// View Options (docs/12 §2.2): how all objects are drawn – View Type and General.
+fn view_tab(ui: &mut egui::Ui, s: &mut Settings) {
+    use crate::vv::ViewType;
+    ui.horizontal_top(|ui| {
+        ui.group(|ui| {
+            ui.strong("View Type");
+            ui.radio_value(&mut s.view.view_type, ViewType::Standard, "Standard");
+            ui.radio_value(&mut s.view.view_type, ViewType::Extrude, "Extrude")
+                .on_hover_text("Shells as slabs of their thickness along local axis 3. Frames stay lines until their section dimensions are transferred.");
+        });
+        ui.group(|ui| {
+            ui.strong("General");
+            ui.checkbox(&mut s.view.shrink, "Shrink Objects");
+            ui.checkbox(&mut s.view.fill, "Fill Objects");
+            ui.add_enabled(s.view.fill, egui::Checkbox::new(&mut s.view.edges, "Show Edges"))
+                .on_hover_text("Element edges in the Shells line colour (Model Categories).");
+        });
+    });
+    ui.weak("Computed from the transferred geometry on a worker thread – nothing is read from CSiBridge again.");
 }
 
 /// Linked files (browser › Linked): listed; drawing them is planned.

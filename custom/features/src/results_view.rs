@@ -311,8 +311,10 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
         let mut shell_layer = None;
         let mut frame_layer = None;
 
-        // Shells grouped by how they are coloured.
-        let mut shell_groups: BTreeMap<Option<[u8; 3]>, Vec<Triangle>> = BTreeMap::new();
+        // Shells grouped by how they are coloured; their shape follows View Options (docs/12 §2.2).
+        let opts = &settings.view;
+        let mut shell_groups: BTreeMap<Option<[u8; 3]>, (Vec<Triangle>, Vec<Segment>)> = BTreeMap::new();
+        let mut edges: Vec<Segment> = Vec::new();
         for (e, s) in g.shells.iter().enumerate() {
             let colour = match shell_look[e] {
                 Look::Hidden => continue,
@@ -322,14 +324,38 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
                 Look::Colour(c) => Some(c),
             };
             let v = shell_values.get(e).copied().unwrap_or([0.0; 4]);
-            let tri = |a: usize, b: usize, c: usize| Triangle { corners: [p(s[a]), p(s[b]), p(s[c])], values: [v[a], v[b], v[c]] };
-            let list = shell_groups.entry(colour).or_default();
-            list.push(tri(0, 1, 2));
-            if s[3] != u32::MAX {
-                list.push(tri(0, 2, 3));
+            let n = if s[3] == u32::MAX { 3 } else { 4 };
+            let thickness = g.shell_thickness.get(s[4] as usize).copied().unwrap_or(0.0);
+            let faces = shell_faces(g, e, n, opts, thickness);
+            let (tris, segs) = shell_groups.entry(colour).or_default();
+            for face in &faces {
+                if opts.fill {
+                    tris.push(Triangle { corners: [face[0], face[1], face[2]], values: [v[0], v[1], v[2]] });
+                    if n == 4 {
+                        tris.push(Triangle { corners: [face[0], face[2], face[3]], values: [v[0], v[2], v[3]] });
+                    }
+                } else {
+                    for k in 0..n {
+                        segs.push(Segment { ends: [face[k], face[(k + 1) % n]], values: [v[k], v[(k + 1) % n]] });
+                    }
+                }
+                if opts.edges && opts.fill {
+                    for k in 0..n {
+                        edges.push(Segment { ends: [face[k], face[(k + 1) % n]], values: [0.0, 0.0] });
+                    }
+                }
+            }
+            // Extruded slab: the four side faces between bottom and top.
+            if faces.len() == 2 && opts.fill {
+                let (b, t) = (faces[0], faces[1]);
+                for k in 0..n {
+                    let k2 = (k + 1) % n;
+                    tris.push(Triangle { corners: [b[k], b[k2], t[k2]], values: [v[k], v[k2], v[k2]] });
+                    tris.push(Triangle { corners: [b[k], t[k2], t[k]], values: [v[k], v[k2], v[k]] });
+                }
             }
         }
-        for (colour, triangles) in shell_groups {
+        for (colour, (triangles, segments)) in shell_groups {
             let coloring = match (colour, shell_range) {
                 (None, Some(r)) => {
                     shell_layer = Some(layers.len());
@@ -338,7 +364,10 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
                 (None, None) => Coloring::Plain(settings.shells.surface),
                 (Some(c), _) => Coloring::Plain(c),
             };
-            layers.push(Layer { triangles, segments: Vec::new(), coloring });
+            layers.push(Layer { triangles, segments, coloring });
+        }
+        if !edges.is_empty() {
+            layers.push(Layer { triangles: Vec::new(), segments: edges, coloring: Coloring::Plain(settings.shells.line) });
         }
 
         // Frames grouped the same way.
@@ -353,8 +382,10 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
             };
             let (a, b) = (p(f[0]), p(f[1]));
             let len = ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2) + (b[2] - a[2]).powi(2)).sqrt().max(f32::EPSILON);
+            // Shrink Objects: the drawn part keeps SHRINK of the length around the midpoint.
+            let (t0, t1) = if settings.view.shrink { ((1.0 - vv::SHRINK as f32) / 2.0, (1.0 + vv::SHRINK as f32) / 2.0) } else { (0.0, 1.0) };
             let at = |sta: f64| {
-                let t = (sta as f32 / len).clamp(0.0, 1.0);
+                let t = t0 + (t1 - t0) * (sta as f32 / len).clamp(0.0, 1.0);
                 [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
             };
             let list = frame_groups.entry(colour).or_default();
@@ -362,7 +393,7 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
                 Some(pts) => list.extend(pts.windows(2).map(|w| Segment { ends: [at(w[0].0), at(w[1].0)], values: [w[0].1, w[1].1] })),
                 None => {
                     let v = frame_values.get(e).and_then(|pts| pts.first()).map_or(0.0, |x| x.1);
-                    list.push(Segment { ends: [a, b], values: [v, v] });
+                    list.push(Segment { ends: [at(0.0), at(f64::from(len))], values: [v, v] });
                 }
             }
         }
@@ -421,6 +452,40 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
         shell_values,
         frame_values,
     })
+}
+
+/// The faces of shell `e` as View Options draw it: its corners (shrunk around the centre for
+/// Shrink Objects); for Extrude a bottom and a top face, half the thickness each way along local
+/// axis 3 (from CSiBridge; the corner normal when the axes are missing).
+#[cfg(feature = "ui")]
+fn shell_faces(g: &Geometry, e: usize, n: usize, opts: &vv::ViewOptions, thickness: f64) -> Vec<[[f32; 3]; 4]> {
+    let s = g.shells[e];
+    let corner = |k: usize| g.joints.get(s[k] as usize).copied().unwrap_or([0.0; 3]);
+    let mut pts: [[f64; 3]; 4] = [[0.0; 3]; 4];
+    for (k, slot) in pts.iter_mut().enumerate().take(n) {
+        *slot = corner(k);
+    }
+    if opts.shrink {
+        let c = [0, 1, 2].map(|i| pts[..n].iter().map(|p| p[i]).sum::<f64>() / n as f64);
+        for p in pts[..n].iter_mut() {
+            for i in 0..3 {
+                p[i] = c[i] + (p[i] - c[i]) * vv::SHRINK;
+            }
+        }
+    }
+    let as_f32 = |q: [[f64; 3]; 4]| q.map(|p| p.map(|x| x as f32));
+    if opts.view_type != vv::ViewType::Extrude || thickness <= 0.0 {
+        return vec![as_f32(pts)];
+    }
+    let normal = g.shell_axes.get(e).and_then(crate::transfer::local_axes).map(|a| a[2]).unwrap_or_else(|| {
+        let (a, b, c) = (pts[0], pts[1], pts[2]);
+        let (u, v) = ([b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]);
+        let x = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+        let l = (x[0] * x[0] + x[1] * x[1] + x[2] * x[2]).sqrt().max(f64::EPSILON);
+        x.map(|c| c / l)
+    });
+    let shift = |d: f64| pts.map(|p| [p[0] + normal[0] * d, p[1] + normal[1] * d, p[2] + normal[2] * d]);
+    vec![as_f32(shift(-thickness / 2.0)), as_f32(shift(thickness / 2.0))]
 }
 
 /// Avg. Nodal (rule P3): at each joint the mean of the corner values of the elements meeting
