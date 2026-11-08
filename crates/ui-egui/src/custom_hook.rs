@@ -101,6 +101,18 @@ pub fn rename(text: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
+static CREDITS: OnceLock<&'static str> = OnceLock::new();
+
+/// Who made the product, shown in the About window under the description. First call wins.
+pub fn set_about_credits(text: &'static str) {
+    let _ = CREDITS.set(text);
+}
+
+/// The About window's credits (none while nothing is set).
+pub fn about_credits() -> Option<&'static str> {
+    CREDITS.get().copied().filter(|t| !t.is_empty())
+}
+
 /// The product name ("SolidCraft" while nothing is set).
 pub fn app_name() -> &'static str {
     APP_NAME.get().copied().unwrap_or("SolidCraft")

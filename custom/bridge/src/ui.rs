@@ -27,7 +27,12 @@ pub fn show_toolbar_tabs(tabs: &'static [&'static str]) {
     solidcraft_ui_egui::custom_hook::set_toolbar_tabs(tabs);
 }
 
-/// The product name in the window title and the application bar. Call once at start-up.
+/// Who made the product, shown in Help › About. Call once at start-up.
+pub fn set_about_credits(text: &'static str) {
+    solidcraft_ui_egui::custom_hook::set_about_credits(text);
+}
+
+/// The product name shown in the window title and the application bar.
 pub fn set_app_name(name: &'static str) {
     solidcraft_ui_egui::custom_hook::set_app_name(name);
 }

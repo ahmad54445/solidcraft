@@ -48,6 +48,7 @@ custom/features   ← das eigene Programm
 | `crates/ui-egui/src/viewport.rs` | `Frame.clouds` + `custom_hook::extra_clouds()`; Overlay über der Ansicht mit `ViewInfo` (Projektion, Kamera); Fit view + `custom_hook::extra_bounds()` |
 | `crates/gpu/src/view/sprites.rs` | Neue Datei: bildschirmparallele Sprites aus einem Alpha-Atlas (SDF-Text), mit Tiefe der Szene; `set_sprites()` |
 | `crates/gpu/src/view.rs` | `mod sprites` + Re-Export; Renderer-Felder `sprite_pipes`/`sprites`; Pipeline-Erzeugung; `hash_sprites` im Frame-Key; `prepare` nach den Clouds; `paint` nach den Clouds im Hauptpass |
+| `crates/ui-egui/src/help.rs` | About-Fenster: Zeile `custom_hook::about_credits()` unter der Beschreibung (Factory: `custom/branding/credits.txt`) |
 | `crates/ui-egui/src/i18n.rs` | `Catalog::shown()` ersetzt „SolidCraft“ durch den Produktnamen (alle Sprachen); englischer Fallback über `shown()` |
 
 ## Oberfläche anpassen (Feature `ui`, nur Desktop-App)

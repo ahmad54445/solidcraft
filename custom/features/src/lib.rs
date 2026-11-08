@@ -42,6 +42,8 @@ commands! {
 /// The product name: window title, application bar, every UI text. Single source:
 /// `custom/branding/name.txt` (also read by the build for the executable's details).
 pub const APP_NAME: &str = include_str!("../../branding/name.txt");
+/// Who programmed Factory, shown in Help › About: `custom/branding/credits.txt`.
+pub const CREDITS: &str = include_str!("../../branding/credits.txt");
 
 /// The product logo (application bar, window and taskbar icon). The executable's icon is
 /// `custom/branding/logo.ico`. Both are made by `custom/branding/make_logo.py`.
@@ -86,6 +88,7 @@ pub fn install() {
     #[cfg(feature = "ui")]
     {
         custom_bridge::ui::set_app_name(APP_NAME.trim());
+        custom_bridge::ui::set_about_credits(CREDITS.trim());
         custom_bridge::ui::set_logo_png(LOGO_PNG);
         custom_bridge::ui::add_toolbar_tabs(EXTRA_TABS);
         custom_bridge::ui::show_toolbar_tabs(TOOLBAR_TABS);
