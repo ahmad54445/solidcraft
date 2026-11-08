@@ -19,6 +19,9 @@ pub const SHELL_COMPONENTS: [&str; 15] = ["F11", "F22", "F12", "M11", "M22", "M1
 pub const SHELL_PANEL_NAMES: [&str; 15] = ["Fxx", "Fyy", "Fxy", "Mxx", "Myy", "Mxy", "Vxx", "Vyy", "Fmax", "Fmin", "FMax", "Mmax", "Mmin", "MMax", "VMax"];
 pub const FRAME_COMPONENTS: [&str; 6] = ["P", "V2", "V3", "T", "M2", "M3"];
 
+/// Local axes 1, 2, 3: red, green, blue (as CSiBridge).
+pub const AXIS_COLOURS: [[u8; 3]; 3] = [[220, 50, 40], [40, 170, 60], [40, 90, 220]];
+
 /// Envelope side.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Step {
@@ -408,6 +411,56 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
             };
             layers.push(Layer { triangles: Vec::new(), segments, coloring });
         }
+        // Local axes (Visibility/Graphics › Local Axes) as 3D lines in the scene: drawn with the
+        // model's depth (hidden behind surfaces), built once per change – nothing per frame.
+        let mut axes: [Vec<Segment>; 3] = Default::default();
+        let mut add_triad = |origin: [f64; 3], length: f64, m: &[f64; 9]| {
+            let Some(dirs) = crate::transfer::local_axes(m) else { return };
+            let o = origin.map(|x| x as f32);
+            for (k, d) in dirs.iter().enumerate() {
+                let tip = [origin[0] + d[0] * length, origin[1] + d[1] * length, origin[2] + d[2] * length].map(|x| x as f32);
+                axes[k].push(Segment { ends: [o, tip], values: [0.0, 0.0] });
+            }
+        };
+        let dist = |a: [f64; 3], b: [f64; 3]| ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
+        if settings.frames.visible && settings.frames.axes.visible {
+            for (e, f) in g.frames.iter().enumerate() {
+                if frame_look[e] == Look::Hidden {
+                    continue;
+                }
+                let (Some(a), Some(b), Some(m)) = (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize), g.frame_axes.get(e)) else { continue };
+                let mid = [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0, (a[2] + b[2]) / 2.0];
+                add_triad(mid, 0.25 * dist(*a, *b), m);
+            }
+        }
+        if settings.shells.visible && settings.shells.axes.visible {
+            for (e, s) in g.shells.iter().enumerate() {
+                if shell_look[e] == Look::Hidden {
+                    continue;
+                }
+                let Some(m) = g.shell_axes.get(e) else { continue };
+                let corners: Vec<[f64; 3]> = s[..4].iter().filter(|j| **j != u32::MAX).filter_map(|j| g.joints.get(*j as usize).copied()).collect();
+                if corners.len() < 3 {
+                    continue;
+                }
+                let n = corners.len() as f64;
+                let c = [0, 1, 2].map(|i| corners.iter().map(|p| p[i]).sum::<f64>() / n);
+                let size = dist(corners[0], corners[2]);
+                // Lift the origin off the surface along axis 3 so the in-plane axes 1 and 2 do not
+                // fight the surface for depth (on the top face when extruded).
+                let thickness = g.shell_thickness.get(s[4] as usize).copied().unwrap_or(0.0);
+                let lift = 0.01 * size + if settings.view.view_type == vv::ViewType::Extrude { thickness / 2.0 } else { 0.0 };
+                let a3 = crate::transfer::local_axes(m).map_or([0.0; 3], |a| a[2]);
+                add_triad([c[0] + a3[0] * lift, c[1] + a3[1] * lift, c[2] + a3[2] * lift], 0.25 * size, m);
+            }
+        }
+        let half = settings.shells.axes.halftone || settings.frames.axes.halftone;
+        for (segments, rgb) in axes.into_iter().zip(AXIS_COLOURS) {
+            if !segments.is_empty() {
+                layers.push(Layer { triangles: Vec::new(), segments, coloring: Coloring::Plain(if half { vv::halftone(rgb) } else { rgb }) });
+            }
+        }
+
         (layers, shell_layer, frame_layer)
     };
     #[cfg(not(feature = "ui"))]

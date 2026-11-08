@@ -61,9 +61,6 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     if flags.shell_labels.is_some() || flags.shell_sections.is_some() || flags.frame_labels.is_some() || flags.frame_sections.is_some() {
         element_labels(ui, area, view, flags);
     }
-    if flags.shell_axes.is_some() || flags.frame_axes.is_some() {
-        axis_triads(ui, area, view, flags);
-    }
     if flags.values {
         value_labels(ui, area, view);
     }
@@ -136,61 +133,6 @@ fn element_labels(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, flag
             let Some(s) = (view.project)(p).filter(|s| area.contains(*s)) else { continue };
             if taken.insert(((s.x / cell) as i32, (s.y / cell) as i32)) {
                 painter.text(s + egui::vec2(0.0, dy), egui::Align2::CENTER_CENTER, t, font.clone(), colour);
-            }
-        }
-    }
-}
-
-/// Local-axis triads (subcategory Local Axes, docs/12 §2.1): at each shown element's centre the
-/// local axes 1 (red), 2 (green), 3 (blue) from CSiBridge, a quarter of the element size long;
-/// one triad per 64 px cell, nearest to the camera first (rule P4).
-fn axis_triads(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay) {
-    let g = crate::transfer::geometry();
-    let data = results_view::snap_data();
-    let joint = |j: u32| g.joints.get(j as usize).copied();
-    let len = |a: [f64; 3], b: [f64; 3]| ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2) + (a[2] - b[2]).powi(2)).sqrt();
-    // (centre, size, matrix, halftone)
-    let mut items: Vec<([f64; 3], f64, [f64; 9], bool)> = Vec::new();
-    if let Some(half) = flags.frame_axes {
-        for (e, f) in g.frames.iter().enumerate() {
-            let (Some(a), Some(b), Some(m)) = (joint(f[0]), joint(f[1]), g.frame_axes.get(e)) else { continue };
-            if data.frame_shown.get(e).copied().unwrap_or(true) {
-                items.push(([(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0, (a[2] + b[2]) / 2.0], len(a, b), *m, half));
-            }
-        }
-    }
-    if let Some(half) = flags.shell_axes {
-        for (e, s) in g.shells.iter().enumerate() {
-            let Some(m) = g.shell_axes.get(e) else { continue };
-            if !data.shell_shown.get(e).copied().unwrap_or(true) {
-                continue;
-            }
-            let corners: Vec<[f64; 3]> = s[..4].iter().filter(|j| **j != u32::MAX).filter_map(|j| joint(*j)).collect();
-            if corners.len() < 3 {
-                continue;
-            }
-            let n = corners.len() as f64;
-            let c = [0, 1, 2].map(|i| corners.iter().map(|p| p[i]).sum::<f64>() / n);
-            items.push((c, len(corners[0], corners[2]), *m, half));
-        }
-    }
-    let dist = |p: [f64; 3]| (p[0] - view.eye[0]).powi(2) + (p[1] - view.eye[1]).powi(2) + (p[2] - view.eye[2]).powi(2);
-    items.sort_by(|a, b| dist(a.0).total_cmp(&dist(b.0)));
-    let painter = ui.painter_at(area);
-    let colours: [[u8; 3]; 3] = [[220, 50, 40], [40, 170, 60], [40, 90, 220]];
-    let mut taken = std::collections::HashSet::new();
-    for (c, size, m, half) in items {
-        let Some(axes) = crate::transfer::local_axes(&m) else { continue };
-        let Some(o) = (view.project)(c).filter(|s| area.contains(*s)) else { continue };
-        if !taken.insert(((o.x / 64.0) as i32, (o.y / 64.0) as i32)) {
-            continue;
-        }
-        let l = 0.25 * size;
-        for (axis, rgb) in axes.iter().zip(colours) {
-            let tip = [c[0] + axis[0] * l, c[1] + axis[1] * l, c[2] + axis[2] * l];
-            if let Some(t) = (view.project)(tip) {
-                let [r, g_, b] = if half { crate::vv::halftone(rgb) } else { rgb };
-                painter.line_segment([o, t], egui::Stroke::new(2.0, egui::Color32::from_rgb(r, g_, b)));
             }
         }
     }

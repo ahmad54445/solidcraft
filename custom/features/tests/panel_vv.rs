@@ -181,3 +181,28 @@ fn view_options_shape_the_drawn_shells() {
     let expected = 0.5 - 0.5 * SHRINK as f32;
     assert!((first[0] - expected).abs() < 1e-6 && (first[1] - expected).abs() < 1e-6);
 }
+
+#[test]
+fn local_axes_are_scene_lines_with_depth_one_triad_per_element() {
+    use custom_bridge::view::Coloring;
+    use custom_features::results_view::AXIS_COLOURS;
+    let d = dir("axes");
+    let (mut g, blocks) = two_quads(&d);
+    // element 0 has axes from CSiBridge (identity: 1 = x, 2 = y, 3 = z), element 1 none (NaN)
+    g.shell_axes = vec![[1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0], [f64::NAN; 9]];
+    let choice = Choice { load: Some("DC".into()), shell: 3, ..Default::default() };
+    let mut s = Settings::default();
+    s.shells.axes.visible = true;
+    let b = build_with(&g, &blocks, &choice, Units::default(), &s).unwrap();
+    let is_axis = |l: &&custom_bridge::view::Layer| AXIS_COLOURS.iter().any(|c| l.coloring == Coloring::Plain(*c));
+    let axis_layers: Vec<_> = b.layers.iter().filter(is_axis).collect();
+    assert_eq!(axis_layers.len(), 3, "one layer per axis colour");
+    assert!(axis_layers.iter().all(|l| l.segments.len() == 1), "one triad: element 1 has no axes");
+    // axis 3 (blue) points up from just above the centre (0.5, 0.5, lift)
+    let blue = &axis_layers[2].segments[0];
+    assert_eq!(blue.ends[0][0], 0.5);
+    assert!(blue.ends[0][2] > 0.0 && blue.ends[1][2] > blue.ends[0][2]);
+    // off: no axis layers
+    let none = build_with(&g, &blocks, &choice, Units::default(), &Settings::default()).unwrap();
+    assert!(none.layers.iter().filter(is_axis).count() == 0);
+}
