@@ -41,6 +41,9 @@ pub struct Category {
     pub labels: Sub,
     /// Subcategory: section / area property names (Display Options › Sections).
     pub sections: Sub,
+    /// Subcategory: local-axis triads (Display Options › Local Axes); colours are fixed
+    /// (1 red, 2 green, 3 blue), halftone fades them.
+    pub axes: Sub,
 }
 
 /// What a filter rule matches.
@@ -93,6 +96,7 @@ impl Default for Settings {
                 halftone: false,
                 labels: Sub::off([40, 40, 48]),
                 sections: Sub::off([30, 90, 160]),
+                axes: Sub::off([0, 0, 0]),
             },
             frames: Category {
                 visible: true,
@@ -101,6 +105,7 @@ impl Default for Settings {
                 halftone: false,
                 labels: Sub::off([40, 40, 48]),
                 sections: Sub::off([30, 90, 160]),
+                axes: Sub::off([0, 0, 0]),
             },
             contour: true,
             legend: true,
@@ -181,6 +186,9 @@ pub struct Overlay {
     pub shell_sections: Option<[u8; 3]>,
     pub frame_labels: Option<[u8; 3]>,
     pub frame_sections: Option<[u8; 3]>,
+    /// Local-axis triads shown; the value is "halftone".
+    pub shell_axes: Option<bool>,
+    pub frame_axes: Option<bool>,
 }
 
 pub fn overlay() -> Overlay {
@@ -193,6 +201,8 @@ pub fn overlay() -> Overlay {
         shell_sections: (s.shells.visible && s.shells.sections.visible).then(|| s.shells.sections.ink()),
         frame_labels: (s.frames.visible && s.frames.labels.visible).then(|| s.frames.labels.ink()),
         frame_sections: (s.frames.visible && s.frames.sections.visible).then(|| s.frames.sections.ink()),
+        shell_axes: (s.shells.visible && s.shells.axes.visible).then_some(s.shells.axes.halftone),
+        frame_axes: (s.frames.visible && s.frames.axes.visible).then_some(s.frames.axes.halftone),
     }
 }
 

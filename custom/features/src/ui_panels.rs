@@ -274,7 +274,6 @@ fn visibility_graphics(ctx: &egui::Context) {
 }
 
 const NO_TRANSPARENCY: &str = "Planned: SolidCraft's point-cloud shader has no transparency (docs/12 §5).";
-const NO_LOCAL_AXES: &str = "Planned: needs the element local axes from CSiBridge (docs/08 §4.4).";
 
 /// Why a row is greyed.
 const NOT_TRANSFERRED: &str = "Not selected / transferred from CSiBridge yet – the agent keeps frames and areas only (docs/08 §4.2).";
@@ -362,19 +361,24 @@ fn model_tab(ui: &mut egui::Ui, s: &mut Settings, g: &crate::transfer::Geometry)
                             let row = match sub {
                                 "Labels" => Some(&mut c.labels),
                                 "Sections" => Some(&mut c.sections),
+                                "Local Axes" => Some(&mut c.axes),
                                 _ => None,
                             };
                             match row {
                                 // Built: greyed while the category itself is hidden (it keeps its setting).
                                 Some(r) => {
                                     ui.add_enabled(shown, egui::Checkbox::new(&mut r.visible, ""));
-                                    ui.add_enabled_ui(shown, |ui| egui::widgets::color_picker::color_edit_button_srgb(ui, &mut r.colour));
+                                    if sub == "Local Axes" {
+                                        ui.label("1 red · 2 green · 3 blue");
+                                    } else {
+                                        ui.add_enabled_ui(shown, |ui| egui::widgets::color_picker::color_edit_button_srgb(ui, &mut r.colour));
+                                    }
                                     ui.label("");
                                     ui.label("");
                                     ui.add_enabled(shown, egui::Checkbox::new(&mut r.halftone, ""));
                                 }
                                 None => {
-                                    let reason = if sub == "Releases" { NO_RELEASES } else { NO_LOCAL_AXES };
+                                    let reason = NO_RELEASES;
                                     ui.add_enabled(false, egui::Checkbox::new(&mut false, "")).on_disabled_hover_text(reason);
                                     ui.label("");
                                     ui.label("");
