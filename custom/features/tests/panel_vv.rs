@@ -219,3 +219,18 @@ fn labels_behind_a_shown_shell_are_hidden() {
     assert!(!hidden_by_shells(&g, &[false], eye, [0.5, 0.5, -1.0], None), "a hidden shell hides nothing");
     assert!(!hidden_by_shells(&g, &[true], eye, [0.5, 0.5, -1.0], Some(0)), "its own label is never hidden by it");
 }
+
+#[test]
+fn bucketed_occluder_agrees_with_the_plain_ray_test() {
+    use custom_features::results_view::{Occluder, hidden_by_shells};
+    // 1 m square at z = 0, eye above at z = 10; plan projection, 100 px per metre
+    let g = Geometry { joints: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], shells: vec![[0, 1, 2, 3, 0]], ..Default::default() };
+    let eye = [0.5, 0.5, 10.0];
+    let project = |p: [f64; 3]| Some([(p[0] * 100.0) as f32, (p[1] * 100.0) as f32]);
+    let occ = Occluder::new(&g, &[true], eye, &project, 32.0);
+    for p in [[0.5, 0.5, -1.0], [0.5, 0.5, 1.0], [2.0, 2.0, -1.0], [0.1, 0.9, -0.5]] {
+        let s = project(p).unwrap();
+        assert_eq!(occ.hidden(p, s, None), hidden_by_shells(&g, &[true], eye, p, None), "point {p:?}");
+    }
+    assert!(!occ.hidden([0.5, 0.5, -1.0], [50.0, 50.0], Some(0)), "own shell never hides its text");
+}

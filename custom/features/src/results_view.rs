@@ -843,3 +843,58 @@ fn ray_triangle(origin: [f64; 3], dir: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f
     }
     Some(f * dot(e2, q))
 }
+
+/// Fast "is a shown shell between the eye and this point?" for many points at one camera stop:
+/// the shells' triangles are bucketed once into a screen grid, so each point is ray-tested only
+/// against the triangles that cover its cell (instead of all of them).
+pub struct Occluder<'a> {
+    g: &'a Geometry,
+    eye: [f64; 3],
+    cell: f32,
+    /// grid cell → (shell, triangle corners as joint indices)
+    buckets: std::collections::HashMap<(i32, i32), Vec<(usize, [u32; 3])>>,
+}
+
+impl<'a> Occluder<'a> {
+    /// `project` maps world points to the screen (`None` behind the camera); `cell` in px.
+    pub fn new(g: &'a Geometry, shown: &[bool], eye: [f64; 3], project: &dyn Fn([f64; 3]) -> Option<[f32; 2]>, cell: f32) -> Self {
+        let screen: Vec<Option<[f32; 2]>> = g.joints.iter().map(|p| project(*p)).collect();
+        let mut buckets: std::collections::HashMap<(i32, i32), Vec<(usize, [u32; 3])>> = std::collections::HashMap::new();
+        for (e, s) in g.shells.iter().enumerate() {
+            if !shown.get(e).copied().unwrap_or(true) {
+                continue;
+            }
+            let tris: &[[usize; 3]] = if s[3] == u32::MAX { &[[0, 1, 2]] } else { &[[0, 1, 2], [0, 2, 3]] };
+            for t in tris {
+                let corners = [s[t[0]], s[t[1]], s[t[2]]];
+                let pts: Option<Vec<[f32; 2]>> = corners.iter().map(|j| screen.get(*j as usize).copied().flatten()).collect();
+                let Some(pts) = pts else { continue }; // partly behind the camera: cannot cover a visible point reliably
+                let (x0, x1) = pts.iter().fold((f32::MAX, f32::MIN), |(a, b), p| (a.min(p[0]), b.max(p[0])));
+                let (y0, y1) = pts.iter().fold((f32::MAX, f32::MIN), |(a, b), p| (a.min(p[1]), b.max(p[1])));
+                let (cx0, cx1, cy0, cy1) = ((x0 / cell).floor() as i32, (x1 / cell).floor() as i32, (y0 / cell).floor() as i32, (y1 / cell).floor() as i32);
+                if (cx1 - cx0 + 1) * (cy1 - cy0 + 1) > 4096 {
+                    continue; // a huge sliver on screen: skip rather than flood the grid
+                }
+                for cx in cx0..=cx1 {
+                    for cy in cy0..=cy1 {
+                        buckets.entry((cx, cy)).or_default().push((e, corners));
+                    }
+                }
+            }
+        }
+        Self { g, eye, cell, buckets }
+    }
+
+    /// Whether a shown shell (other than `own`) lies between the eye and `p`, which is at `screen`.
+    pub fn hidden(&self, p: [f64; 3], screen: [f32; 2], own: Option<usize>) -> bool {
+        let key = ((screen[0] / self.cell).floor() as i32, (screen[1] / self.cell).floor() as i32);
+        let Some(list) = self.buckets.get(&key) else { return false };
+        let d = [p[0] - self.eye[0], p[1] - self.eye[1], p[2] - self.eye[2]];
+        let corner = |j: u32| self.g.joints.get(j as usize).copied();
+        list.iter().any(|(e, c)| {
+            Some(*e) != own
+                && matches!((corner(c[0]), corner(c[1]), corner(c[2])), (Some(a), Some(b), Some(cc))
+                    if ray_triangle(self.eye, d, a, b, cc).is_some_and(|t| t > 1e-6 && t < 1.0 - 1e-6))
+        })
+    }
+}
