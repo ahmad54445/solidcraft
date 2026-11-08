@@ -199,30 +199,29 @@ fn contour_range(ui: &mut egui::Ui, shown: &results_view::Shown, kind: ResultTyp
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Tab {
     Model,
-    Annotation,
-    Results,
+    Imported,
     Filters,
-    Linked,
 }
 
+/// Visibility/Graphic Overrides (docs/12): Model Categories, Imported Categories, Filters.
+/// What is drawn on the result (contour, legend, values) is chosen in the Results panel only,
+/// so the two windows never disagree.
 fn visibility_graphics(ctx: &egui::Context) {
     // The form edits a copy; OK / Apply commit it in one step (rule G7).
     let edit_id = egui::Id::unique("factory_vv_edit");
     let tab_id = egui::Id::unique("factory_vv_tab");
     let mut edit: Settings = ctx.data(|d| d.get_temp::<Settings>(edit_id)).unwrap_or_else(vv::settings);
     let mut tab = ctx.data(|d| d.get_temp::<u8>(tab_id)).map_or(Tab::Model, |t| match t {
-        1 => Tab::Annotation,
-        2 => Tab::Results,
-        3 => Tab::Filters,
-        4 => Tab::Linked,
+        1 => Tab::Imported,
+        2 => Tab::Filters,
         _ => Tab::Model,
     });
     let geometry = crate::transfer::geometry();
     let mut open = true;
     let mut close = false;
-    egui::Window::new("Visibility/Graphics").id(egui::Id::unique("factory_vv")).open(&mut open).resizable(true).default_width(620.0).show(ctx, |ui| {
+    egui::Window::new("Visibility/Graphic Overrides").id(egui::Id::unique("factory_vv")).open(&mut open).resizable(true).default_width(760.0).show(ctx, |ui| {
         ui.horizontal(|ui| {
-            for (t, name) in [(Tab::Model, "Model"), (Tab::Annotation, "Annotation"), (Tab::Results, "Results"), (Tab::Filters, "Filters"), (Tab::Linked, "Linked")] {
+            for (t, name) in [(Tab::Model, "Model Categories"), (Tab::Imported, "Imported Categories"), (Tab::Filters, "Filters")] {
                 if ui.selectable_label(tab == t, name).clicked() {
                     tab = t;
                 }
@@ -230,32 +229,24 @@ fn visibility_graphics(ctx: &egui::Context) {
         });
         ui.separator();
         match tab {
-            Tab::Model => model_tab(ui, &mut edit),
-            Tab::Annotation => {
-                ui.checkbox(&mut edit.legend, "Legend");
-                ui.checkbox(&mut edit.values, "Value labels");
-                planned(ui, "Node numbers", "Planned (docs/12 §2).");
-                planned(ui, "Element numbers", "Planned (docs/12 §2).");
-                planned(ui, "Section names", "Planned (docs/12 §2).");
-            }
-            Tab::Results => {
-                ui.checkbox(&mut edit.contour, "Contour");
-                planned(ui, "Deform", "Planned: needs displacements (docs/10 §7.4).");
-                planned(ui, "Vectors", "Planned (docs/10 §7.2).");
-            }
+            Tab::Model => model_tab(ui, &mut edit, &geometry),
+            Tab::Imported => imported_tab(ui),
             Tab::Filters => filters_tab(ui, &mut edit, &geometry),
-            Tab::Linked => {
-                let (ifc, dxf) = crate::model::read(|f| (f.model.linked_ifc.clone(), f.model.linked_dxf.clone()));
-                if ifc.is_empty() && dxf.is_empty() {
-                    ui.weak("No linked files (browser › Linked).");
-                }
-                for name in ifc.iter().chain(&dxf) {
-                    ui.label(name);
-                }
-            }
         }
         ui.separator();
         ui.horizontal(|ui| {
+            if ui.button("All").clicked() {
+                edit.shells.visible = true;
+                edit.frames.visible = true;
+            }
+            if ui.button("None").clicked() {
+                edit.shells.visible = false;
+                edit.frames.visible = false;
+            }
+            if ui.button("Invert").clicked() {
+                edit.shells.visible = !edit.shells.visible;
+                edit.frames.visible = !edit.frames.visible;
+            }
             if ui.button("Reset view").clicked() {
                 edit = Settings::default();
             }
@@ -282,28 +273,166 @@ fn visibility_graphics(ctx: &egui::Context) {
     ctx.data_mut(|d| d.insert_temp(tab_id, tab as u8));
 }
 
-fn model_tab(ui: &mut egui::Ui, s: &mut Settings) {
-    egui::Grid::new("factory_vv_model").striped(true).num_columns(6).show(ui, |ui| {
-        for h in ["Category", "Visible", "Lines", "Surfaces", "Transparency", "Halftone"] {
+const NO_TRANSPARENCY: &str = "Planned: SolidCraft's point-cloud shader has no transparency (docs/12 §5).";
+const NO_LOCAL_AXES: &str = "Planned: needs the element local axes from CSiBridge (docs/08 §4.4).";
+
+/// Why a row is greyed.
+const NOT_TRANSFERRED: &str = "Not selected / transferred from CSiBridge yet – the agent keeps frames and areas only (docs/08 §4.2).";
+const NO_JOINTS: &str = "Planned: joints are transferred, drawing them needs a point layer (docs/12 §2.1).";
+const NO_RESTRAINTS: &str = "Planned: needs PointObj.GetRestraint / GetSpring in the agent (docs/08 §4.4).";
+const NO_RELEASES: &str = "Planned: needs FrameObj.GetReleases in the agent (docs/12 §2.1).";
+
+/// The categories and their nested subcategories (docs/12 §2.1), in CSiBridge's order.
+const CATEGORIES: [(&str, &str, &[&str]); 7] = [
+    ("joints", "Joints", &["Labels", "Restraints", "Springs", "Local Axes"]),
+    ("frames", "Frames", &["Labels", "Sections", "Releases", "Local Axes"]),
+    ("cables", "Cables", &["Labels", "Sections"]),
+    ("tendons", "Tendons", &["Labels", "Sections", "Local Axes"]),
+    ("areas", "Areas (Shells)", &["Labels", "Sections", "Local Axes"]),
+    ("solids", "Solids", &["Labels", "Sections", "Local Axes"]),
+    ("links", "Links", &["Labels", "Sections", "Local Axes"]),
+];
+
+fn vv_open_id(key: &str) -> egui::Id {
+    egui::Id::unique(("factory_vv_open", key))
+}
+
+/// Model Categories: object types with their CSiBridge Display Options nested as subcategories
+/// (docs/12 §2.1). A category's Visibility = the objects (CSiBridge "Not in View" = unticked);
+/// a subcategory's = that annotation. Rows without data are greyed with the reason.
+fn model_tab(ui: &mut egui::Ui, s: &mut Settings, g: &crate::transfer::Geometry) {
+    ui.horizontal(|ui| {
+        let all = |ui: &egui::Ui, open: bool| {
+            for (key, ..) in CATEGORIES {
+                ui.data_mut(|d| d.insert_temp(vv_open_id(key), open));
+            }
+        };
+        if ui.small_button("Expand All").clicked() {
+            all(ui, true);
+        }
+        if ui.small_button("Collapse All").clicked() {
+            all(ui, false);
+        }
+    });
+    let headers = ["Model Category", "Visibility", "Lines", "Surfaces", "Transparency", "Halftone"];
+    egui::Grid::new("factory_vv_model").striped(true).num_columns(headers.len()).show(ui, |ui| {
+        for h in headers {
             ui.strong(h);
         }
         ui.end_row();
-        for (name, c, surfaces) in [("Shells", &mut s.shells, true), ("Frames", &mut s.frames, false)] {
-            ui.label(name);
-            ui.checkbox(&mut c.visible, "");
-            egui::widgets::color_picker::color_edit_button_srgb(ui, &mut c.line);
-            if surfaces {
-                egui::widgets::color_picker::color_edit_button_srgb(ui, &mut c.surface);
-            } else {
-                ui.label("");
+        for (key, name, subs) in CATEGORIES {
+            let open_default = matches!(key, "frames" | "areas");
+            let mut open = ui.data(|d| d.get_temp::<bool>(vv_open_id(key))).unwrap_or(open_default);
+            // The category row
+            ui.horizontal(|ui| {
+                if ui.small_button(if open { "▼" } else { "▶" }).clicked() {
+                    open = !open;
+                }
+                let count = match key {
+                    "frames" => format!("  ({})", g.frames.len()),
+                    "areas" => format!("  ({})", g.shells.len()),
+                    _ => String::new(),
+                };
+                ui.label(format!("{name}{count}"));
+            });
+            ui.data_mut(|d| d.insert_temp(vv_open_id(key), open));
+            let category = match key {
+                "frames" => Some((&mut s.frames, false)),
+                "areas" => Some((&mut s.shells, true)),
+                _ => None,
+            };
+            let why = if key == "joints" { NO_JOINTS } else { NOT_TRANSFERRED };
+            match category {
+                Some((c, surfaces)) => {
+                    ui.checkbox(&mut c.visible, "");
+                    egui::widgets::color_picker::color_edit_button_srgb(ui, &mut c.line);
+                    if surfaces {
+                        egui::widgets::color_picker::color_edit_button_srgb(ui, &mut c.surface);
+                        ui.add_enabled(false, egui::Slider::new(&mut 0u8, 0..=100).suffix(" %")).on_disabled_hover_text(NO_TRANSPARENCY);
+                    } else {
+                        ui.label("");
+                        ui.label("");
+                    }
+                    ui.checkbox(&mut c.halftone, "");
+                    ui.end_row();
+                    if open {
+                        let shown = c.visible;
+                        for sub in subs.iter().copied() {
+                            ui.label(format!("        {sub}"));
+                            let row = match sub {
+                                "Labels" => Some(&mut c.labels),
+                                "Sections" => Some(&mut c.sections),
+                                _ => None,
+                            };
+                            match row {
+                                // Built: greyed while the category itself is hidden (it keeps its setting).
+                                Some(r) => {
+                                    ui.add_enabled(shown, egui::Checkbox::new(&mut r.visible, ""));
+                                    ui.add_enabled_ui(shown, |ui| egui::widgets::color_picker::color_edit_button_srgb(ui, &mut r.colour));
+                                    ui.label("");
+                                    ui.label("");
+                                    ui.add_enabled(shown, egui::Checkbox::new(&mut r.halftone, ""));
+                                }
+                                None => {
+                                    let reason = if sub == "Releases" { NO_RELEASES } else { NO_LOCAL_AXES };
+                                    ui.add_enabled(false, egui::Checkbox::new(&mut false, "")).on_disabled_hover_text(reason);
+                                    ui.label("");
+                                    ui.label("");
+                                    ui.label("");
+                                    ui.add_enabled(false, egui::Checkbox::new(&mut false, "")).on_disabled_hover_text(reason);
+                                }
+                            }
+                            ui.end_row();
+                        }
+                    }
+                }
+                None => {
+                    for _ in 0..5 {
+                        ui.add_enabled(false, egui::Checkbox::new(&mut false, "")).on_disabled_hover_text(why);
+                    }
+                    ui.end_row();
+                    if open {
+                        for sub in subs.iter().copied() {
+                            ui.add_enabled(false, egui::Label::new(format!("        {sub}"))).on_disabled_hover_text(why);
+                            let reason = match sub {
+                                "Restraints" | "Springs" => NO_RESTRAINTS,
+                                _ => why,
+                            };
+                            ui.add_enabled(false, egui::Checkbox::new(&mut false, "")).on_disabled_hover_text(reason);
+                            ui.label("");
+                            ui.label("");
+                            ui.label("");
+                            ui.add_enabled(false, egui::Checkbox::new(&mut false, "")).on_disabled_hover_text(reason);
+                            ui.end_row();
+                        }
+                    }
+                }
             }
-            ui.add_enabled(false, egui::Slider::new(&mut 0u8, 0..=100).suffix(" %"))
-                .on_disabled_hover_text("Planned: SolidCraft's point-cloud shader has no transparency (docs/12 §5).");
-            ui.checkbox(&mut c.halftone, "");
-            ui.end_row();
         }
     });
-    ui.weak("Halftone and filter colours show the elements plain (without contour). Line widths and transparency: docs/12 §5.");
+    ui.weak("Category Visibility unticked = CSiBridge's \"Not in View\"; its subcategories keep their setting. Subcategory Lines = text colour. Contour, legend and values: Results panel.");
+}
+
+/// Linked files (browser › Linked): listed; drawing them is planned.
+fn imported_tab(ui: &mut egui::Ui) {
+    let (ifc, dxf) = crate::model::read(|f| (f.model.linked_ifc.clone(), f.model.linked_dxf.clone()));
+    egui::Grid::new("factory_vv_imported").striped(true).num_columns(4).show(ui, |ui| {
+        for h in ["Imported Category", "Visibility", "Transparency", "Halftone"] {
+            ui.strong(h);
+        }
+        ui.end_row();
+        for (kind, files) in [("IFC", &ifc), ("DXF", &dxf)] {
+            ui.label(format!("{kind}  ({})", files.len()));
+            for _ in 0..3 {
+                ui.add_enabled(false, egui::Checkbox::new(&mut false, "")).on_disabled_hover_text("Planned: drawing linked files (docs/12).");
+            }
+            ui.end_row();
+            for f in files.iter() {
+                ui.label(format!("    {f}"));
+                ui.end_row();
+            }
+        }
+    });
 }
 
 fn filters_tab(ui: &mut egui::Ui, s: &mut Settings, g: &crate::transfer::Geometry) {

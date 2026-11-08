@@ -57,14 +57,85 @@ pub fn status_controls(ui: &mut egui::Ui) {
 
 /// Drawn over the 3D view every frame: the legend and the value under the cursor.
 pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
-    let (show_legend, show_values) = crate::vv::display_flags();
-    if show_values {
+    let flags = crate::vv::overlay();
+    if flags.shell_labels.is_some() || flags.shell_sections.is_some() || flags.frame_labels.is_some() || flags.frame_sections.is_some() {
+        element_labels(ui, area, view, flags);
+    }
+    if flags.values {
         value_labels(ui, area, view);
     }
-    if show_legend {
+    if flags.legend {
         legend(ui, area);
     }
     value_snap(ui, area, view);
+}
+
+/// Subcategories Labels and Sections on the shown elements (Visibility/Graphics, docs/12 §2.1).
+/// Each is drawn in its own colour, with its own one-label-per-64-px grid, nearest to the
+/// camera first (rule P4); labels a line below a value label, sections a line below that.
+fn element_labels(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay) {
+    let g = crate::transfer::geometry();
+    let data = results_view::snap_data();
+    // Anchor points: shell centres and frame midpoints, shown elements only.
+    let mut shells: Vec<(usize, [f64; 3])> = Vec::new();
+    if flags.shell_labels.is_some() || flags.shell_sections.is_some() {
+        for (e, s) in g.shells.iter().enumerate() {
+            if !data.shell_shown.get(e).copied().unwrap_or(true) {
+                continue;
+            }
+            let n = if s[3] == u32::MAX { 3 } else { 4 };
+            let mut c = [0.0; 3];
+            for k in 0..n {
+                if let Some(p) = g.joints.get(s[k] as usize) {
+                    for i in 0..3 {
+                        c[i] += p[i] / n as f64;
+                    }
+                }
+            }
+            shells.push((e, c));
+        }
+    }
+    let mut frames: Vec<(usize, [f64; 3])> = Vec::new();
+    if flags.frame_labels.is_some() || flags.frame_sections.is_some() {
+        for (e, f) in g.frames.iter().enumerate() {
+            if !data.frame_shown.get(e).copied().unwrap_or(true) {
+                continue;
+            }
+            if let (Some(a), Some(b)) = (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize)) {
+                frames.push((e, [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0, (a[2] + b[2]) / 2.0]));
+            }
+        }
+    }
+    let mut layers: Vec<(Vec<([f64; 3], String)>, [u8; 3], f32)> = Vec::new();
+    let name = |list: &Vec<String>, e: usize| list.get(e).cloned().unwrap_or_default();
+    if let Some(c) = flags.shell_labels {
+        layers.push((shells.iter().map(|(e, p)| (*p, name(&g.shell_names, *e))).collect(), c, 12.0));
+    }
+    if let Some(c) = flags.frame_labels {
+        layers.push((frames.iter().map(|(e, p)| (*p, name(&g.frame_names, *e))).collect(), c, 12.0));
+    }
+    if let Some(c) = flags.shell_sections {
+        layers.push((shells.iter().map(|(e, p)| (*p, name(&g.shell_sections, g.shells[*e][4] as usize))).collect(), c, 24.0));
+    }
+    if let Some(c) = flags.frame_sections {
+        layers.push((frames.iter().map(|(e, p)| (*p, name(&g.frame_sections, g.frames[*e][2] as usize))).collect(), c, 24.0));
+    }
+    let dist = |p: [f64; 3]| (p[0] - view.eye[0]).powi(2) + (p[1] - view.eye[1]).powi(2) + (p[2] - view.eye[2]).powi(2);
+    let painter = ui.painter_at(area);
+    let font = egui::FontId::proportional(10.0);
+    let cell = 64.0;
+    for (mut items, [r, g_, b], dy) in layers {
+        items.retain(|(_, t)| !t.is_empty());
+        items.sort_by(|a, b| dist(a.0).total_cmp(&dist(b.0)));
+        let colour = egui::Color32::from_rgb(r, g_, b);
+        let mut taken = std::collections::HashSet::new();
+        for (p, t) in items {
+            let Some(s) = (view.project)(p).filter(|s| area.contains(*s)) else { continue };
+            if taken.insert(((s.x / cell) as i32, (s.y / cell) as i32)) {
+                painter.text(s + egui::vec2(0.0, dy), egui::Align2::CENTER_CENTER, t, font.clone(), colour);
+            }
+        }
+    }
 }
 
 /// Values on the elements (docs/10 rule P4): only inside the view, at most one label per 48 px

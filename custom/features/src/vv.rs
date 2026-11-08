@@ -6,7 +6,28 @@ use std::sync::{LazyLock, PoisonError, RwLock};
 
 use crate::transfer::Geometry;
 
-/// One category row (Model tab).
+/// A subcategory row nested under a category (docs/12 §2.1): an annotation on its objects
+/// (labels, section names, symbols, local axes).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Sub {
+    pub visible: bool,
+    /// Colour of the text / symbol.
+    pub colour: [u8; 3],
+    pub halftone: bool,
+}
+
+impl Sub {
+    pub fn off(colour: [u8; 3]) -> Self {
+        Self { visible: false, colour, halftone: false }
+    }
+
+    /// The colour to draw with (faded when halftone).
+    pub fn ink(&self) -> [u8; 3] {
+        if self.halftone { halftone(self.colour) } else { self.colour }
+    }
+}
+
+/// One category row (Model Categories tab).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Category {
     pub visible: bool,
@@ -16,6 +37,10 @@ pub struct Category {
     pub surface: [u8; 3],
     /// Drawn faded toward the background, without contour.
     pub halftone: bool,
+    /// Subcategory: element names on the elements (CSiBridge Display Options › Labels).
+    pub labels: Sub,
+    /// Subcategory: section / area property names (Display Options › Sections).
+    pub sections: Sub,
 }
 
 /// What a filter rule matches.
@@ -61,8 +86,22 @@ pub struct Settings {
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            shells: Category { visible: true, line: [60, 60, 70], surface: [190, 196, 206], halftone: false },
-            frames: Category { visible: true, line: [70, 72, 84], surface: [70, 72, 84], halftone: false },
+            shells: Category {
+                visible: true,
+                line: [60, 60, 70],
+                surface: [190, 196, 206],
+                halftone: false,
+                labels: Sub::off([40, 40, 48]),
+                sections: Sub::off([30, 90, 160]),
+            },
+            frames: Category {
+                visible: true,
+                line: [70, 72, 84],
+                surface: [70, 72, 84],
+                halftone: false,
+                labels: Sub::off([40, 40, 48]),
+                sections: Sub::off([30, 90, 160]),
+            },
             contour: true,
             legend: true,
             values: false,
@@ -132,10 +171,29 @@ pub fn halftone([r, g, b]: [u8; 3]) -> [u8; 3] {
 
 static SETTINGS: LazyLock<RwLock<Settings>> = LazyLock::new(|| RwLock::new(Settings::default()));
 
-/// (legend, values) without cloning the filters – read every frame by the overlay.
-pub fn display_flags() -> (bool, bool) {
+/// What the overlay draws, read every frame without cloning the filters.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Overlay {
+    pub legend: bool,
+    pub values: bool,
+    /// Colour to draw each subcategory with; `None` = not shown (its category or itself off).
+    pub shell_labels: Option<[u8; 3]>,
+    pub shell_sections: Option<[u8; 3]>,
+    pub frame_labels: Option<[u8; 3]>,
+    pub frame_sections: Option<[u8; 3]>,
+}
+
+pub fn overlay() -> Overlay {
     let s = SETTINGS.read().unwrap_or_else(PoisonError::into_inner);
-    (s.legend, s.values)
+    Overlay {
+        legend: s.legend,
+        values: s.values,
+        // A hidden category hides its subcategories; they keep their own setting (docs/12 §2.1).
+        shell_labels: (s.shells.visible && s.shells.labels.visible).then(|| s.shells.labels.ink()),
+        shell_sections: (s.shells.visible && s.shells.sections.visible).then(|| s.shells.sections.ink()),
+        frame_labels: (s.frames.visible && s.frames.labels.visible).then(|| s.frames.labels.ink()),
+        frame_sections: (s.frames.visible && s.frames.sections.visible).then(|| s.frames.sections.ink()),
+    }
 }
 
 pub fn settings() -> Settings {

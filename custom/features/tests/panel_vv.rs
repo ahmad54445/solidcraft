@@ -117,3 +117,23 @@ fn contour_off_draws_plain_and_has_no_legend() {
     assert!(b.shell.is_none());
     assert!(b.snap.shell_values.is_empty());
 }
+
+#[test]
+fn a_hidden_category_hides_its_subcategories_which_keep_their_setting() {
+    use custom_features::vv::{self, Settings};
+    let mut s = Settings::default();
+    s.frames.labels.visible = true;
+    s.frames.sections.visible = true;
+    s.frames.sections.halftone = true;
+    vv::apply(s.clone());
+    let o = vv::overlay();
+    assert_eq!(o.frame_labels, Some(s.frames.labels.colour));
+    assert_eq!(o.frame_sections, Some(vv::halftone(s.frames.sections.colour)), "halftone fades the text");
+    assert_eq!(o.shell_labels, None);
+    // category off: subcategories not drawn, but their own setting is kept
+    s.frames.visible = false;
+    vv::apply(s.clone());
+    assert_eq!(vv::overlay().frame_labels, None);
+    assert!(vv::settings().frames.labels.visible);
+    vv::apply(Settings::default());
+}

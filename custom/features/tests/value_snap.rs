@@ -24,6 +24,7 @@ fn model() -> (Geometry, SnapData) {
         frame_points: Vec::new(),
         shell_unit: "kN·m/m".into(),
         frame_unit: "kN·m".into(),
+        ..Default::default()
     };
     (g, d)
 }

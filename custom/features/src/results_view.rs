@@ -90,6 +90,9 @@ pub struct SnapData {
     pub frame_points: Vec<([f64; 3], f32)>,
     pub shell_unit: String,
     pub frame_unit: String,
+    /// Per shell / frame: drawn at all (not hidden by Visibility/Graphics).
+    pub shell_shown: Vec<bool>,
+    pub frame_shown: Vec<bool>,
 }
 
 /// The values of the shown result, for value snap.
@@ -401,6 +404,8 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
         frame_points,
         shell_unit: shell_unit.clone(),
         frame_unit: frame_unit.clone(),
+        shell_shown: shell_look.iter().map(|l| *l != Look::Hidden).collect(),
+        frame_shown: frame_look.iter().map(|l| *l != Look::Hidden).collect(),
     };
 
     Ok(Built {
