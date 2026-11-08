@@ -3,11 +3,11 @@
 /// egui, re-exported so Factory's UI code always uses the version SolidCraft is built with.
 pub use egui;
 
-pub use solidcraft_ui_egui::custom_hook::{DrawFn, TreeRow};
+pub use solidcraft_ui_egui::custom_hook::{DrawFn, RowsFn, TreeRow};
 
-/// Draw the browser's rows with `draw` (SolidCraft's own rows are then hidden). Call once.
-pub fn set_browser_contents(draw: DrawFn) {
-    solidcraft_ui_egui::custom_hook::set_browser_contents(draw);
+/// Add Factory's rows to the browser's root right after Origin (`rows(ui, depth)`). Call once.
+pub fn set_browser_rows(rows: RowsFn) {
+    solidcraft_ui_egui::custom_hook::set_browser_rows(rows);
 }
 
 /// Factory's status bar along the window's bottom edge, always shown. Call once.

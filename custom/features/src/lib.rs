@@ -56,9 +56,14 @@ static EXTRA_TABS: &[custom_bridge::ui::Tab] = &[custom_bridge::ui::Tab {
     panels: &[custom_bridge::ui::Panel { name: "PROGRAMS", commands: &["factory.connect.midas", "factory.connect.csi"] }],
 }];
 
-/// Browser folders Factory leaves out.
+/// SolidCraft browser rows Factory leaves out (README › Browser): bodies, sketches and the other
+/// modelling folders. Document Settings, Named Views and Origin stay; Factory's own branches
+/// (Structure, Linked, Design, Groups) follow Origin.
 #[cfg(feature = "ui")]
-pub const HIDDEN_BROWSER_ITEMS: &[&str] = &[custom_bridge::names::browser::ORIGIN];
+pub const HIDDEN_BROWSER_ITEMS: &[&str] = {
+    use custom_bridge::names::browser::*;
+    &[BODIES, SKETCHES, CONSTRUCTION, CANVASES, POINT_CLOUDS, ANALYSIS, FEATURES, JOINTS, COMPONENTS]
+};
 
 /// Register every custom command with SolidCraft. Called once at the start of each app.
 pub fn install() {
@@ -70,7 +75,7 @@ pub fn install() {
         custom_bridge::ui::add_toolbar_tabs(EXTRA_TABS);
         custom_bridge::ui::show_toolbar_tabs(TOOLBAR_TABS);
         custom_bridge::ui::hide_browser_items(HIDDEN_BROWSER_ITEMS);
-        custom_bridge::ui::set_browser_contents(ui_browser::draw);
+        custom_bridge::ui::set_browser_rows(ui_browser::rows);
         custom_bridge::ui::set_status_bar(ui_status::draw);
         custom_bridge::view::set_overlay(ui_results::overlay);
     }

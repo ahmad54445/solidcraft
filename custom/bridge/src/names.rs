@@ -41,4 +41,15 @@ pub mod tabs {
 pub mod browser {
     /// The Origin folder (origin point, planes and axes).
     pub const ORIGIN: &str = "origin";
+    pub const BODIES: &str = "bodies";
+    pub const SKETCHES: &str = "sketches";
+    pub const CONSTRUCTION: &str = "construction";
+    pub const CANVASES: &str = "canvases";
+    pub const POINT_CLOUDS: &str = "point_clouds";
+    pub const ANALYSIS: &str = "analysis";
+    /// The feature history rows shown in the browser.
+    pub const FEATURES: &str = "features";
+    pub const JOINTS: &str = "joints";
+    /// Child components / placements of the root.
+    pub const COMPONENTS: &str = "components";
 }

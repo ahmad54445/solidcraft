@@ -1429,10 +1429,6 @@ fn browser_contents(app: &mut SolveApp, ui: &mut egui::Ui, collapsible: bool) {
         t.secondary_hline(ui.painter(), ui.max_rect().x_range(), ui.cursor().top() + 1.0, t.toolbar.lerp_to_gamma(t.border, 0.5));
         ui.add_space(t.space_3);
     }
-    if let Some(draw) = crate::custom_hook::browser_contents() {
-        draw(ui); // [CUSTOM] the fork's browser rows
-        return;
-    }
     crate::edit_in_place::browser_strip(app, ui);
     if collapsible && !stacked {
         browser_rows_hugging(app, ui);
@@ -1829,26 +1825,36 @@ fn component_rows_inner(
         doc_settings(app, ui, d);
         named_view_rows(app, ui, d, acts);
         origin_rows(app, ui, d, acts);
-        canvas_rows(app, ui, d, acts);
-        point_clouds::rows(app, ui, d, acts);
-        analysis_rows(app, ui, d, acts);
+        if let Some(rows) = crate::custom_hook::browser_rows() {
+            rows(ui, d); // [CUSTOM] the fork's branches after Origin
+        }
+        let shown = |item: &str| !crate::custom_hook::browser_hidden(item); // [CUSTOM] folders the fork hides
+        if shown("canvases") {
+            canvas_rows(app, ui, d, acts);
+        }
+        if shown("point_clouds") {
+            point_clouds::rows(app, ui, d, acts);
+        }
+        if shown("analysis") {
+            analysis_rows(app, ui, d, acts);
+        }
     }
     let render = crate::render_workspace::active(app);
     for (slot, folder) in root.folders.iter_mut().zip(["bodies", "sketches", "construction"]) {
-        if render && folder != "bodies" {
-            continue;
+        if render && folder != "bodies" || crate::custom_hook::browser_hidden(folder) {
+            continue; // [CUSTOM] also folders the fork hides
         }
         let data = slot.get_or_insert_with(|| cache.folder(app, id, None, folder));
         folder_rows_at(app, ui, id, None, folder, d, acts, data);
     }
-    if !render {
-        features::rows(app, ui, id, &[], d, acts);
+    if !render && !crate::custom_hook::browser_hidden("features") {
+        features::rows(app, ui, id, &[], d, acts); // [CUSTOM] condition: the fork may hide it
     }
-    if id == 0 && !render {
-        crate::dialogs_assembly::browser_joints(app, ui, d);
+    if id == 0 && !render && !crate::custom_hook::browser_hidden("joints") {
+        crate::dialogs_assembly::browser_joints(app, ui, d); // [CUSTOM] condition: the fork may hide it
     }
-    for path in &root.children {
-        occurrence_rows(app, ui, path, d, acts, cache);
+    for path in root.children.iter().filter(|_| !crate::custom_hook::browser_hidden("components")) {
+        occurrence_rows(app, ui, path, d, acts, cache); // [CUSTOM] filter: the fork may hide components
     }
 }
 

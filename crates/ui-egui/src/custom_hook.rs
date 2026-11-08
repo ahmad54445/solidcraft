@@ -4,7 +4,7 @@
 //! custom crates; the app calls `custom_features::install()` at start-up, which ends up here.
 //! Nothing set (tests, plain SolidCraft) = upstream behaviour unchanged.
 //! Set: visible toolbar tabs, product name (window, bar, all UI text), product logo, extra
-//! toolbar tabs, hidden browser folders, the browser's rows, an extra status bar.
+//! toolbar tabs, hidden browser folders, the fork's browser rows after Origin, an extra status bar.
 
 use std::sync::OnceLock;
 
@@ -109,17 +109,20 @@ pub fn app_name() -> &'static str {
 /// A part of the window the fork draws itself: called once per frame with the area's `Ui`.
 pub type DrawFn = fn(&mut egui::Ui);
 
-static BROWSER_CONTENTS: OnceLock<DrawFn> = OnceLock::new();
+/// Rows the fork adds to the browser's root after Origin, at the given depth.
+pub type RowsFn = fn(&mut egui::Ui, usize);
+
+static BROWSER_ROWS: OnceLock<RowsFn> = OnceLock::new();
 static STATUS_BAR: OnceLock<DrawFn> = OnceLock::new();
 
-/// Draw the browser's rows with `draw` instead of SolidCraft's (the header stays). First call wins.
-pub fn set_browser_contents(draw: DrawFn) {
-    let _ = BROWSER_CONTENTS.set(draw);
+/// Add the fork's rows to the browser's root, right after Origin. First call wins.
+pub fn set_browser_rows(rows: RowsFn) {
+    let _ = BROWSER_ROWS.set(rows);
 }
 
 /// The fork's browser rows, if set.
-pub fn browser_contents() -> Option<DrawFn> {
-    BROWSER_CONTENTS.get().copied()
+pub fn browser_rows() -> Option<RowsFn> {
+    BROWSER_ROWS.get().copied()
 }
 
 /// An extra status bar the fork draws, always shown along the window's bottom edge (SolidCraft's
