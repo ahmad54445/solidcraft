@@ -206,3 +206,16 @@ fn local_axes_are_scene_lines_with_depth_one_triad_per_element() {
     let none = build_with(&g, &blocks, &choice, Units::default(), &Settings::default()).unwrap();
     assert!(none.layers.iter().filter(is_axis).count() == 0);
 }
+
+#[test]
+fn labels_behind_a_shown_shell_are_hidden() {
+    use custom_features::results_view::hidden_by_shells;
+    // one 1 m square at z = 0; the eye above it at z = 10
+    let g = Geometry { joints: vec![[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.0, 1.0, 0.0], [0.0, 1.0, 0.0]], shells: vec![[0, 1, 2, 3, 0]], ..Default::default() };
+    let eye = [0.5, 0.5, 10.0];
+    assert!(hidden_by_shells(&g, &[true], eye, [0.5, 0.5, -1.0], None), "below the slab: hidden");
+    assert!(!hidden_by_shells(&g, &[true], eye, [0.5, 0.5, 1.0], None), "above the slab: shown");
+    assert!(!hidden_by_shells(&g, &[true], eye, [2.0, 2.0, -1.0], None), "beside the slab: shown");
+    assert!(!hidden_by_shells(&g, &[false], eye, [0.5, 0.5, -1.0], None), "a hidden shell hides nothing");
+    assert!(!hidden_by_shells(&g, &[true], eye, [0.5, 0.5, -1.0], Some(0)), "its own label is never hidden by it");
+}

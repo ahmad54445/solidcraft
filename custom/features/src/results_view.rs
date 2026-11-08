@@ -794,3 +794,52 @@ fn in_triangle(p: [f32; 2], a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> bool {
     let pos = d1 > 0.0 || d2 > 0.0 || d3 > 0.0;
     !(neg && pos)
 }
+
+/// Whether a shown shell lies between `eye` and `p` (labels behind surfaces are not drawn,
+/// docs/10 P4). Ray test against the shells' mid-surface triangles; `own` (the shell the label
+/// belongs to) is skipped. Linear in the number of shells – run once per camera stop, not per frame.
+pub fn hidden_by_shells(g: &Geometry, shown: &[bool], eye: [f64; 3], p: [f64; 3], own: Option<usize>) -> bool {
+    let d = [p[0] - eye[0], p[1] - eye[1], p[2] - eye[2]];
+    let corner = |j: u32| g.joints.get(j as usize).copied();
+    for (e, s) in g.shells.iter().enumerate() {
+        if Some(e) == own || !shown.get(e).copied().unwrap_or(true) {
+            continue;
+        }
+        let tris: &[[usize; 3]] = if s[3] == u32::MAX { &[[0, 1, 2]] } else { &[[0, 1, 2], [0, 2, 3]] };
+        for t in tris {
+            let (Some(a), Some(b), Some(c)) = (corner(s[t[0]]), corner(s[t[1]]), corner(s[t[2]])) else { continue };
+            if let Some(t) = ray_triangle(eye, d, a, b, c)
+                && t > 1e-6
+                && t < 1.0 - 1e-6
+            {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Möller–Trumbore: the ray parameter t of `origin + t·dir` hitting triangle (a, b, c).
+fn ray_triangle(origin: [f64; 3], dir: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> Option<f64> {
+    let sub = |u: [f64; 3], v: [f64; 3]| [u[0] - v[0], u[1] - v[1], u[2] - v[2]];
+    let cross = |u: [f64; 3], v: [f64; 3]| [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    let dot = |u: [f64; 3], v: [f64; 3]| u[0] * v[0] + u[1] * v[1] + u[2] * v[2];
+    let (e1, e2) = (sub(b, a), sub(c, a));
+    let h = cross(dir, e2);
+    let det = dot(e1, h);
+    if det.abs() < 1e-12 {
+        return None;
+    }
+    let f = 1.0 / det;
+    let s = sub(origin, a);
+    let u = f * dot(s, h);
+    if !(0.0..=1.0).contains(&u) {
+        return None;
+    }
+    let q = cross(s, e1);
+    let v = f * dot(dir, q);
+    if v < 0.0 || u + v > 1.0 {
+        return None;
+    }
+    Some(f * dot(e2, q))
+}

@@ -58,11 +58,8 @@ pub fn status_controls(ui: &mut egui::Ui) {
 /// Drawn over the 3D view every frame: the legend and the value under the cursor.
 pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     let flags = crate::vv::overlay();
-    if flags.shell_labels.is_some() || flags.shell_sections.is_some() || flags.frame_labels.is_some() || flags.frame_sections.is_some() {
-        element_labels(ui, area, view, flags);
-    }
-    if flags.values {
-        value_labels(ui, area, view);
+    if flags.values || flags.shell_labels.is_some() || flags.shell_sections.is_some() || flags.frame_labels.is_some() || flags.frame_sections.is_some() {
+        stable_labels(ui, area, view, flags);
     }
     if flags.legend {
         legend(ui, area);
@@ -70,87 +67,77 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     value_snap(ui, area, view);
 }
 
-/// Subcategories Labels and Sections on the shown elements (Visibility/Graphics, docs/12 §2.1).
-/// Each is drawn in its own colour, with its own one-label-per-64-px grid, nearest to the
-/// camera first (rule P4); labels a line below a value label, sections a line below that.
-fn element_labels(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay) {
+/// One text on the view, anchored to a world point.
+#[derive(Clone, Debug)]
+struct Placed {
+    anchor: [f64; 3],
+    text: String,
+    colour: egui::Color32,
+    /// Vertical offset (px): values 0, labels +12, sections +24.
+    dy: f32,
+}
+
+/// The texts chosen at the last camera stop, and for what.
+#[derive(Clone)]
+struct LabelCache {
+    camera: [f32; 7],
+    key: (usize, usize, crate::vv::Overlay),
+    items: std::sync::Arc<Vec<Placed>>,
+}
+
+/// Values, Labels and Sections (docs/10 P4, docs/12 §2.1). Which texts are shown is decided
+/// **once per camera stop** – thinned per grid cell with a fixed order (element number, not
+/// "nearest", which changes every frame) and hidden when a shown shell lies between the eye and
+/// the text (ray test). While the camera moves, the chosen texts just follow their elements.
+fn stable_labels(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay) {
     let g = crate::transfer::geometry();
     let data = results_view::snap_data();
-    // Anchor points: shell centres and frame midpoints, shown elements only.
-    let mut shells: Vec<(usize, [f64; 3])> = Vec::new();
-    if flags.shell_labels.is_some() || flags.shell_sections.is_some() {
-        for (e, s) in g.shells.iter().enumerate() {
-            if !data.shell_shown.get(e).copied().unwrap_or(true) {
-                continue;
-            }
-            let n = if s[3] == u32::MAX { 3 } else { 4 };
-            let mut c = [0.0; 3];
-            for k in 0..n {
-                if let Some(p) = g.joints.get(s[k] as usize) {
-                    for i in 0..3 {
-                        c[i] += p[i] / n as f64;
-                    }
-                }
-            }
-            shells.push((e, c));
+    if g.joints.is_empty() {
+        return;
+    }
+    // Camera signature: the eye and two model points on screen.
+    let probe = |p: [f64; 3]| (view.project)(p).map_or([f32::NAN; 2], |s| [s.x, s.y]);
+    let (p0, p1) = (probe(g.joints[0]), probe(g.joints[g.joints.len() - 1]));
+    let camera = [view.eye[0] as f32, view.eye[1] as f32, view.eye[2] as f32, p0[0], p0[1], p1[0], p1[1]];
+    let key = (std::sync::Arc::as_ptr(&g) as usize, std::sync::Arc::as_ptr(&data) as usize, flags);
+    let ctx = ui.ctx().clone();
+    let (cache_id, moved_id) = (egui::Id::unique("factory_label_cache"), egui::Id::unique("factory_label_moved"));
+    let now = ctx.input(|i| i.time);
+    let cache = ctx.data(|d| d.get_temp::<LabelCache>(cache_id));
+    let (last_camera, last_move) = ctx.data(|d| d.get_temp::<([f32; 7], f64)>(moved_id)).unwrap_or((camera, f64::NEG_INFINITY));
+    let same = |a: &[f32; 7], b: &[f32; 7]| a.iter().zip(b).all(|(x, y)| (x - y).abs() <= 0.5 || (x.is_nan() && y.is_nan()));
+    let last_move = if same(&last_camera, &camera) { last_move } else { now };
+    ctx.data_mut(|d| d.insert_temp(moved_id, (camera, last_move)));
+    let settled = now - last_move >= 0.2;
+    let stale = cache.as_ref().is_none_or(|c| c.key != key || (settled && !same(&c.camera, &camera)));
+    let items = match cache {
+        Some(c) if !stale => c.items,
+        Some(c) if !settled && c.key == key => {
+            ctx.request_repaint_after(std::time::Duration::from_millis(220)); // lay out again once it stops
+            c.items
         }
-    }
-    let mut frames: Vec<(usize, [f64; 3])> = Vec::new();
-    if flags.frame_labels.is_some() || flags.frame_sections.is_some() {
-        for (e, f) in g.frames.iter().enumerate() {
-            if !data.frame_shown.get(e).copied().unwrap_or(true) {
-                continue;
-            }
-            if let (Some(a), Some(b)) = (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize)) {
-                frames.push((e, [(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0, (a[2] + b[2]) / 2.0]));
-            }
+        _ => {
+            let items = std::sync::Arc::new(layout(&g, &data, area, view, flags));
+            ctx.data_mut(|d| d.insert_temp(cache_id, LabelCache { camera, key, items: items.clone() }));
+            items
         }
-    }
-    let mut layers: Vec<(Vec<([f64; 3], String)>, [u8; 3], f32)> = Vec::new();
-    let name = |list: &Vec<String>, e: usize| list.get(e).cloned().unwrap_or_default();
-    if let Some(c) = flags.shell_labels {
-        layers.push((shells.iter().map(|(e, p)| (*p, name(&g.shell_names, *e))).collect(), c, 12.0));
-    }
-    if let Some(c) = flags.frame_labels {
-        layers.push((frames.iter().map(|(e, p)| (*p, name(&g.frame_names, *e))).collect(), c, 12.0));
-    }
-    if let Some(c) = flags.shell_sections {
-        layers.push((shells.iter().map(|(e, p)| (*p, name(&g.shell_sections, g.shells[*e][4] as usize))).collect(), c, 24.0));
-    }
-    if let Some(c) = flags.frame_sections {
-        layers.push((frames.iter().map(|(e, p)| (*p, name(&g.frame_sections, g.frames[*e][2] as usize))).collect(), c, 24.0));
-    }
-    let dist = |p: [f64; 3]| (p[0] - view.eye[0]).powi(2) + (p[1] - view.eye[1]).powi(2) + (p[2] - view.eye[2]).powi(2);
+    };
     let painter = ui.painter_at(area);
     let font = egui::FontId::proportional(10.0);
-    let cell = 64.0;
-    for (mut items, [r, g_, b], dy) in layers {
-        items.retain(|(_, t)| !t.is_empty());
-        items.sort_by(|a, b| dist(a.0).total_cmp(&dist(b.0)));
-        let colour = egui::Color32::from_rgb(r, g_, b);
-        let mut taken = std::collections::HashSet::new();
-        for (p, t) in items {
-            let Some(s) = (view.project)(p).filter(|s| area.contains(*s)) else { continue };
-            if taken.insert(((s.x / cell) as i32, (s.y / cell) as i32)) {
-                painter.text(s + egui::vec2(0.0, dy), egui::Align2::CENTER_CENTER, t, font.clone(), colour);
-            }
+    for t in items.iter() {
+        if let Some(s) = (view.project)(t.anchor).filter(|s| area.contains(*s)) {
+            painter.text(s + egui::vec2(0.0, t.dy), egui::Align2::CENTER_CENTER, &t.text, font.clone(), t.colour);
         }
     }
 }
 
-/// Values on the elements (docs/10 rule P4): only inside the view, at most one label per 48 px
-/// cell, nearest to the camera first. Shells: the mean of their corner values at the centre;
-/// frames: each result station.
-fn value_labels(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
-    let data = results_view::snap_data();
-    if data.shell_values.is_empty() && data.frame_points.is_empty() {
-        return;
-    }
-    let g = crate::transfer::geometry();
-    let dist = |p: [f64; 3]| (p[0] - view.eye[0]).powi(2) + (p[1] - view.eye[1]).powi(2) + (p[2] - view.eye[2]).powi(2);
-    let mut points: Vec<([f64; 3], f32)> = Vec::new();
-    for (e, s) in g.shells.iter().enumerate() {
-        let Some(v) = data.shell_values.get(e).filter(|v| !v[0].is_nan()) else { continue };
+/// Choose the texts for the current camera: per kind its own grid (values 48 px, names 64 px),
+/// candidates in element order, a cell taken by the first visible one.
+fn layout(g: &crate::transfer::Geometry, data: &results_view::SnapData, area: egui::Rect, view: &ViewInfo<'_>, flags: crate::vv::Overlay) -> Vec<Placed> {
+    let shown_shell = |e: usize| data.shell_shown.get(e).copied().unwrap_or(true);
+    let shown_frame = |e: usize| data.frame_shown.get(e).copied().unwrap_or(true);
+    let centre = |e: usize| {
+        let s = g.shells[e];
         let n = if s[3] == u32::MAX { 3 } else { 4 };
         let mut c = [0.0; 3];
         for k in 0..n {
@@ -160,21 +147,70 @@ fn value_labels(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
                 }
             }
         }
-        points.push((c, v[..n].iter().sum::<f32>() / n as f32));
+        c
+    };
+    let mid = |e: usize| {
+        let f = g.frames[e];
+        match (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize)) {
+            (Some(a), Some(b)) => Some([(a[0] + b[0]) / 2.0, (a[1] + b[1]) / 2.0, (a[2] + b[2]) / 2.0]),
+            _ => None,
+        }
+    };
+    // (anchor, text, own shell, colour, dy, cell)
+    type Candidate = ([f64; 3], String, Option<usize>);
+    let mut kinds: Vec<(Vec<Candidate>, egui::Color32, f32, f32)> = Vec::new();
+    let rgb = |[r, g_, b]: [u8; 3]| egui::Color32::from_rgb(r, g_, b);
+    if flags.values {
+        let mut c: Vec<Candidate> = Vec::new();
+        for (e, v) in data.shell_values.iter().enumerate() {
+            if v[0].is_nan() || !shown_shell(e) {
+                continue;
+            }
+            let n = if g.shells[e][3] == u32::MAX { 3 } else { 4 };
+            c.push((centre(e), format_value(v[..n].iter().sum::<f32>() / n as f32), Some(e)));
+        }
+        c.extend(data.frame_points.iter().map(|(p, v)| (*p, format_value(*v), None)));
+        kinds.push((c, ui_text_colour(), 0.0, 48.0));
     }
-    points.extend(data.frame_points.iter().copied());
-    points.sort_by(|a, b| dist(a.0).total_cmp(&dist(b.0)));
-    let painter = ui.painter_at(area);
-    let font = egui::FontId::proportional(10.0);
-    let colour = ui.visuals().text_color();
-    let cell = 48.0;
-    let mut taken = std::collections::HashSet::new();
-    for (p, v) in points {
-        let Some(s) = (view.project)(p).filter(|s| area.contains(*s)) else { continue };
-        if taken.insert(((s.x / cell) as i32, (s.y / cell) as i32)) {
-            painter.text(s, egui::Align2::CENTER_CENTER, format_value(v), font.clone(), colour);
+    let name = |list: &Vec<String>, k: usize| list.get(k).cloned().unwrap_or_default();
+    if let Some(col) = flags.shell_labels {
+        let c = (0..g.shells.len()).filter(|e| shown_shell(*e)).map(|e| (centre(e), name(&g.shell_names, e), Some(e))).collect();
+        kinds.push((c, rgb(col), 12.0, 64.0));
+    }
+    if let Some(col) = flags.frame_labels {
+        let c = (0..g.frames.len()).filter(|e| shown_frame(*e)).filter_map(|e| mid(e).map(|p| (p, name(&g.frame_names, e), None))).collect();
+        kinds.push((c, rgb(col), 12.0, 64.0));
+    }
+    if let Some(col) = flags.shell_sections {
+        let c = (0..g.shells.len()).filter(|e| shown_shell(*e)).map(|e| (centre(e), name(&g.shell_sections, g.shells[e][4] as usize), Some(e))).collect();
+        kinds.push((c, rgb(col), 24.0, 64.0));
+    }
+    if let Some(col) = flags.frame_sections {
+        let c = (0..g.frames.len()).filter(|e| shown_frame(*e)).filter_map(|e| mid(e).map(|p| (p, name(&g.frame_sections, g.frames[e][2] as usize), None))).collect();
+        kinds.push((c, rgb(col), 24.0, 64.0));
+    }
+    let mut out = Vec::new();
+    for (candidates, colour, dy, cell) in kinds {
+        let mut taken = std::collections::HashSet::new();
+        for (anchor, text, own) in candidates {
+            if text.is_empty() {
+                continue;
+            }
+            let Some(s) = (view.project)(anchor).filter(|s| area.contains(*s)) else { continue };
+            let slot = ((s.x / cell) as i32, (s.y / cell) as i32);
+            if taken.contains(&slot) || results_view::hidden_by_shells(g, &data.shell_shown, view.eye, anchor, own) {
+                continue;
+            }
+            taken.insert(slot);
+            out.push(Placed { anchor, text, colour, dy });
         }
     }
+    out
+}
+
+/// Text colour for values (dark on the light view).
+fn ui_text_colour() -> egui::Color32 {
+    egui::Color32::from_rgb(20, 20, 24)
 }
 
 /// The value under the cursor, as in CSiBridge: a small square on the corner/station and its value.
