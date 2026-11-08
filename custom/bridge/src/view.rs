@@ -56,11 +56,20 @@ pub fn ramp(t: f32) -> [u8; 3] {
 const ID_BASE: u64 = 0xFAC7_0000_0000_0000;
 static VERSION: AtomicU64 = AtomicU64::new(1);
 static SHOWN: Mutex<Vec<GpuCloud>> = Mutex::new(Vec::new());
+/// Text drawn as line segments (labels, section names, values), kept apart from the result
+/// layers so re-placing the text never rebuilds the results.
+static TEXT: Mutex<Vec<GpuCloud>> = Mutex::new(Vec::new());
+const TEXT_ID_BASE: u64 = ID_BASE + 0x1_0000;
 
-/// Show these layers (replacing what was shown). Builds the GPU records: call it off the UI thread
-/// for large models. `bounds` (min, max) makes Fit view include them.
-pub fn show(layers: &[Layer], bounds: Option<[[f64; 3]; 2]>) {
-    let clouds: Vec<GpuCloud> = layers
+/// Result layers + text layers to the view.
+fn publish() {
+    let shown = SHOWN.lock().unwrap_or_else(PoisonError::into_inner).clone();
+    let text = TEXT.lock().unwrap_or_else(PoisonError::into_inner).clone();
+    solidcraft_ui_egui::custom_hook::set_extra_clouds(shown.into_iter().chain(text).collect());
+}
+
+fn clouds(layers: &[Layer], id_base: u64) -> Vec<GpuCloud> {
+    layers
         .iter()
         .enumerate()
         .map(|(k, layer)| {
@@ -89,7 +98,7 @@ pub fn show(layers: &[Layer], bounds: Option<[[f64; 3]; 2]>) {
                 cloud_cell(&mut segments, &cell);
             }
             GpuCloud {
-                id: ID_BASE + k as u64,
+                id: id_base + k as u64,
                 version: VERSION.fetch_add(1, Ordering::Relaxed),
                 dots: Arc::new(Vec::new()),
                 segments: Arc::new(segments),
@@ -97,26 +106,41 @@ pub fn show(layers: &[Layer], bounds: Option<[[f64; 3]; 2]>) {
                 style: style(layer.coloring),
             }
         })
-        .collect();
-    *SHOWN.lock().unwrap_or_else(PoisonError::into_inner) = clouds.clone();
-    solidcraft_ui_egui::custom_hook::set_extra_clouds(clouds);
+        .collect()
+}
+
+/// Show these text layers (segments in plain colours), replacing the previous text. The result
+/// layers are not touched.
+pub fn show_text(layers: &[Layer]) {
+    *TEXT.lock().unwrap_or_else(PoisonError::into_inner) = clouds(layers, TEXT_ID_BASE);
+    publish();
+}
+
+/// Show these layers (replacing what was shown). Builds the GPU records: call it off the UI thread
+/// for large models. `bounds` (min, max) makes Fit view include them.
+pub fn show(layers: &[Layer], bounds: Option<[[f64; 3]; 2]>) {
+    *SHOWN.lock().unwrap_or_else(PoisonError::into_inner) = clouds(layers, ID_BASE);
+    publish();
     solidcraft_ui_egui::custom_hook::set_extra_bounds(bounds);
 }
 
 /// Change only the ramp ranges of the shown layers (index = layer order): nothing is uploaded again.
 pub fn set_ranges(ranges: &[Option<[f32; 2]>]) {
-    let mut shown = SHOWN.lock().unwrap_or_else(PoisonError::into_inner);
-    for (cloud, range) in shown.iter_mut().zip(ranges) {
-        if let Some(r) = range {
-            cloud.style = style(Coloring::Ramp(*r));
+    {
+        let mut shown = SHOWN.lock().unwrap_or_else(PoisonError::into_inner);
+        for (cloud, range) in shown.iter_mut().zip(ranges) {
+            if let Some(r) = range {
+                cloud.style = style(Coloring::Ramp(*r));
+            }
         }
     }
-    solidcraft_ui_egui::custom_hook::set_extra_clouds(shown.clone());
+    publish();
 }
 
 /// Remove Factory's elements from the view.
 pub fn clear() {
     SHOWN.lock().unwrap_or_else(PoisonError::into_inner).clear();
+    TEXT.lock().unwrap_or_else(PoisonError::into_inner).clear();
     solidcraft_ui_egui::custom_hook::set_extra_clouds(Vec::new());
     solidcraft_ui_egui::custom_hook::set_extra_bounds(None);
 }

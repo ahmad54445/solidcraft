@@ -7,6 +7,7 @@
 mod connect;
 pub mod csi;
 pub mod display;
+pub mod font3d;
 pub mod vv;
 pub mod transfer;
 pub mod results_view;
