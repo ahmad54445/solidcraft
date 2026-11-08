@@ -6,6 +6,8 @@
 
 mod connect;
 pub mod csi;
+pub mod display;
+pub mod vv;
 pub mod transfer;
 pub mod results_view;
 pub mod model;
@@ -14,6 +16,8 @@ mod plate;
 mod ui_browser;
 #[cfg(feature = "ui")]
 mod ui_csi;
+#[cfg(feature = "ui")]
+mod ui_panels;
 #[cfg(feature = "ui")]
 mod ui_results;
 #[cfg(feature = "ui")]
@@ -29,6 +33,8 @@ commands! {
         { id: "factory.connect.midas", label: "MIDAS Civil NX", run: connect::midas, icon: "import",
           planned: "MIDAS adapter" },
         { id: "factory.connect.csi", label: "CSiBridge", run: connect::csi, icon: "import" },
+        { id: "factory.view.results", label: "Results", run: display::results, icon: "graph" },
+        { id: "factory.view.visibility_graphics", label: "Visibility/Graphics", run: display::visibility_graphics, icon: "eye" },
     ];
 }
 
@@ -41,20 +47,28 @@ pub const APP_NAME: &str = include_str!("../../branding/name.txt");
 #[cfg(feature = "ui")]
 pub const LOGO_PNG: &[u8] = include_bytes!("../../branding/logo.png");
 
-/// Factory's own toolbar tab: connections to analysis programs.
+/// Factory's own toolbar tabs: connections to analysis programs; result display.
 pub const CONNECT_TAB: &str = "CONNECT";
+pub const RESULTS_TAB: &str = "RESULTS";
 
 /// The only toolbar tabs Factory shows, in this order; every other SolidCraft tab is hidden.
 #[cfg(feature = "ui")]
-pub const TOOLBAR_TABS: &[&str] = &[custom_bridge::names::tabs::MODEL, CONNECT_TAB];
+pub const TOOLBAR_TABS: &[&str] = &[custom_bridge::names::tabs::MODEL, CONNECT_TAB, RESULTS_TAB];
 
 /// Tabs Factory adds to the toolbar.
 #[cfg(feature = "ui")]
-static EXTRA_TABS: &[custom_bridge::ui::Tab] = &[custom_bridge::ui::Tab {
-    name: CONNECT_TAB,
-    icon: "import",
-    panels: &[custom_bridge::ui::Panel { name: "PROGRAMS", commands: &["factory.connect.midas", "factory.connect.csi"] }],
-}];
+static EXTRA_TABS: &[custom_bridge::ui::Tab] = &[
+    custom_bridge::ui::Tab {
+        name: CONNECT_TAB,
+        icon: "import",
+        panels: &[custom_bridge::ui::Panel { name: "PROGRAMS", commands: &["factory.connect.midas", "factory.connect.csi"] }],
+    },
+    custom_bridge::ui::Tab {
+        name: RESULTS_TAB,
+        icon: "graph",
+        panels: &[custom_bridge::ui::Panel { name: "DISPLAY", commands: &["factory.view.results", "factory.view.visibility_graphics"] }],
+    },
+];
 
 /// SolidCraft browser rows Factory leaves out (README › Browser): bodies, sketches and the other
 /// modelling folders. Document Settings, Named Views and Origin stay; Factory's own branches

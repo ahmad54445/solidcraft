@@ -55,7 +55,7 @@ fn shell_values_land_on_their_corners_and_frames_follow_stations() {
     // M3 (frame column 9) = 0 at 0 m, 8000 N·m at 2 m, 0 at 4 m; stations given out of order
     let frames = columns(&[vec![0; 3], vec![0; 3]], &[vec![4.0, 0.0, 2.0], vec![0.0; 3], vec![0.0; 3], vec![0.0; 3], vec![0.0; 3], vec![0.0; 3], vec![0.0; 3], vec![0.0, 0.0, 8000.0]]);
     let blocks = vec![block(&d, "DC", "shell_results", 4, &SHELL_COLS, shells), block(&d, "DC", "frame_results", 3, &FRAME_COLS, frames)];
-    let choice = Choice { load: Some("DC".into()), shell: 3, frame: 5, step: Step::Max };
+    let choice = Choice { load: Some("DC".into()), shell: 3, frame: 5, step: Step::Max, ..Default::default() };
     let units = Units::default(); // kN, m
     let b = build(&geometry(), &blocks, &choice, units).unwrap();
     // corners n1..n4 = joints 0, 1, 2, 3 → 4, 3, 2, 1 kN·m/m

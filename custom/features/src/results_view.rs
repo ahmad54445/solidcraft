@@ -1,14 +1,22 @@
 //! Which result the 3D view shows, and building its coloured elements (docs/10-viewport-results.md).
 //!
-//! Building runs on a worker thread (rule V1); the UI only reads [`shown`]. Values stay SI in the
-//! result store and are scaled to the display units here.
+//! Building runs on a worker thread (rule V1, P1); the UI only reads [`shown`]. Values stay SI in
+//! the result store and are scaled to the display units here. Derived components (principal
+//! values, VMax) and nodal averages are computed in one pass over the flat columns (P2, P3).
 
+#[cfg(feature = "ui")]
+use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock, OnceLock, PoisonError, RwLock};
 
 use crate::transfer::{self, Geometry, ResultBlock};
 use crate::units::Units;
+use crate::vv::{self, Look, Settings};
 
-pub const SHELL_COMPONENTS: [&str; 8] = ["F11", "F22", "F12", "M11", "M22", "M12", "V13", "V23"];
+/// Shell components: 0–7 are stored (CSiBridge names), 8–14 are computed in Factory.
+/// Panel names (MIDAS style) in [`SHELL_PANEL_NAMES`].
+pub const SHELL_COMPONENTS: [&str; 15] = ["F11", "F22", "F12", "M11", "M22", "M12", "V13", "V23", "Fmax", "Fmin", "|F|max", "Mmax", "Mmin", "|M|max", "VMax"];
+/// The same components as the results panel names them (docs/10 §7.2).
+pub const SHELL_PANEL_NAMES: [&str; 15] = ["Fxx", "Fyy", "Fxy", "Mxx", "Myy", "Mxy", "Vxx", "Vyy", "Fmax", "Fmin", "FMax", "Mmax", "Mmin", "MMax", "VMax"];
 pub const FRAME_COMPONENTS: [&str; 6] = ["P", "V2", "V3", "T", "M2", "M3"];
 
 /// Envelope side.
@@ -19,6 +27,15 @@ pub enum Step {
     Min,
 }
 
+/// Value at a shell joint: the element's own (may jump between elements) or the average of all
+/// elements meeting there (smooth).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Averaging {
+    #[default]
+    Element,
+    Nodal,
+}
+
 /// What the user chose.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Choice {
@@ -27,9 +44,12 @@ pub struct Choice {
     pub shell: usize,
     pub frame: usize,
     pub step: Step,
+    pub averaging: Averaging,
+    /// Avg. Nodal over shown elements only.
+    pub active_only: bool,
 }
 
-/// What the view shows now (for the status bar and the legend).
+/// What the view shows now (for the status bar, the panel and the legend).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Shown {
     pub choice: Choice,
@@ -40,6 +60,13 @@ pub struct Shown {
     pub envelope: bool,
     pub busy: bool,
     pub error: Option<String>,
+    /// Typed legend ranges (None = automatic).
+    pub manual_shell: Option<[f32; 2]>,
+    pub manual_frame: Option<[f32; 2]>,
+    /// Which drawn layer carries each contour (for range changes without rebuilding).
+    pub shell_layer: Option<usize>,
+    pub frame_layer: Option<usize>,
+    pub layer_count: usize,
 }
 
 /// One colour bar.
@@ -53,7 +80,8 @@ pub struct Legend {
 static SHOWN: LazyLock<RwLock<Shown>> = LazyLock::new(|| RwLock::new(Shown::default()));
 static SNAP: LazyLock<RwLock<Arc<SnapData>>> = LazyLock::new(|| RwLock::new(Arc::new(SnapData::default())));
 
-/// What value snap needs: the shown values in display units (shared, swapped per result).
+/// What value snap and value labels need: the shown values in display units (shared, swapped
+/// per result). Elements that are hidden or not contoured have NaN values (rule G5).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SnapData {
     /// Per shell, the value at its corners n1..n4.
@@ -79,6 +107,12 @@ pub fn set_repaint(f: Box<dyn Fn() + Send + Sync>) {
     let _ = REPAINT.set(f);
 }
 
+fn repaint() {
+    if let Some(repaint) = REPAINT.get() {
+        repaint();
+    }
+}
+
 /// Load cases / combinations with stored results, in transfer order.
 pub fn loads() -> Vec<String> {
     let mut names: Vec<String> = Vec::new();
@@ -92,6 +126,7 @@ pub fn loads() -> Vec<String> {
 
 /// Show `choice` with `units`: builds on a worker thread, then swaps it into the view.
 pub fn select(choice: Choice, units: Units) {
+    let settings = vv::settings();
     {
         let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
         s.choice = choice.clone();
@@ -99,19 +134,34 @@ pub fn select(choice: Choice, units: Units) {
         s.busy = true;
     }
     std::thread::spawn(move || {
-        let outcome = build(&transfer::geometry(), &transfer::results(), &choice, units);
+        let outcome = build_with(&transfer::geometry(), &transfer::results(), &choice, units, &settings);
         // A newer choice may have been made meanwhile: only the latest one is shown.
         let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
-        if s.choice != choice || s.units != Some(units) {
+        if s.choice != choice || s.units != Some(units) || vv::settings() != settings {
             return;
         }
         match outcome {
             Ok(built) => {
                 #[cfg(feature = "ui")]
-                custom_bridge::view::show(&built.layers, built.bounds);
+                {
+                    custom_bridge::view::show(&built.layers, built.bounds);
+                    let mut ranges = vec![None; built.layers.len()];
+                    if let (Some(k), Some(r)) = (built.shell_layer, s.manual_shell) {
+                        ranges[k] = Some(r);
+                    }
+                    if let (Some(k), Some(r)) = (built.frame_layer, s.manual_frame) {
+                        ranges[k] = Some(r);
+                    }
+                    if ranges.iter().any(Option::is_some) {
+                        custom_bridge::view::set_ranges(&ranges);
+                    }
+                    s.layer_count = built.layers.len();
+                }
                 *SNAP.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(built.snap.clone());
-                s.shell = built.shell;
-                s.frame = built.frame;
+                s.shell = built.shell.map(|l| Legend { range: s.manual_shell.unwrap_or(l.range), ..l });
+                s.frame = built.frame.map(|l| Legend { range: s.manual_frame.unwrap_or(l.range), ..l });
+                s.shell_layer = built.shell_layer;
+                s.frame_layer = built.frame_layer;
                 s.envelope = built.envelope;
                 s.error = None;
             }
@@ -119,10 +169,49 @@ pub fn select(choice: Choice, units: Units) {
         }
         s.busy = false;
         drop(s);
-        if let Some(repaint) = REPAINT.get() {
-            repaint();
-        }
+        repaint();
     });
+}
+
+/// Build the view again with the current choice (after Visibility/Graphics changed).
+pub fn refresh() {
+    let s = shown();
+    if let Some(units) = s.units {
+        select(s.choice, units);
+    }
+}
+
+/// Typed legend ranges (None = automatic). Changes only the colour scale: nothing is uploaded
+/// (rule V2 / P5) unless switching back to automatic, which needs the computed range again.
+pub fn set_manual_ranges(shell: Option<[f32; 2]>, frame: Option<[f32; 2]>) {
+    let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
+    let back_to_auto = (s.manual_shell.is_some() && shell.is_none()) || (s.manual_frame.is_some() && frame.is_none());
+    s.manual_shell = shell;
+    s.manual_frame = frame;
+    if back_to_auto {
+        drop(s);
+        refresh();
+        return;
+    }
+    #[cfg(feature = "ui")]
+    {
+        let mut ranges = vec![None; s.layer_count];
+        if let (Some(k), Some(r)) = (s.shell_layer, shell) {
+            ranges[k] = Some(r);
+        }
+        if let (Some(k), Some(r)) = (s.frame_layer, frame) {
+            ranges[k] = Some(r);
+        }
+        custom_bridge::view::set_ranges(&ranges);
+    }
+    if let (Some(l), Some(r)) = (s.shell.as_mut(), shell) {
+        l.range = r;
+    }
+    if let (Some(l), Some(r)) = (s.frame.as_mut(), frame) {
+        l.range = r;
+    }
+    drop(s);
+    repaint();
 }
 
 /// After a transfer: the first load, the first components, current units.
@@ -135,6 +224,9 @@ pub fn show_first() {
 pub struct Built {
     #[cfg(feature = "ui")]
     pub layers: Vec<custom_bridge::view::Layer>,
+    /// Index of the contoured shell / frame layer in `layers`.
+    pub shell_layer: Option<usize>,
+    pub frame_layer: Option<usize>,
     pub bounds: Option<[[f64; 3]; 2]>,
     pub shell: Option<Legend>,
     pub frame: Option<Legend>,
@@ -142,26 +234,30 @@ pub struct Built {
     /// Per shell corner (n1..n4) the shown value; per frame its (station, value) points.
     pub shell_values: Vec<[f32; 4]>,
     pub frame_values: Vec<Vec<(f64, f32)>>,
-    /// The same values arranged for value snap.
+    /// The same values arranged for value snap (hidden / not contoured: NaN, left out).
     pub snap: SnapData,
 }
 
-/// Shell colours when no result is shown.
-#[cfg(feature = "ui")]
-const SHELL_PLAIN: [u8; 3] = [190, 196, 206];
-#[cfg(feature = "ui")]
-const FRAME_PLAIN: [u8; 3] = [70, 72, 84];
-
-/// Colour the transferred elements by `choice`.
+/// Colour the transferred elements by `choice` with the default view settings.
 pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units) -> Result<Built, String> {
+    build_with(g, blocks, choice, units, &Settings::default())
+}
+
+/// Colour the transferred elements by `choice`, drawn as the Visibility/Graphics `settings` say.
+pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units, settings: &Settings) -> Result<Built, String> {
     let find = |family: &str| choice.load.as_ref().and_then(|l| blocks.iter().find(|b| &b.name == l && b.family == family));
     let shell_block = find("shell_results");
     let frame_block = find("frame_results");
+    let (shell_look, frame_look) = vv::looks(g, settings);
 
-    let (shell_values, shell_env) = match shell_block {
-        Some(b) => shell_corner_values(g, &Block::read(b)?, 4 + choice.shell.min(7), choice.step)?,
+    let (mut shell_values, shell_env) = match shell_block {
+        Some(b) => shell_corner_values(g, &Block::read(b)?, choice.shell.min(14), choice.step)?,
         None => (Vec::new(), false),
     };
+    if choice.averaging == Averaging::Nodal && !shell_values.is_empty() {
+        let shown_only = |e: usize| !choice.active_only || shell_look[e] != Look::Hidden;
+        average_at_joints(g, &mut shell_values, shown_only);
+    }
     let (frame_values, frame_env) = match frame_block {
         Some(b) => frame_station_values(g, &Block::read(b)?, 4 + choice.frame.min(5), choice.step)?,
         None => (Vec::new(), false),
@@ -173,8 +269,11 @@ pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units
     let shell_values: Vec<[f32; 4]> = shell_values.iter().map(|v| v.map(|x| (f64::from(x) / shell_scale) as f32)).collect();
     let frame_values: Vec<Vec<(f64, f32)>> = frame_values.iter().map(|pts| pts.iter().map(|(s, v)| (*s, (f64::from(*v) / frame_scale) as f32)).collect()).collect();
 
-    let shell_range = range(shell_values.iter().flatten().copied());
-    let frame_range = range(frame_values.iter().flatten().map(|(_, v)| *v));
+    // Contoured = shown normally, contour on, values present.
+    let shell_contour = |e: usize| settings.contour && shell_look[e] == Look::Normal && !shell_values.is_empty();
+    let frame_contour = |e: usize| settings.contour && frame_look[e] == Look::Normal && frame_values.get(e).is_some_and(|p| !p.is_empty());
+    let shell_range = range((0..g.shells.len()).filter(|e| shell_contour(*e)).flat_map(|e| shell_values[e]));
+    let frame_range = range((0..g.frames.len()).filter(|e| frame_contour(*e)).flat_map(|e| frame_values[e].iter().map(|(_, v)| *v)));
     let label = |load: &Option<String>, comp: &str| format!("{} – {comp}", load.as_deref().unwrap_or(""));
 
     #[cfg(feature = "ui")]
@@ -189,51 +288,103 @@ pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units
             }
         }
     };
-    for s in &g.shells {
-        s[..4].iter().filter(|j| **j != u32::MAX).for_each(|j| grow(*j));
+    for (e, s) in g.shells.iter().enumerate() {
+        if shell_look[e] != Look::Hidden {
+            s[..4].iter().filter(|j| **j != u32::MAX).for_each(|j| grow(*j));
+        }
     }
-    for f in &g.frames {
-        grow(f[0]);
-        grow(f[1]);
+    for (e, f) in g.frames.iter().enumerate() {
+        if frame_look[e] != Look::Hidden {
+            grow(f[0]);
+            grow(f[1]);
+        }
     }
 
+    // One layer per look (rule G1): contour, plain category colour, halftone, each filter colour.
     #[cfg(feature = "ui")]
-    let layers = {
+    let (layers, shell_layer, frame_layer) = {
         use custom_bridge::view::{Coloring, Layer, Segment, Triangle};
-        let mut shells = Vec::with_capacity(g.shells.len() * 2);
+        let mut layers: Vec<Layer> = Vec::new();
+        let mut shell_layer = None;
+        let mut frame_layer = None;
+
+        // Shells grouped by how they are coloured.
+        let mut shell_groups: BTreeMap<Option<[u8; 3]>, Vec<Triangle>> = BTreeMap::new();
         for (e, s) in g.shells.iter().enumerate() {
+            let colour = match shell_look[e] {
+                Look::Hidden => continue,
+                Look::Normal if shell_contour(e) => None,
+                Look::Normal => Some(settings.shells.surface),
+                Look::Halftone => Some(vv::halftone(settings.shells.surface)),
+                Look::Colour(c) => Some(c),
+            };
             let v = shell_values.get(e).copied().unwrap_or([0.0; 4]);
             let tri = |a: usize, b: usize, c: usize| Triangle { corners: [p(s[a]), p(s[b]), p(s[c])], values: [v[a], v[b], v[c]] };
-            shells.push(tri(0, 1, 2));
+            let list = shell_groups.entry(colour).or_default();
+            list.push(tri(0, 1, 2));
             if s[3] != u32::MAX {
-                shells.push(tri(0, 2, 3));
+                list.push(tri(0, 2, 3));
             }
         }
-        let mut frames = Vec::with_capacity(g.frames.len());
+        for (colour, triangles) in shell_groups {
+            let coloring = match (colour, shell_range) {
+                (None, Some(r)) => {
+                    shell_layer = Some(layers.len());
+                    Coloring::Ramp(r)
+                }
+                (None, None) => Coloring::Plain(settings.shells.surface),
+                (Some(c), _) => Coloring::Plain(c),
+            };
+            layers.push(Layer { triangles, segments: Vec::new(), coloring });
+        }
+
+        // Frames grouped the same way.
+        let mut frame_groups: BTreeMap<Option<[u8; 3]>, Vec<Segment>> = BTreeMap::new();
         for (e, f) in g.frames.iter().enumerate() {
+            let colour = match frame_look[e] {
+                Look::Hidden => continue,
+                Look::Normal if frame_contour(e) => None,
+                Look::Normal => Some(settings.frames.line),
+                Look::Halftone => Some(vv::halftone(settings.frames.line)),
+                Look::Colour(c) => Some(c),
+            };
             let (a, b) = (p(f[0]), p(f[1]));
             let len = ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2) + (b[2] - a[2]).powi(2)).sqrt().max(f32::EPSILON);
             let at = |sta: f64| {
                 let t = (sta as f32 / len).clamp(0.0, 1.0);
                 [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
             };
-            match frame_values.get(e).filter(|pts| pts.len() >= 2) {
-                Some(pts) => frames.extend(pts.windows(2).map(|w| Segment { ends: [at(w[0].0), at(w[1].0)], values: [w[0].1, w[1].1] })),
+            let list = frame_groups.entry(colour).or_default();
+            match frame_values.get(e).filter(|pts| pts.len() >= 2 && colour.is_none()) {
+                Some(pts) => list.extend(pts.windows(2).map(|w| Segment { ends: [at(w[0].0), at(w[1].0)], values: [w[0].1, w[1].1] })),
                 None => {
                     let v = frame_values.get(e).and_then(|pts| pts.first()).map_or(0.0, |x| x.1);
-                    frames.push(Segment { ends: [a, b], values: [v, v] });
+                    list.push(Segment { ends: [a, b], values: [v, v] });
                 }
             }
         }
-        vec![
-            Layer { triangles: shells, segments: Vec::new(), coloring: shell_range.map_or(Coloring::Plain(SHELL_PLAIN), Coloring::Ramp) },
-            Layer { triangles: Vec::new(), segments: frames, coloring: frame_range.map_or(Coloring::Plain(FRAME_PLAIN), Coloring::Ramp) },
-        ]
+        for (colour, segments) in frame_groups {
+            let coloring = match (colour, frame_range) {
+                (None, Some(r)) => {
+                    frame_layer = Some(layers.len());
+                    Coloring::Ramp(r)
+                }
+                (None, None) => Coloring::Plain(settings.frames.line),
+                (Some(c), _) => Coloring::Plain(c),
+            };
+            layers.push(Layer { triangles: Vec::new(), segments, coloring });
+        }
+        (layers, shell_layer, frame_layer)
     };
+    #[cfg(not(feature = "ui"))]
+    let (shell_layer, frame_layer): (Option<usize>, Option<usize>) = (None, None);
 
-    // Frame stations as world points (m) for value snap.
+    // Frame stations as world points (m) for value snap – contoured frames only.
     let mut frame_points = Vec::new();
     for (e, f) in g.frames.iter().enumerate() {
+        if !frame_contour(e) {
+            continue;
+        }
         let (Some(a), Some(b)) = (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize)) else { continue };
         let len = ((b[0] - a[0]).powi(2) + (b[1] - a[1]).powi(2) + (b[2] - a[2]).powi(2)).sqrt().max(f64::EPSILON);
         for (sta, v) in frame_values.get(e).into_iter().flatten() {
@@ -242,7 +393,11 @@ pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units
         }
     }
     let snap = SnapData {
-        shell_values: if shell_range.is_some() { shell_values.clone() } else { Vec::new() },
+        shell_values: if shell_range.is_some() {
+            (0..g.shells.len()).map(|e| if shell_contour(e) { shell_values[e] } else { [f32::NAN; 4] }).collect()
+        } else {
+            Vec::new()
+        },
         frame_points,
         shell_unit: shell_unit.clone(),
         frame_unit: frame_unit.clone(),
@@ -251,14 +406,63 @@ pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units
     Ok(Built {
         #[cfg(feature = "ui")]
         layers,
+        shell_layer,
+        frame_layer,
         snap,
         bounds,
-        shell: shell_range.map(|range| Legend { title: format!("Shells: {}", label(&choice.load, SHELL_COMPONENTS[choice.shell.min(7)])), unit: shell_unit, range }),
+        shell: shell_range.map(|range| Legend { title: format!("Shells: {}", label(&choice.load, SHELL_PANEL_NAMES[choice.shell.min(14)])), unit: shell_unit, range }),
         frame: frame_range.map(|range| Legend { title: format!("Frames: {}", label(&choice.load, FRAME_COMPONENTS[choice.frame.min(5)])), unit: frame_unit, range }),
         envelope: shell_env || frame_env,
         shell_values,
         frame_values,
     })
+}
+
+/// Avg. Nodal (rule P3): at each joint the mean of the corner values of the elements meeting
+/// there (only those `counts(e)`), then written back to every corner at that joint.
+fn average_at_joints(g: &Geometry, values: &mut [[f32; 4]], counts: impl Fn(usize) -> bool) {
+    let mut sum = vec![0.0f64; g.joints.len()];
+    let mut n = vec![0u32; g.joints.len()];
+    for (e, s) in g.shells.iter().enumerate().filter(|(e, _)| counts(*e)) {
+        for c in 0..4 {
+            if let Some(j) = s.get(c).filter(|j| **j != u32::MAX).map(|j| *j as usize)
+                && j < sum.len()
+            {
+                sum[j] += f64::from(values[e][c]);
+                n[j] += 1;
+            }
+        }
+    }
+    for (e, s) in g.shells.iter().enumerate() {
+        for c in 0..4 {
+            if let Some(j) = s.get(c).filter(|j| **j != u32::MAX).map(|j| *j as usize)
+                && n.get(j).is_some_and(|k| *k > 0)
+            {
+                values[e][c] = (sum[j] / f64::from(n[j])) as f32;
+            }
+        }
+    }
+}
+
+/// The value of shell `component` (see [`SHELL_COMPONENTS`]) from the 8 stored values
+/// F11 F22 F12 M11 M22 M12 V13 V23 (rule A5: the rest is computed here).
+pub fn shell_component(component: usize, v: [f64; 8]) -> f64 {
+    let principal = |a: f64, b: f64, ab: f64| {
+        let c = (a + b) / 2.0;
+        let r = (((a - b) / 2.0).powi(2) + ab * ab).sqrt();
+        (c + r, c - r)
+    };
+    let abs_max = |(hi, lo): (f64, f64)| if hi.abs() >= lo.abs() { hi } else { lo };
+    match component {
+        0..=7 => v[component],
+        8 => principal(v[0], v[1], v[2]).0,
+        9 => principal(v[0], v[1], v[2]).1,
+        10 => abs_max(principal(v[0], v[1], v[2])),
+        11 => principal(v[3], v[4], v[5]).0,
+        12 => principal(v[3], v[4], v[5]).1,
+        13 => abs_max(principal(v[3], v[4], v[5])),
+        _ => (v[6] * v[6] + v[7] * v[7]).sqrt(),
+    }
 }
 
 /// Lowest and highest finite value; a single value gets a tiny width so the ramp stays defined.
@@ -273,7 +477,7 @@ fn range(values: impl Iterator<Item = f32>) -> Option<[f32; 2]> {
 /// Scale (SI per display unit) and unit text of a shell component: forces per length, moments per length.
 pub fn shell_unit(component: usize, u: Units) -> (f64, String) {
     let per_length = u.length.to_si();
-    if (3..=5).contains(&component) {
+    if (3..=5).contains(&component) || (11..=13).contains(&component) {
         (u.moment.to_si() / per_length, format!("{}/{}", u.moment.symbol(), u.length.symbol()))
     } else {
         (u.force.to_si() / per_length, format!("{}/{}", u.force.symbol(), u.length.symbol()))
@@ -343,11 +547,20 @@ fn step_filter(b: &Block, kinds: (usize, bool), nums: (usize, bool), step: Step)
     (Box::new(move |r| b.u32(kinds, r) == 0), false)
 }
 
-/// Shell value per element corner (n1..n4); columns: element, joint, step_type, step_num, values…
-fn shell_corner_values(g: &Geometry, b: &Block, value_column: usize, step: Step) -> Result<(Vec<[f32; 4]>, bool), String> {
+/// Shell value of `component` per element corner (n1..n4); columns: element, joint, step_type,
+/// step_num, then the 8 stored values (F11 … V23).
+fn shell_corner_values(g: &Geometry, b: &Block, component: usize, step: Step) -> Result<(Vec<[f32; 4]>, bool), String> {
     let (e, j, k, n) = (b.named("element"), b.named("joint"), b.named("step_type"), b.named("step_num"));
-    let (Some(e), Some(j), Some(k), Some(n), Some(v)) = (e, j, k, n, b.column(value_column)) else {
+    let columns: Option<Vec<(usize, bool)>> = (4..12).map(|c| b.column(c)).collect();
+    let (Some(e), Some(j), Some(k), Some(n), Some(columns)) = (e, j, k, n, columns) else {
         return Err("shell result block is missing columns".into());
+    };
+    let value = |r: usize| {
+        let mut v = [0.0f64; 8];
+        for (slot, c) in v.iter_mut().zip(&columns) {
+            *slot = b.f64(*c, r);
+        }
+        shell_component(component, v)
     };
     let (keep, envelope) = step_filter(b, k, n, step);
     let mut out = vec![[0.0f32; 4]; g.shells.len()];
@@ -356,7 +569,7 @@ fn shell_corner_values(g: &Geometry, b: &Block, value_column: usize, step: Step)
         if let (Some(s), Some(o)) = (g.shells.get(el), out.get_mut(el))
             && let Some(c) = s[..4].iter().position(|x| *x == jt)
         {
-            o[c] = b.f64(v, r) as f32;
+            o[c] = value(r) as f32;
         }
     }
     Ok((out, envelope))
@@ -410,7 +623,7 @@ pub fn snap(g: &Geometry, d: &SnapData, cursor: [f32; 2], project: &dyn Fn([f64;
                 (Some(a), Some(b), Some(c)) => in_triangle(cursor, a, b, c),
                 _ => false,
             });
-            if inside {
+            if inside && d.shell_values.get(e).is_some_and(|v| !v[0].is_nan()) {
                 let depth = (0..n).filter_map(|k| g.joints.get(s[k] as usize)).map(|p| dist_eye(*p)).fold(f64::INFINITY, f64::min);
                 if shell.is_none_or(|(d0, _)| depth < d0) {
                     shell = Some((depth, e));
