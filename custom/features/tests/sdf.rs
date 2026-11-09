@@ -16,8 +16,11 @@ fn atlas_has_digits_and_letters_with_inside_and_outside() {
     let g = f.glyphs[&'I'];
     let (w, h) = (f.size[0] as f32, f.size[1] as f32);
     let at = |u: f32, v: f32| f.texels[((v * h) as usize) * f.size[0] as usize + (u * w) as usize];
-    assert!(at((g.uv[0] + g.uv[2]) / 2.0, (g.uv[1] + g.uv[3]) / 2.0) > 160);
-    assert!(at(g.uv[0] + 0.5 / w, g.uv[1] + 0.5 / h) < 60);
+    // Inside the outline > 128 (0.5), outside < 128; the stroke is ~3 px wide in the atlas.
+    let centre = at((g.uv[0] + g.uv[2]) / 2.0, (g.uv[1] + g.uv[3]) / 2.0);
+    assert!(centre > 135, "centre {centre}");
+    let corner = at(g.uv[0] + 0.5 / w, g.uv[1] + 0.5 / h);
+    assert!(corner < 60, "corner {corner}");
     // Space has an advance and no quad.
     assert!(f.glyphs[&' '].advance > 0.3);
     assert!(f.layout(" ", 12.0, 0.0).is_empty());
