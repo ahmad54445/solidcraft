@@ -31,6 +31,19 @@ pub struct Geometry {
     /// Thickness per shell section (m).
     pub shell_thickness: Vec<f64>,
     pub materials: Vec<String>,
+    /// Local axes per frame / shell element: CSi transformation matrix c0 … c8 with
+    /// Global = [c0 c1 c2; c3 c4 c5; c6 c7 c8] · Local (NaN where CSiBridge gave none).
+    pub frame_axes: Vec<[f64; 9]>,
+    pub shell_axes: Vec<[f64; 9]>,
+}
+
+/// Local axes 1, 2, 3 as global unit vectors from a CSi transformation matrix (its columns:
+/// axis 1 = (c0, c3, c6), axis 2 = (c1, c4, c7), axis 3 = (c2, c5, c8)); `None` when missing.
+pub fn local_axes(m: &[f64; 9]) -> Option<[[f64; 3]; 3]> {
+    if m.iter().any(|v| !v.is_finite()) {
+        return None;
+    }
+    Some([[m[0], m[3], m[6]], [m[1], m[4], m[7]], [m[2], m[5], m[8]]])
 }
 
 /// One stored result block (a case or combination, frames or shells).
@@ -190,6 +203,15 @@ fn run(agent: PathBuf, pid: u32, cases: Vec<String>, combos: Vec<String>) -> Res
                 geometry.shells = (0..count).map(|k| [c[0][k], c[1][k], c[2][k], c[3][k], c[4][k]]).collect();
             }
             "shell_thickness" => geometry.shell_thickness = columns_f64(&payload, count, 1)?.remove(0),
+            kind @ ("frame_axes" | "shell_axes") => {
+                let c = columns_f64(&payload, count, 9)?;
+                let rows: Vec<[f64; 9]> = (0..count).map(|k| std::array::from_fn(|j| c[j][k])).collect();
+                if kind == "frame_axes" {
+                    geometry.frame_axes = rows;
+                } else {
+                    geometry.shell_axes = rows;
+                }
+            }
             family @ ("frame_results" | "shell_results") => {
                 // Straight to disk: the payload is already the stored column layout.
                 let file = dir.join(format!("{:05}_{family}.bin", blocks.len()));
@@ -243,6 +265,8 @@ fn publish(geometry: Geometry, blocks: Vec<ResultBlock>) {
         s.finished = true;
         s.done = s.total;
     });
+    // Draw the elements, coloured by the first load (docs/10-viewport-results.md).
+    crate::results_view::show_first();
 }
 
 /// One frame: u32 header length, JSON header, u64 payload length, payload.

@@ -42,9 +42,13 @@ custom/features   ← das eigene Programm
 | `crates/ui-egui/src/toolbar.rs` | Logo in der Anwendungsleiste über `custom_hook::draw_logo` (Fallback: SolidCraft-Marke) |
 | `crates/ui-egui/src/workspace.rs` | Zusatz-Tabs (`custom_hook::extra_tabs`/`extra_sections`) in `choosable_tabs`, `visible_tabs`, `tab_icon`, `panels`, `legacy_render_destination`, `layout` |
 | `crates/ui-egui/src/browser.rs` | `origin_rows` bricht ab, wenn `custom_hook::browser_hidden("origin")` |
-| `crates/ui-egui/src/browser.rs` | `browser_contents`: zeichnet die Zeilen über `custom_hook::browser_contents()` (Structure-Baum), sonst SolidCraft |
+| `crates/ui-egui/src/browser.rs` | `component_rows_inner`: nach Origin `custom_hook::browser_rows()` (Structure, Linked, Design, Groups); Canvases, Point Clouds, Analysis, Bodies, Sketches, Construction, Features, Joints, Komponenten nur, wenn nicht über `custom_hook::browser_hidden` ausgeblendet |
 | `crates/ui-egui/src/status_bar.rs` | `shown()`/`height()`: eigene Leiste immer sichtbar; SolidCraft-Leiste darüber, wenn ihre Einstellung an ist |
 | `crates/ui-egui/src/panel_runtime/app.rs` | Höhe der Statusleiste aus `status_bar::height()` |
+| `crates/ui-egui/src/viewport.rs` | `Frame.clouds` + `custom_hook::extra_clouds()`; Overlay über der Ansicht mit `ViewInfo` (Projektion, Kamera); Fit view + `custom_hook::extra_bounds()` |
+| `crates/gpu/src/view/sprites.rs` | Neue Datei: bildschirmparallele Sprites aus einem Alpha-Atlas (SDF-Text), mit Tiefe der Szene; `set_sprites()` |
+| `crates/gpu/src/view.rs` | `mod sprites` + Re-Export; Renderer-Felder `sprite_pipes`/`sprites`; Pipeline-Erzeugung; `hash_sprites` im Frame-Key; `prepare` nach den Clouds; `paint` nach den Clouds im Hauptpass |
+| `crates/ui-egui/src/help.rs` | About-Fenster: Zeile `custom_hook::about_credits()` unter der Beschreibung (Factory: `custom/branding/credits.txt`) |
 | `crates/ui-egui/src/i18n.rs` | `Catalog::shown()` ersetzt „SolidCraft“ durch den Produktnamen (alle Sprachen); englischer Fallback über `shown()` |
 
 ## Oberfläche anpassen (Feature `ui`, nur Desktop-App)
@@ -55,8 +59,8 @@ In `custom/features/src/lib.rs`:
 - `TOOLBAR_TABS` = einzige sichtbare Toolbar-Tabs, derzeit nur `MODEL`
   (Namen aus `custom/bridge/src/names.rs`, Modul `tabs`)
 - `EXTRA_TABS` = eigene Toolbar-Tabs mit Panels und Befehlen, derzeit `CONNECT` › `PROGRAMS` (MIDAS Civil NX, CSiBridge v25; beide noch „planned“, siehe `docs/08-csi-bridge.md` im Factory-Repo)
-- `HIDDEN_BROWSER_ITEMS` = ausgeblendete Browser-Ordner, derzeit `origin`
-- Browser: `ui_browser.rs` (Structure-Baum, Load Case / Load Combination › Properties)
+- `HIDDEN_BROWSER_ITEMS` = ausgeblendete Browser-Ordner, derzeit Bodies, Sketches, Construction, Canvases, Point Clouds, Analysis, Features, Joints, Komponenten (Origin ist wieder sichtbar)
+- Browser: `ui_browser.rs` (Structure, Linked, Design, Groups nach Origin; Expand All / Collapse All; Load Case / Load Combination › Properties); ausgeblendete SolidCraft-Zeilen: `HIDDEN_BROWSER_ITEMS`
 - Statusleiste: `ui_status.rs` (Selected, LC, Units, Programm, RAM/Cache, Backend)
 - Daten: `model.rs` (Zählungen, Lastfälle, Kombinationen, Status), `units.rs` (Länge, Kraft, Moment, Spannung)
 - Name und Logo: `custom/branding/` (`name.txt`, `logo.png`, `logo.ico`; `make_logo.py` erzeugt das Platzhalter-Logo)

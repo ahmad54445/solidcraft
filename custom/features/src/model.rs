@@ -54,7 +54,17 @@ pub struct Model {
     pub boundaries: [usize; 11],
     pub load_cases: Vec<LoadCase>,
     pub load_combinations: Vec<LoadCombination>,
+    /// Linked files (browser › Linked): IFC, DXF.
+    pub linked_ifc: Vec<String>,
+    pub linked_dxf: Vec<String>,
+    /// Design items (browser › Design), one list per [`DESIGN_KINDS`] entry.
+    pub design: [Vec<String>; 4],
+    /// Groups (browser › Groups): name and members.
+    pub groups: Vec<(String, Vec<String>)>,
 }
+
+/// Design item kinds, in browser order.
+pub const DESIGN_KINDS: [&str; 4] = ["Slab", "Raft", "Column", "Beam"];
 
 impl Model {
     /// Materials + sections + thicknesses.

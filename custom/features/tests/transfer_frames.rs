@@ -41,3 +41,15 @@ fn u32_columns() {
     let p: Vec<u8> = [0u32, 1, 7, u32::MAX].iter().flat_map(|v| v.to_le_bytes()).collect();
     assert_eq!(columns_u32(&p, 2, 2).unwrap(), [vec![0, 1], vec![7, u32::MAX]]);
 }
+
+#[test]
+fn local_axes_are_the_columns_of_the_csi_matrix() {
+    use custom_features::transfer::local_axes;
+    // CSiBridge 25.3.1, frame element 2-1: Global = M · Local (docs/08 §4.4)
+    let m = [1.0, -0.0, 2.6e-16, 2.6e-16, 0.0, -1.0, 0.0, 1.0, 0.0];
+    let [a1, a2, a3] = local_axes(&m).unwrap();
+    assert_eq!(a1, [1.0, 2.6e-16, 0.0]); // (c0, c3, c6)
+    assert_eq!(a2, [-0.0, 0.0, 1.0]); // (c1, c4, c7)
+    assert_eq!(a3, [2.6e-16, -1.0, 0.0]); // (c2, c5, c8)
+    assert!(local_axes(&[f64::NAN; 9]).is_none(), "a failed API call gives no axes");
+}

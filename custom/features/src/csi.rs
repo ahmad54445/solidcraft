@@ -91,12 +91,14 @@ pub struct AgentSource {
 
 impl AgentSource {
     /// Finds the agent: `FACTORY_CSI_AGENT`, else `csi-agent\csi-agent.exe` or `csi-agent.exe`
-    /// next to Factory's executable.
+    /// next to Factory's executable, else `bin\csi-agent\csi-agent.exe` in a folder above it (the
+    /// Factory repo when run from `external\solidcraft\target\…`).
     pub fn find() -> Self {
         let from_env = std::env::var_os("FACTORY_CSI_AGENT").map(PathBuf::from).filter(|p| p.is_file());
         let next_to_exe = || {
             let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
-            [dir.join("csi-agent").join("csi-agent.exe"), dir.join("csi-agent.exe")].into_iter().find(|p| p.is_file())
+            let here = [dir.join("csi-agent").join("csi-agent.exe"), dir.join("csi-agent.exe")].into_iter().find(|p| p.is_file());
+            here.or_else(|| dir.ancestors().map(|a| a.join("bin").join("csi-agent").join("csi-agent.exe")).find(|p| p.is_file()))
         };
         Self { exe: from_env.or_else(next_to_exe) }
     }

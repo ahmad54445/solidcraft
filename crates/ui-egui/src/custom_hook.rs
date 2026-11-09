@@ -4,7 +4,7 @@
 //! custom crates; the app calls `custom_features::install()` at start-up, which ends up here.
 //! Nothing set (tests, plain SolidCraft) = upstream behaviour unchanged.
 //! Set: visible toolbar tabs, product name (window, bar, all UI text), product logo, extra
-//! toolbar tabs, hidden browser folders, the browser's rows, an extra status bar.
+//! toolbar tabs, hidden browser folders, the fork's browser rows after Origin, an extra status bar.
 
 use std::sync::OnceLock;
 
@@ -101,6 +101,18 @@ pub fn rename(text: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
+static CREDITS: OnceLock<&'static str> = OnceLock::new();
+
+/// Who made the product, shown in the About window under the description. First call wins.
+pub fn set_about_credits(text: &'static str) {
+    let _ = CREDITS.set(text);
+}
+
+/// The About window's credits (none while nothing is set).
+pub fn about_credits() -> Option<&'static str> {
+    CREDITS.get().copied().filter(|t| !t.is_empty())
+}
+
 /// The product name ("SolidCraft" while nothing is set).
 pub fn app_name() -> &'static str {
     APP_NAME.get().copied().unwrap_or("SolidCraft")
@@ -109,17 +121,20 @@ pub fn app_name() -> &'static str {
 /// A part of the window the fork draws itself: called once per frame with the area's `Ui`.
 pub type DrawFn = fn(&mut egui::Ui);
 
-static BROWSER_CONTENTS: OnceLock<DrawFn> = OnceLock::new();
+/// Rows the fork adds to the browser's root after Origin, at the given depth.
+pub type RowsFn = fn(&mut egui::Ui, usize);
+
+static BROWSER_ROWS: OnceLock<RowsFn> = OnceLock::new();
 static STATUS_BAR: OnceLock<DrawFn> = OnceLock::new();
 
-/// Draw the browser's rows with `draw` instead of SolidCraft's (the header stays). First call wins.
-pub fn set_browser_contents(draw: DrawFn) {
-    let _ = BROWSER_CONTENTS.set(draw);
+/// Add the fork's rows to the browser's root, right after Origin. First call wins.
+pub fn set_browser_rows(rows: RowsFn) {
+    let _ = BROWSER_ROWS.set(rows);
 }
 
 /// The fork's browser rows, if set.
-pub fn browser_contents() -> Option<DrawFn> {
-    BROWSER_CONTENTS.get().copied()
+pub fn browser_rows() -> Option<RowsFn> {
+    BROWSER_ROWS.get().copied()
 }
 
 /// An extra status bar the fork draws, always shown along the window's bottom edge (SolidCraft's
@@ -149,4 +164,51 @@ pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, 
     let row = crate::ui_kit::Row { depth, fold: open, icon, label, name: true, count, ..Default::default() };
     let out = crate::browser::draw_row(ui, ui.scope_id().with(("custom_row", key)), &row);
     TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary }
+}
+
+// ---- 3D view: the fork's own elements and their overlay (docs/10-viewport-results.md) ----
+
+static EXTRA_CLOUDS: std::sync::RwLock<Vec<solidcraft_gpu::view::GpuCloud>> = std::sync::RwLock::new(Vec::new());
+static EXTRA_BOUNDS: std::sync::RwLock<Option<[[f64; 3]; 2]>> = std::sync::RwLock::new(None);
+/// The view as the overlay sees it this frame.
+pub struct ViewInfo<'a> {
+    /// World point (m) → screen position, `None` behind the camera.
+    pub project: &'a dyn Fn([f64; 3]) -> Option<egui::Pos2>,
+    /// Camera position (m), for "closest to the viewer".
+    pub eye: [f64; 3],
+}
+
+/// What the fork draws over the 3D view.
+pub type OverlayFn = fn(&mut egui::Ui, egui::Rect, &ViewInfo<'_>);
+
+static VIEWPORT_OVERLAY: OnceLock<OverlayFn> = OnceLock::new();
+
+/// Clouds (segments and triangles with values per corner) drawn with the model, in the same depth,
+/// section cut and colour ramp as SolidCraft's point clouds. Replaces the previous set; their
+/// records are shared (`Arc`), so this and [`extra_clouds`] copy no geometry.
+pub fn set_extra_clouds(clouds: Vec<solidcraft_gpu::view::GpuCloud>) {
+    *EXTRA_CLOUDS.write().unwrap_or_else(std::sync::PoisonError::into_inner) = clouds;
+}
+
+/// The fork's clouds for this frame (empty while none are set).
+pub fn extra_clouds() -> Vec<solidcraft_gpu::view::GpuCloud> {
+    EXTRA_CLOUDS.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
+}
+
+/// The box of the fork's elements (min, max), so Fit view includes them.
+pub fn set_extra_bounds(bounds: Option<[[f64; 3]; 2]>) {
+    *EXTRA_BOUNDS.write().unwrap_or_else(std::sync::PoisonError::into_inner) = bounds;
+}
+
+pub fn extra_bounds() -> Option<[[f64; 3]; 2]> {
+    *EXTRA_BOUNDS.read().unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Drawn over the 3D view every frame (e.g. a result legend), with the view's free area. First call wins.
+pub fn set_viewport_overlay(draw: OverlayFn) {
+    let _ = VIEWPORT_OVERLAY.set(draw);
+}
+
+pub fn viewport_overlay() -> Option<OverlayFn> {
+    VIEWPORT_OVERLAY.get().copied()
 }

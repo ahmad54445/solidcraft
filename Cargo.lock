@@ -986,6 +986,7 @@ dependencies = [
  "egui",
  "serde_json",
  "solidcraft-engine",
+ "solidcraft-gpu",
  "solidcraft-ui-egui",
 ]
 
@@ -994,8 +995,10 @@ name = "custom-features"
 version = "0.1.0"
 dependencies = [
  "custom-bridge",
+ "epaint_default_fonts",
  "memory-stats",
  "serde_json",
+ "ttf-parser",
 ]
 
 [[package]]
