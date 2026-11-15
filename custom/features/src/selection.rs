@@ -145,6 +145,17 @@ fn frame_ends(g: &Geometry, e: usize) -> Option<([f64; 3], [f64; 3])> {
     Some((*g.joints.get(f[0] as usize)?, *g.joints.get(f[1] as usize)?))
 }
 
+/// A frame's ends as drawn: with Shrink Objects the middle `SHRINK` of its length (rule R4).
+pub fn drawn_frame_ends(g: &Geometry, d: &results_view::SnapData, e: usize) -> Option<([f64; 3], [f64; 3])> {
+    let (a, b) = frame_ends(g, e)?;
+    if !d.view.shrink {
+        return Some((a, b));
+    }
+    let (t0, t1) = ((1.0 - crate::vv::SHRINK) / 2.0, (1.0 + crate::vv::SHRINK) / 2.0);
+    let at = |t: f64| [0, 1, 2].map(|i| a[i] + (b[i] - a[i]) * t);
+    Some((at(t0), at(t1)))
+}
+
 // ---- T1–T4: screen tools ----------------------------------------------------------------------
 
 /// An area on the screen: a rectangle or a closed polygon (screen points).
@@ -220,7 +231,7 @@ pub fn in_area(s: Scope<'_>, d: &results_view::SnapData, area: &Area, crossing: 
         if crossing { any } else { all_in && !faces.is_empty() }
     };
     let frame = |e: usize| {
-        let Some((a, b)) = frame_ends(s.g, e) else { return false };
+        let Some((a, b)) = drawn_frame_ends(s.g, d, e) else { return false };
         let (Some(pa), Some(pb)) = (project(a), project(b)) else { return false };
         let (ia, ib) = (area.contains(pa), area.contains(pb));
         if crossing { ia || ib || polyline_crosses(&[pa, pb], &outline, false, true) } else { ia && ib }
@@ -238,7 +249,7 @@ pub fn crossed_by_line(s: Scope<'_>, d: &results_view::SnapData, line: &[[f32; 2
         })
     };
     let frame = |e: usize| {
-        let Some((a, b)) = frame_ends(s.g, e) else { return false };
+        let Some((a, b)) = drawn_frame_ends(s.g, d, e) else { return false };
         matches!((project(a), project(b)), (Some(pa), Some(pb)) if polyline_crosses(line, &[pa, pb], false, false))
     };
     s.collect(shell, frame)
@@ -264,7 +275,7 @@ pub fn at_point(s: Scope<'_>, d: &results_view::SnapData, cursor: [f32; 2], proj
             if !s.frame_ok(e) {
                 continue;
             }
-            let Some((a, b)) = frame_ends(s.g, e) else { continue };
+            let Some((a, b)) = drawn_frame_ends(s.g, d, e) else { continue };
             let (Some(pa), Some(pb)) = (project(a), project(b)) else { continue };
             let (dx, dy) = (pb[0] - pa[0], pb[1] - pa[1]);
             let len2 = dx * dx + dy * dy;
@@ -393,6 +404,11 @@ pub fn in_groups(s: Scope<'_>, members: &[String]) -> Found {
     let names: std::collections::HashSet<&str> = members.iter().map(String::as_str).collect();
     let hit = |name: Option<&String>| name.is_some_and(|n| names.contains(n.as_str()));
     s.collect(|e| hit(s.g.shell_names.get(e)), |e| hit(s.g.frame_names.get(e)))
+}
+
+/// The shown elements of `set` (Browser rows: a section, Shells, Frames, a group).
+pub fn within(s: Scope<'_>, set: &Set) -> Found {
+    s.collect(|e| set.shells.get(e), |e| set.frames.get(e))
 }
 
 /// T11: every shown element of the chosen kinds.

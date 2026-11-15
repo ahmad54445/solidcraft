@@ -22,20 +22,29 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     let data = results_view::snap_data();
     let project = |p: [f64; 3]| (view.project)(p).map(|s| [s.x, s.y]);
     let scope = Scope { g: &g, shell_shown: &data.shell_shown, frame_shown: &data.frame_shown, kinds: selection::kinds() };
+    // Keys count only while nothing takes typed text (a dialog's text field).
+    let typing = ui.ctx().text_edit_focused();
+    // Only plain values are read inside `input`: it holds egui's lock, so asking the context
+    // anything there (e.g. `layer_id_at`) waits for itself – the app froze and closed.
     let (hover, clicked, double, ctrl, enter, esc, ctrl_a) = ui.input(|i| {
         (
-            i.pointer.hover_pos().filter(|p| area.contains(*p)),
+            i.pointer.hover_pos(),
             i.pointer.primary_clicked(),
             i.pointer.button_double_clicked(egui::PointerButton::Primary),
             i.modifiers.ctrl || i.modifiers.command,
-            i.key_pressed(egui::Key::Enter),
-            i.key_pressed(egui::Key::Escape),
-            i.modifiers.command && i.key_pressed(egui::Key::A),
+            !typing && i.key_pressed(egui::Key::Enter),
+            !typing && i.key_pressed(egui::Key::Escape),
+            !typing && i.modifiers.command && i.key_pressed(egui::Key::A),
         )
     });
+    // The pointer counts only on the view itself – not on a window or menu above it (outside `input`).
+    let hover = hover.filter(|p| area.contains(*p) && ui.ctx().layer_id_at(*p).is_none_or(|l| l == ui.layer_id() || l.order == egui::Order::Background));
     let tool = select_cmd::tool();
     let points_id = egui::Id::unique("factory_select_points");
-    let mut points: Vec<[f32; 2]> = ui.ctx().data(|d| d.get_temp(points_id)).unwrap_or_default();
+    let (drawn_with, mut points): (Tool, Vec<[f32; 2]>) = ui.ctx().data(|d| d.get_temp(points_id)).unwrap_or_default();
+    if drawn_with != tool {
+        points.clear(); // another tool: start over
+    }
 
     // T1 box / lasso: SolidCraft's own gesture, read back through the hook. Ctrl removes (C1).
     if tool == Tool::Pointer {
@@ -112,7 +121,7 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
         painter.text(area.left_top() + egui::vec2(12.0, 12.0), egui::Align2::LEFT_TOP, hint, egui::FontId::proportional(12.0), ui.visuals().text_color());
         ui.ctx().request_repaint();
     }
-    ui.ctx().data_mut(|d| d.insert_temp(points_id, points));
+    ui.ctx().data_mut(|d| d.insert_temp(points_id, (tool, points)));
 }
 
 /// R6: the selected elements drawn as thick lines in the selection colour – rebuilt only when the
@@ -145,10 +154,8 @@ fn highlight(g: &std::sync::Arc<transfer::Geometry>) {
             }
         }
     }
-    for e in set.frames.ones() {
-        if let Some(f) = g.frames.get(e)
-            && let (Some(a), Some(b)) = (g.joints.get(f[0] as usize), g.joints.get(f[1] as usize))
-        {
+    for e in set.frames.ones().filter(|e| *e < g.frames.len()) {
+        if let Some((a, b)) = selection::drawn_frame_ends(g, &data, e) {
             segs.push(seg(a.map(|v| v as f32), b.map(|v| v as f32)));
         }
     }
@@ -342,6 +349,9 @@ pub fn window(ctx: &egui::Context) {
 fn run(dialog: Dialog, s: Scope<'_>, inp: &Inputs, to_m: f64) -> Option<selection::Found> {
     Some(match dialog {
         Dialog::Coordinates => {
+            if !inp.axes.iter().any(|on| *on) {
+                return None; // no axis ticked: nothing to select by (not the whole model)
+            }
             let ranges = [0, 1, 2].map(|i| inp.axes[i].then(|| (inp.ranges[i][0] * to_m, inp.ranges[i][1] * to_m)));
             selection::in_coordinates(s, ranges, inp.tolerance * to_m)
         }

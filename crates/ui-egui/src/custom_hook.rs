@@ -157,6 +157,8 @@ pub struct TreeRow {
     pub toggled: bool,
     /// The row was right-clicked here.
     pub context_at: Option<egui::Pos2>,
+    /// The eye was clicked (rows drawn with [`tree_row_eye`]).
+    pub eye: bool,
 }
 
 /// One browser row drawn exactly like SolidCraft's: `open` is `Some` for rows that fold,
@@ -167,7 +169,17 @@ pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, 
     let (compact, eye_left) = (flag("sc_compact_tree"), flag("sc_tree_eye_left"));
     let row = crate::ui_kit::Row { depth, fold: open, icon, label, name: true, count, compact, eye_left, ..Default::default() };
     let out = crate::ui_kit::tree_row(ui, ui.scope_id().with(("custom_row", key)), &row);
-    TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary }
+    TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary, eye: false }
+}
+
+/// [`tree_row`] with SolidCraft's eye: `visible` is what it shows; [`TreeRow::eye`] when clicked.
+#[allow(clippy::too_many_arguments)]
+pub fn tree_row_eye(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, icon: &str, label: &str, count: &str, visible: bool) -> TreeRow {
+    let flag = |id: &str| ui.ctx().data(|d| d.get_temp::<bool>(egui::Id::unique(id))).unwrap_or(false);
+    let (compact, eye_left) = (flag("sc_compact_tree"), flag("sc_tree_eye_left"));
+    let row = crate::ui_kit::Row { depth, fold: open, eye: Some(visible), icon, label, name: true, count, compact, eye_left, dim: !visible, ..Default::default() };
+    let out = crate::ui_kit::tree_row(ui, ui.scope_id().with(("custom_row", key)), &row);
+    TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary, eye: out.eye }
 }
 
 // ---- 3D view: the fork's own elements and their overlay (docs/10-viewport-results.md) ----

@@ -102,6 +102,9 @@ fn range(v: &Value) -> Option<(f64, f64)> {
 pub fn coordinates(_: &mut Ctx, params: &Value) -> Result<Value> {
     dialog_or(params, Dialog::Coordinates, |p| {
         let ranges = ["x", "y", "z"].map(|k| range(&p[k]));
+        if ranges.iter().all(Option::is_none) {
+            return Err(custom_bridge::Error("give at least one of x, y, z as [min, max] (m)".into()));
+        }
         let tol = p["tolerance"].as_f64().unwrap_or(1e-6);
         selection::apply(with_scope(|s| selection::in_coordinates(s, ranges, tol)), false);
         report()
@@ -218,4 +221,42 @@ pub fn save_selection_as_group(name: &str) -> (String, usize) {
         None => f.model.groups.push((name.clone(), members)),
     });
     (name, count)
+}
+
+// ---- Hide / Isolate (docs/13 §8) ----------------------------------------------------------------
+
+fn visibility_report(verb: &str) -> Result<Value> {
+    crate::results_view::refresh(); // the view is rebuilt with the hidden elements left out
+    let (shells, frames) = crate::visibility::hidden().counts();
+    Ok(json!({ "action": verb, "hidden": { "shells": shells, "frames": frames } }))
+}
+
+fn selected_or_error() -> Result<std::sync::Arc<selection::Set>> {
+    let sel = selection::current();
+    if sel.is_empty() {
+        return Err(custom_bridge::Error("select elements first (SELECT tab)".into()));
+    }
+    Ok(sel)
+}
+
+/// `factory.select.hide`: hide the selected elements (they leave the selection: hidden elements
+/// cannot be selected, rule R2).
+pub fn hide(_: &mut Ctx, _: &Value) -> Result<Value> {
+    let sel = selected_or_error()?;
+    crate::visibility::hide(&sel);
+    selection::clear();
+    visibility_report("hide")
+}
+
+/// `factory.select.isolate`: show only the selected elements.
+pub fn isolate(_: &mut Ctx, _: &Value) -> Result<Value> {
+    let sel = selected_or_error()?;
+    crate::visibility::isolate(&transfer::geometry(), &sel);
+    visibility_report("isolate")
+}
+
+/// `factory.select.show_all`: show every element hidden by Hide / Isolate.
+pub fn show_all(_: &mut Ctx, _: &Value) -> Result<Value> {
+    crate::visibility::show_all();
+    visibility_report("show_all")
 }

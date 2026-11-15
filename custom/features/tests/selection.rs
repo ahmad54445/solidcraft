@@ -146,3 +146,15 @@ fn r3_r8_c1_c4_add_remove_invert_clear_previous() {
     assert_eq!(selection::names(&g, &selection::with_labels(scope(&g), "A1*").set), vec!["A101", "A102"]);
     selection::reset();
 }
+
+#[test]
+fn r4_a_shrunk_frame_is_selected_as_drawn() {
+    let g = model();
+    let mut d = SnapData::default();
+    d.view.shrink = true;
+    // F1 runs 0–2 m in x at y = 2; drawn shrunk it covers 0.15–1.85 m (15–185 px)
+    let inner = Area::Rect { min: [10.0, -210.0], max: [190.0, -190.0] };
+    assert_eq!(ids(&selection::in_area(scope(&g), &d, &inner, false, &project)).1, vec![0]);
+    d.view.shrink = false;
+    assert!(selection::in_area(scope(&g), &d, &inner, false, &project).set.frames.ones().next().is_none());
+}

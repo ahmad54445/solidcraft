@@ -261,7 +261,8 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
     let find = |family: &str| choice.load.as_ref().and_then(|l| blocks.iter().find(|b| &b.name == l && b.family == family));
     let shell_block = find("shell_results");
     let frame_block = find("frame_results");
-    let (shell_look, frame_look) = vv::looks(g, settings);
+    let (mut shell_look, mut frame_look) = vv::looks(g, settings);
+    crate::visibility::apply(&mut shell_look, &mut frame_look); // Hide / Isolate (docs/13 §8)
 
     let (mut shell_values, shell_env) = match shell_block {
         Some(b) => shell_corner_values(g, &Block::read(b)?, choice.shell.min(14), choice.step)?,

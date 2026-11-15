@@ -260,6 +260,7 @@ fn publish(geometry: Geometry, blocks: Vec<ResultBlock>) {
     });
     *GEOMETRY.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(geometry);
     crate::selection::reset(); // element numbers are new (docs/13)
+    crate::visibility::show_all();
     *RESULTS.write().unwrap_or_else(PoisonError::into_inner) = blocks;
     update(|s| {
         s.running = false;

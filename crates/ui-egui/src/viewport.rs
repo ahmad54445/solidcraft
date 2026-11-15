@@ -6701,6 +6701,7 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
             && let Some(bx) = app.viewport.boxsel.take()
         {
             crate::custom_hook::push_box_gesture(&bx); // [CUSTOM] the fork selects its own elements too
+            ui.ctx().request_repaint(); // [CUSTOM] the fork's overlay (drawn before this) reads it next frame
             box_select(app, &proj, bx, add);
         }
     } else {
