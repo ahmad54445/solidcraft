@@ -16,9 +16,8 @@ pub fn draw(ui: &mut egui::Ui) {
     ui.horizontal_centered(|ui| {
         ui.add_space(8.0);
         ui.label(format!("Selected: {} shells, {} frames", status.selected_shells, status.selected_frames));
-        ui.separator();
-        crate::ui_results::status_controls(ui);
-        ui.separator();
+        ui.separator(); // the result choice is in RESULTS › DISPLAY (results panel), not here
+        crate::ui_results::status_sync(ui);
         let units_button = ui.button(format!("Units: {} ▾", units.short()));
         if units_button.clicked() {
             let id = units_open_id();
