@@ -8,11 +8,11 @@ publish = false
 
 [features]
 # UI and 3D view (tabs, name, browser, status bar, elements in the view). Desktop app only; the CLI stays headless.
-ui = ["dep:solidcraft-ui-egui", "dep:solidcraft-gpu", "dep:egui"]
+ui = ["dep:solidcraft-ui-egui", "dep:solidcraft-viewport-gpu", "dep:egui"]
 
 [dependencies]
 solidcraft-engine = { workspace = true }
 solidcraft-ui-egui = { workspace = true, optional = true }
-solidcraft-gpu = { workspace = true, optional = true }
+solidcraft-viewport-gpu = { workspace = true, optional = true }
 egui = { workspace = true, optional = true }
 serde_json = { workspace = true }

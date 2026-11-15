@@ -85,6 +85,7 @@ pub fn tab_allowed(tab: &str) -> bool {
 /// The product name shown in the window title and the application bar. First call wins.
 pub fn set_app_name(name: &'static str) {
     let _ = APP_NAME.set(name);
+    solidcraft_ui_text::set_product_name(name); // the message catalogs live in ui-text
 }
 
 /// Whether shown text is renamed (a product name other than "SolidCraft" is set).
@@ -161,14 +162,17 @@ pub struct TreeRow {
 /// One browser row drawn exactly like SolidCraft's: `open` is `Some` for rows that fold,
 /// `count` is the text at the row's end. `key` must be unique among the rows.
 pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, icon: &str, label: &str, count: &str) -> TreeRow {
-    let row = crate::ui_kit::Row { depth, fold: open, icon, label, name: true, count, ..Default::default() };
-    let out = crate::browser::draw_row(ui, ui.scope_id().with(("custom_row", key)), &row);
+    // The browser's own row look this frame (compact rows, eye side), as it publishes them.
+    let flag = |id: &str| ui.ctx().data(|d| d.get_temp::<bool>(egui::Id::unique(id))).unwrap_or(false);
+    let (compact, eye_left) = (flag("sc_compact_tree"), flag("sc_tree_eye_left"));
+    let row = crate::ui_kit::Row { depth, fold: open, icon, label, name: true, count, compact, eye_left, ..Default::default() };
+    let out = crate::ui_kit::tree_row(ui, ui.scope_id().with(("custom_row", key)), &row);
     TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary }
 }
 
 // ---- 3D view: the fork's own elements and their overlay (docs/10-viewport-results.md) ----
 
-static EXTRA_CLOUDS: std::sync::RwLock<Vec<solidcraft_gpu::view::GpuCloud>> = std::sync::RwLock::new(Vec::new());
+static EXTRA_CLOUDS: std::sync::RwLock<Vec<solidcraft_viewport_gpu::view::GpuCloud>> = std::sync::RwLock::new(Vec::new());
 static EXTRA_BOUNDS: std::sync::RwLock<Option<[[f64; 3]; 2]>> = std::sync::RwLock::new(None);
 /// The view as the overlay sees it this frame.
 pub struct ViewInfo<'a> {
@@ -186,12 +190,12 @@ static VIEWPORT_OVERLAY: OnceLock<OverlayFn> = OnceLock::new();
 /// Clouds (segments and triangles with values per corner) drawn with the model, in the same depth,
 /// section cut and colour ramp as SolidCraft's point clouds. Replaces the previous set; their
 /// records are shared (`Arc`), so this and [`extra_clouds`] copy no geometry.
-pub fn set_extra_clouds(clouds: Vec<solidcraft_gpu::view::GpuCloud>) {
+pub fn set_extra_clouds(clouds: Vec<solidcraft_viewport_gpu::view::GpuCloud>) {
     *EXTRA_CLOUDS.write().unwrap_or_else(std::sync::PoisonError::into_inner) = clouds;
 }
 
 /// The fork's clouds for this frame (empty while none are set).
-pub fn extra_clouds() -> Vec<solidcraft_gpu::view::GpuCloud> {
+pub fn extra_clouds() -> Vec<solidcraft_viewport_gpu::view::GpuCloud> {
     EXTRA_CLOUDS.read().unwrap_or_else(std::sync::PoisonError::into_inner).clone()
 }
 
