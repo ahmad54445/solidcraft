@@ -60,12 +60,45 @@ static SHOWN: Mutex<Vec<GpuCloud>> = Mutex::new(Vec::new());
 /// layers so re-placing the text never rebuilds the results.
 static TEXT: Mutex<Vec<GpuCloud>> = Mutex::new(Vec::new());
 const TEXT_ID_BASE: u64 = ID_BASE + 0x1_0000;
+/// The selection's highlight (docs/13 R6), drawn over the result layers.
+static SELECTION: Mutex<Vec<GpuCloud>> = Mutex::new(Vec::new());
+const SELECTION_ID: u64 = ID_BASE + 0x2_0000;
 
-/// Result layers + text layers to the view.
+/// Result layers + text layers + the selection highlight to the view.
 fn publish() {
     let shown = SHOWN.lock().unwrap_or_else(PoisonError::into_inner).clone();
     let text = TEXT.lock().unwrap_or_else(PoisonError::into_inner).clone();
-    solidcraft_ui_egui::custom_hook::set_extra_clouds(shown.into_iter().chain(text).collect());
+    let selection = SELECTION.lock().unwrap_or_else(PoisonError::into_inner).clone();
+    solidcraft_ui_egui::custom_hook::set_extra_clouds(shown.into_iter().chain(text).chain(selection).collect());
+}
+
+/// Show the selection highlight (docs/13 R6): `segments` drawn as beads `width` thick (world
+/// units, at least ~1.5 px on screen) in `colour`, around the selected elements; empty clears it.
+/// The result layers are not touched.
+pub fn show_selection(segments: &[Segment], colour: [u8; 3], width: f32) {
+    let mut bytes = Vec::with_capacity(segments.len() * solidcraft_viewport_gpu::view::CELL_SIZE);
+    for s in segments {
+        let cell = Cell { corners: [s.ends[0], s.ends[1], s.ends[1]], neighbours: s.ends, rgb: colour, size: [width, width], ..Default::default() };
+        cloud_cell(&mut bytes, &cell);
+    }
+    let cloud = GpuCloud {
+        id: SELECTION_ID,
+        version: VERSION.fetch_add(1, Ordering::Relaxed),
+        dots: Arc::new(Vec::new()),
+        segments: Arc::new(bytes),
+        triangles: Arc::new(Vec::new()),
+        style: style(Coloring::Plain(colour)),
+    };
+    *SELECTION.lock().unwrap_or_else(PoisonError::into_inner) = if segments.is_empty() { Vec::new() } else { vec![cloud] };
+    publish();
+}
+
+/// A finished box / lasso selection in the 3D view (screen points), see [`take_box_gestures`].
+pub use solidcraft_ui_egui::custom_hook::BoxGesture;
+
+/// The box selections the user finished in the 3D view since the last call.
+pub fn take_box_gestures() -> Vec<BoxGesture> {
+    solidcraft_ui_egui::custom_hook::take_box_gestures()
 }
 
 fn clouds(layers: &[Layer], id_base: u64) -> Vec<GpuCloud> {
@@ -141,6 +174,7 @@ pub fn set_ranges(ranges: &[Option<[f32; 2]>]) {
 pub fn clear() {
     SHOWN.lock().unwrap_or_else(PoisonError::into_inner).clear();
     TEXT.lock().unwrap_or_else(PoisonError::into_inner).clear();
+    SELECTION.lock().unwrap_or_else(PoisonError::into_inner).clear();
     solidcraft_ui_egui::custom_hook::set_extra_clouds(Vec::new());
     solidcraft_ui_egui::custom_hook::set_extra_bounds(None);
 }

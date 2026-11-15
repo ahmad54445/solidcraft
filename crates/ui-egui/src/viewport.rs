@@ -6700,6 +6700,7 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
         if resp.drag_stopped()
             && let Some(bx) = app.viewport.boxsel.take()
         {
+            crate::custom_hook::push_box_gesture(&bx); // [CUSTOM] the fork selects its own elements too
             box_select(app, &proj, bx, add);
         }
     } else {

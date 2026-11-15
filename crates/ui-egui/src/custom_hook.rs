@@ -216,3 +216,33 @@ pub fn set_viewport_overlay(draw: OverlayFn) {
 pub fn viewport_overlay() -> Option<OverlayFn> {
     VIEWPORT_OVERLAY.get().copied()
 }
+
+// ---- Selection: the box / lasso the user dragged in the 3D view (docs/13-selection.md) ----
+
+/// A finished box selection in the 3D view, in screen points: a rectangle (`lasso` empty) by
+/// window or crossing, or a freehand lasso (window).
+#[derive(Clone, Debug, PartialEq)]
+pub struct BoxGesture {
+    pub min: [f32; 2],
+    pub max: [f32; 2],
+    pub crossing: bool,
+    pub lasso: Vec<[f32; 2]>,
+}
+
+static BOX_GESTURES: std::sync::Mutex<Vec<BoxGesture>> = std::sync::Mutex::new(Vec::new());
+
+/// Called by the viewport when a box selection ends (it still selects SolidCraft's own items).
+pub(crate) fn push_box_gesture(b: &crate::selection::BoxSel) {
+    let g = BoxGesture {
+        min: [b.rect.min.x, b.rect.min.y],
+        max: [b.rect.max.x, b.rect.max.y],
+        crossing: b.crossing,
+        lasso: b.lasso.iter().map(|p| [p.x, p.y]).collect(),
+    };
+    BOX_GESTURES.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(g);
+}
+
+/// The box selections since the last call (the fork reads them in its viewport overlay).
+pub fn take_box_gestures() -> Vec<BoxGesture> {
+    std::mem::take(&mut *BOX_GESTURES.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
+}

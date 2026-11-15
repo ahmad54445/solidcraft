@@ -755,7 +755,7 @@ pub struct SnapIndex {
 }
 
 /// The faces of shell `e` as drawn (View Options: shrink, extrude; docs/12 §2.2).
-fn drawn_faces(g: &Geometry, d: &SnapData, e: usize) -> Vec<[[f32; 3]; 4]> {
+pub fn drawn_faces(g: &Geometry, d: &SnapData, e: usize) -> Vec<[[f32; 3]; 4]> {
     let s = g.shells[e];
     let n = if s[3] == u32::MAX { 3 } else { 4 };
     let thickness = g.shell_thickness.get(s[4] as usize).copied().unwrap_or(0.0);

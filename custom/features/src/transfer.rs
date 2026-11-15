@@ -259,6 +259,7 @@ fn publish(geometry: Geometry, blocks: Vec<ResultBlock>) {
         f.status.backend = Backend::Ready;
     });
     *GEOMETRY.write().unwrap_or_else(PoisonError::into_inner) = Arc::new(geometry);
+    crate::selection::reset(); // element numbers are new (docs/13)
     *RESULTS.write().unwrap_or_else(PoisonError::into_inner) = blocks;
     update(|s| {
         s.running = false;
