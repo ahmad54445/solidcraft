@@ -1,57 +1,24 @@
-//! Result choice in the status bar (LC ▾, Shell ▾, Frame ▾, Max/Min ▾) and the legend over the
-//! 3D view (docs/10-viewport-results.md).
+//! Results over the 3D view: legend, value snap, labels (docs/10-viewport-results.md); the result
+//! choice itself is in the results panel (`ui_panels.rs`).
 
 use custom_bridge::ui::egui;
 use custom_bridge::view::{ViewInfo, ramp};
 
-use crate::results_view::{self, Choice, FRAME_COMPONENTS, Legend, SHELL_COMPONENTS, Step};
+use crate::results_view::{self, Legend};
 
-/// The status bar's result controls. Rebuilds the view when the choice or the units change.
-pub fn status_controls(ui: &mut egui::Ui) {
+/// The status bar's part of the results: no choice here (that is RESULTS › DISPLAY, the results
+/// panel) – only a spinner while a result is built, its error, and a rebuild when the units change.
+pub fn status_sync(ui: &mut egui::Ui) {
     let shown = results_view::shown();
-    let loads = results_view::loads();
     let units = crate::model::read(|f| f.units);
-    if loads.is_empty() {
-        ui.label("LC: —");
-        return;
-    }
-    let mut choice = shown.choice.clone();
-    let current = choice.load.clone().unwrap_or_else(|| "—".into());
-    egui::ComboBox::from_id_salt("factory_lc").selected_text(format!("LC: {current}")).show_ui(ui, |ui| {
-        for l in &loads {
-            ui.selectable_value(&mut choice.load, Some(l.clone()), l);
-        }
-    });
-    let geometry = crate::transfer::geometry();
-    if !geometry.shells.is_empty() {
-        egui::ComboBox::from_id_salt("factory_shell_comp").selected_text(format!("Shell: {}", SHELL_COMPONENTS[choice.shell.min(7)])).show_ui(ui, |ui| {
-            for (k, c) in SHELL_COMPONENTS.iter().enumerate() {
-                ui.selectable_value(&mut choice.shell, k, *c);
-            }
-        });
-    }
-    if !geometry.frames.is_empty() {
-        egui::ComboBox::from_id_salt("factory_frame_comp").selected_text(format!("Frame: {}", FRAME_COMPONENTS[choice.frame.min(5)])).show_ui(ui, |ui| {
-            for (k, c) in FRAME_COMPONENTS.iter().enumerate() {
-                ui.selectable_value(&mut choice.frame, k, *c);
-            }
-        });
-    }
-    if shown.envelope {
-        egui::ComboBox::from_id_salt("factory_step").selected_text(if choice.step == Step::Max { "Max" } else { "Min" }).show_ui(ui, |ui| {
-            ui.selectable_value(&mut choice.step, Step::Max, "Max");
-            ui.selectable_value(&mut choice.step, Step::Min, "Min");
-        });
-    }
     if shown.busy {
         ui.spinner();
     }
     if let Some(e) = &shown.error {
         ui.colored_label(ui.visuals().error_fg_color, e);
     }
-    if choice != shown.choice || shown.units != Some(units) {
-        results_view::select(Choice { ..choice }, units);
-        crate::model::write(|f| f.status.current_load = results_view::shown().choice.load);
+    if shown.choice.load.is_some() && shown.units != Some(units) {
+        results_view::select(shown.choice.clone(), units);
     }
 }
 
@@ -245,25 +212,67 @@ fn shell_centre(g: &crate::transfer::Geometry, e: usize) -> [f64; 3] {
     c
 }
 
-/// The value under the cursor, as in CSiBridge: a small square on the corner/station and its value.
+/// The value under the cursor (docs/10 §1.1): a number on every shown shell, wherever the cursor
+/// is – the corner value near a corner (square marker), else the value interpolated at the point
+/// (round marker); "no result" / "not contoured" when the shell has none; frame stations win when
+/// nearer. Second line: element and component (or section when no result is chosen).
 fn value_snap(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     let Some(cursor) = ui.input(|i| i.pointer.hover_pos()).filter(|p| area.contains(*p)) else { return };
-    let data = results_view::snap_data();
-    if data.shell_values.is_empty() && data.frame_points.is_empty() {
+    let geometry = crate::transfer::geometry();
+    if geometry.shells.is_empty() && geometry.frames.is_empty() {
         return;
     }
-    let geometry = crate::transfer::geometry();
+    let data = results_view::snap_data();
     let project = |p: [f64; 3]| (view.project)(p).map(|s| [s.x, s.y]);
-    let Some(hit) = results_view::snap(&geometry, &data, [cursor.x, cursor.y], &project, view.eye, 10.0) else { return };
+    // The shell index is built once per camera and data (rule S3), not per hover.
+    let probe = |p: [f64; 3]| project(p).unwrap_or([f32::NAN; 2]);
+    let (j0, j1) = (geometry.joints.first().copied().unwrap_or_default(), geometry.joints.last().copied().unwrap_or_default());
+    let key = (
+        [view.eye.map(|v| v as f32), [probe(j0)[0], probe(j0)[1], probe(j1)[0]]].concat().iter().map(|v| v.to_bits()).collect::<Vec<u32>>(),
+        std::sync::Arc::as_ptr(&geometry) as usize,
+        std::sync::Arc::as_ptr(&data) as usize,
+    );
+    let ctx = ui.ctx().clone();
+    let id = egui::Id::unique("factory_snap_index");
+    type Cached = (std::sync::Arc<(Vec<u32>, usize, usize)>, std::sync::Arc<results_view::SnapIndex>);
+    let index = match ctx.data(|d| d.get_temp::<Cached>(id)) {
+        Some((k, index)) if *k == key => index,
+        _ => {
+            let index = std::sync::Arc::new(results_view::SnapIndex::new(&geometry, &data, &project));
+            ctx.data_mut(|d| d.insert_temp::<Cached>(id, (std::sync::Arc::new(key), index.clone())));
+            index
+        }
+    };
+    let Some(hit) = results_view::snap_indexed(&geometry, &data, &index, [cursor.x, cursor.y], &project, view.eye, 10.0) else { return };
     let Some(at) = (view.project)(hit.at) else { return };
     let painter = ui.painter_at(area);
     let orange = egui::Color32::from_rgb(240, 130, 30);
-    painter.rect_stroke(egui::Rect::from_center_size(at, egui::vec2(9.0, 9.0)), 0.0, egui::Stroke::new(1.5, orange), egui::StrokeKind::Middle);
-    let text = format!("{} {}", format_value(hit.value), hit.unit);
-    let font = egui::FontId::proportional(13.0);
-    let galley = painter.layout_no_wrap(text, font, egui::Color32::BLACK);
-    let pos = at + egui::vec2(8.0, -8.0 - galley.size().y);
-    painter.rect_filled(egui::Rect::from_min_size(pos, galley.size()).expand(2.0), 2.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 210));
+    if hit.corner {
+        painter.rect_stroke(egui::Rect::from_center_size(at, egui::vec2(9.0, 9.0)), 0.0, egui::Stroke::new(1.5, orange), egui::StrokeKind::Middle);
+    } else {
+        painter.circle_stroke(at, 4.5, egui::Stroke::new(1.5, orange));
+    }
+    let name = |list: &Vec<String>, k: usize| list.get(k).cloned().unwrap_or_default();
+    let (first, second) = match hit.shell {
+        Some(e) => {
+            let element = name(&geometry.shell_names, e);
+            let section = geometry.shells.get(e).map(|s| name(&geometry.shell_sections, s[4] as usize)).unwrap_or_default();
+            match hit.note {
+                _ if !hit.value.is_nan() => (format!("{} {}", format_value(hit.value), hit.unit), format!("{element} · {}", data.shell_component)),
+                Some(note) => (note.to_string(), format!("{element} · {}", data.shell_component)),
+                None => (element, section),
+            }
+        }
+        None => (format!("{} {}", format_value(hit.value), hit.unit), String::new()),
+    };
+    let text = if second.is_empty() { first } else { format!("{first}\n{second}") };
+    let galley = painter.layout_no_wrap(text, egui::FontId::proportional(13.0), egui::Color32::BLACK);
+    // Up and to the right of the point, moved back inside the view at its edges (rule S2).
+    let size = galley.size();
+    let mut pos = at + egui::vec2(8.0, -8.0 - size.y);
+    pos.x = pos.x.min(area.right() - size.x - 4.0).max(area.left() + 4.0);
+    pos.y = pos.y.max(area.top() + 4.0).min(area.bottom() - size.y - 4.0);
+    painter.rect_filled(egui::Rect::from_min_size(pos, size).expand(2.0), 2.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220));
     painter.galley(pos, galley, egui::Color32::BLACK);
 }
 

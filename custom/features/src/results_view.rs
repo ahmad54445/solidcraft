@@ -96,6 +96,13 @@ pub struct SnapData {
     /// Per shell / frame: drawn at all (not hidden by Visibility/Graphics).
     pub shell_shown: Vec<bool>,
     pub frame_shown: Vec<bool>,
+    /// Per shell: coloured by the result (not halftone / colour override) – tells "no result"
+    /// from "not contoured" for a shell without a value (docs/10 §1.1).
+    pub shell_contoured: Vec<bool>,
+    /// The shown shell component and load, for the snap's second line (e.g. "Mxx · DC").
+    pub shell_component: String,
+    /// How shells are drawn (shrink, extrude): the snap follows the drawn surface.
+    pub view: vv::ViewOptions,
 }
 
 /// The values of the shown result, for value snap.
@@ -490,6 +497,12 @@ pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: 
         frame_unit: frame_unit.clone(),
         shell_shown: shell_look.iter().map(|l| *l != Look::Hidden).collect(),
         frame_shown: frame_look.iter().map(|l| *l != Look::Hidden).collect(),
+        shell_contoured: (0..g.shells.len()).map(|e| settings.contour && shell_look[e] == Look::Normal).collect(),
+        shell_component: match &choice.load {
+            Some(load) => format!("{} · {load}", SHELL_PANEL_NAMES[choice.shell.min(14)]),
+            None => String::new(),
+        },
+        view: settings.view.clone(),
     };
 
     Ok(Built {
@@ -717,39 +730,155 @@ fn frame_station_values(g: &Geometry, b: &Block, value_column: usize, step: Step
     Ok((out, envelope))
 }
 
-/// A value under the cursor.
+/// A value under the cursor (docs/10 §1.1).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snap {
-    /// World point (m) of the corner or station.
+    /// World point (m): the corner, the station, or the point on the shell under the cursor.
     pub at: [f64; 3],
+    /// The value there; NaN when there is none (see `note`).
     pub value: f32,
     pub unit: String,
+    /// The shell under the cursor (`None` for a frame station).
+    pub shell: Option<usize>,
+    /// Snapped to a corner (within the radius) rather than a point inside the shell.
+    pub corner: bool,
+    /// Why there is no value: "no result" for this load case / component, or "not contoured"
+    /// (halftone, colour override); `None` with a NaN value: no result chosen (contour off).
+    pub note: Option<&'static str>,
 }
 
-/// The value under `cursor`: on the shell under the cursor closest to the viewer, its nearest
-/// corner; or a frame station within `radius` pixels (frames win when at least as close).
-/// `project` maps a world point to the screen. Linear in the number of elements (fine for the
-/// selections of phase 1; a bounding-volume tree follows for millions).
+/// Shells by screen cell (32 px), for finding the shell under the cursor without testing every
+/// shell (rule S3). Build it once per camera (it projects every shown shell), query per hover.
+pub struct SnapIndex {
+    cell: f32,
+    cells: std::collections::HashMap<(i32, i32), Vec<u32>>,
+}
+
+/// The faces of shell `e` as drawn (View Options: shrink, extrude; docs/12 §2.2).
+fn drawn_faces(g: &Geometry, d: &SnapData, e: usize) -> Vec<[[f32; 3]; 4]> {
+    let s = g.shells[e];
+    let n = if s[3] == u32::MAX { 3 } else { 4 };
+    let thickness = g.shell_thickness.get(s[4] as usize).copied().unwrap_or(0.0);
+    shell_faces(g, e, n, &d.view, thickness)
+}
+
+impl SnapIndex {
+    pub fn new(g: &Geometry, d: &SnapData, project: &dyn Fn([f64; 3]) -> Option<[f32; 2]>) -> Self {
+        let cell = 32.0f32;
+        let mut cells: std::collections::HashMap<(i32, i32), Vec<u32>> = std::collections::HashMap::new();
+        for e in 0..g.shells.len() {
+            if !d.shell_shown.get(e).copied().unwrap_or(true) {
+                continue; // hidden: looked through (rule G5)
+            }
+            let n = if g.shells[e][3] == u32::MAX { 3 } else { 4 };
+            let (mut lo, mut hi) = ([f32::MAX; 2], [f32::MIN; 2]);
+            for face in drawn_faces(g, d, e) {
+                for p in &face[..n] {
+                    if let Some(sp) = project(p.map(f64::from)) {
+                        for i in 0..2 {
+                            lo[i] = lo[i].min(sp[i]);
+                            hi[i] = hi[i].max(sp[i]);
+                        }
+                    }
+                }
+            }
+            if lo[0] > hi[0] {
+                continue;
+            }
+            // A shell larger than the screen is kept in a bounded number of cells around it.
+            let span = |a: f32, b: f32| ((a / cell).floor() as i32).max(-2048)..=((b / cell).floor() as i32).min(2048);
+            for x in span(lo[0], hi[0]) {
+                for y in span(lo[1], hi[1]) {
+                    cells.entry((x, y)).or_default().push(e as u32);
+                }
+            }
+        }
+        SnapIndex { cell, cells }
+    }
+
+    fn at(&self, p: [f32; 2]) -> &[u32] {
+        self.cells.get(&((p[0] / self.cell).floor() as i32, (p[1] / self.cell).floor() as i32)).map_or(&[], Vec::as_slice)
+    }
+}
+
+/// The point of triangle `t` (world) that projects onto `cursor`: its barycentric (s, t) for
+/// `t[0] + s (t[1] − t[0]) + t (t[2] − t[0])`. Projection is a homography on the plane, so a few
+/// Newton steps from the screen barycentrics are exact (perspective and orthographic alike).
+fn point_on_triangle(t: [[f64; 3]; 3], cursor: [f32; 2], start: [f64; 2], project: &dyn Fn([f64; 3]) -> Option<[f32; 2]>) -> [f64; 2] {
+    let at = |s: f64, u: f64| [0, 1, 2].map(|i| t[0][i] + s * (t[1][i] - t[0][i]) + u * (t[2][i] - t[0][i]));
+    let screen = |s: f64, u: f64| project(at(s, u)).map(|p| [f64::from(p[0]), f64::from(p[1])]);
+    let target = [f64::from(cursor[0]), f64::from(cursor[1])];
+    let [mut s, mut u] = start;
+    for _ in 0..6 {
+        let (Some(f), Some(fs), Some(fu)) = (screen(s, u), screen(s + 1e-4, u), screen(s, u + 1e-4)) else { break };
+        let r = [f[0] - target[0], f[1] - target[1]];
+        if r[0].abs() + r[1].abs() < 1e-3 {
+            break;
+        }
+        let (a, b) = ((fs[0] - f[0]) / 1e-4, (fu[0] - f[0]) / 1e-4);
+        let (c, dd) = ((fs[1] - f[1]) / 1e-4, (fu[1] - f[1]) / 1e-4);
+        let det = a * dd - b * c;
+        if det.abs() < 1e-12 {
+            break;
+        }
+        s -= (dd * r[0] - b * r[1]) / det;
+        u -= (-c * r[0] + a * r[1]) / det;
+    }
+    [s.clamp(0.0, 1.0), u.clamp(0.0, 1.0)]
+}
+
+/// Screen barycentrics (s, t) of `p` in triangle a, b, c.
+fn screen_barycentric(p: [f32; 2], a: [f32; 2], b: [f32; 2], c: [f32; 2]) -> [f64; 2] {
+    let (v0, v1, v2) = ([b[0] - a[0], b[1] - a[1]], [c[0] - a[0], c[1] - a[1]], [p[0] - a[0], p[1] - a[1]]);
+    let den = f64::from(v0[0] * v1[1] - v1[0] * v0[1]);
+    if den.abs() < 1e-12 {
+        return [0.0, 0.0];
+    }
+    let s = f64::from(v2[0] * v1[1] - v1[0] * v2[1]) / den;
+    let t = f64::from(v0[0] * v2[1] - v2[0] * v0[1]) / den;
+    [s, t]
+}
+
+/// The value under `cursor` (docs/10 §1.1, rules S1–S4): on the shown shell under the cursor
+/// closest to the viewer (ties: lower element number), its corner within `radius` px, else the
+/// value at the cursor's point interpolated from the corner values on the drawn triangle – the
+/// same interpolation the contour colour uses. A frame station within `radius` wins when at least
+/// as close. A shell without a value still answers (NaN value and a note).
 pub fn snap(g: &Geometry, d: &SnapData, cursor: [f32; 2], project: &dyn Fn([f64; 3]) -> Option<[f32; 2]>, eye: [f64; 3], radius: f32) -> Option<Snap> {
+    let index = SnapIndex::new(g, d, project);
+    snap_indexed(g, d, &index, cursor, project, eye, radius)
+}
+
+/// [`snap`] with a [`SnapIndex`] built for the current camera.
+pub fn snap_indexed(g: &Geometry, d: &SnapData, index: &SnapIndex, cursor: [f32; 2], project: &dyn Fn([f64; 3]) -> Option<[f32; 2]>, eye: [f64; 3], radius: f32) -> Option<Snap> {
     let dist_eye = |p: [f64; 3]| ((p[0] - eye[0]).powi(2) + (p[1] - eye[1]).powi(2) + (p[2] - eye[2]).powi(2)).sqrt();
     let dist_px = |s: [f32; 2]| ((s[0] - cursor[0]).powi(2) + (s[1] - cursor[1]).powi(2)).sqrt();
 
-    // Shell under the cursor, closest to the viewer.
-    let mut shell: Option<(f64, usize)> = None;
-    if !d.shell_values.is_empty() {
-        let screen: Vec<Option<[f32; 2]>> = g.joints.iter().map(|p| project(*p)).collect();
-        for (e, s) in g.shells.iter().enumerate() {
-            let n = if s[3] == u32::MAX { 3 } else { 4 };
-            let corner = |k: usize| screen.get(s[k] as usize).copied().flatten();
-            let tris: &[[usize; 3]] = if n == 4 { &[[0, 1, 2], [0, 2, 3]] } else { &[[0, 1, 2]] };
-            let inside = tris.iter().any(|t| match (corner(t[0]), corner(t[1]), corner(t[2])) {
-                (Some(a), Some(b), Some(c)) => in_triangle(cursor, a, b, c),
-                _ => false,
-            });
-            if inside && d.shell_values.get(e).is_some_and(|v| !v[0].is_nan()) {
-                let depth = (0..n).filter_map(|k| g.joints.get(s[k] as usize)).map(|p| dist_eye(*p)).fold(f64::INFINITY, f64::min);
-                if shell.is_none_or(|(d0, _)| depth < d0) {
-                    shell = Some((depth, e));
+    // Shell under the cursor, closest to the viewer: (depth, shell, world point, corner weights).
+    let mut shell: Option<(f64, usize, [f64; 3], [f64; 4], [[f32; 3]; 4])> = None;
+    for &e in index.at(cursor) {
+        let e = e as usize;
+        let n = if g.shells[e][3] == u32::MAX { 3 } else { 4 };
+        let tris: &[[usize; 3]] = if n == 4 { &[[0, 1, 2], [0, 2, 3]] } else { &[[0, 1, 2]] };
+        for face in drawn_faces(g, d, e) {
+            let world = |k: usize| face[k].map(f64::from);
+            let screen = |k: usize| project(world(k));
+            for t in tris {
+                let (Some(a), Some(b), Some(c)) = (screen(t[0]), screen(t[1]), screen(t[2])) else { continue };
+                if !in_triangle(cursor, a, b, c) {
+                    continue;
+                }
+                let tri = [world(t[0]), world(t[1]), world(t[2])];
+                let [s, u] = point_on_triangle(tri, cursor, screen_barycentric(cursor, a, b, c), project);
+                let p = [0, 1, 2].map(|i| tri[0][i] + s * (tri[1][i] - tri[0][i]) + u * (tri[2][i] - tri[0][i]));
+                let mut w = [0.0; 4];
+                w[t[0]] += 1.0 - s - u;
+                w[t[1]] += s;
+                w[t[2]] += u;
+                let depth = dist_eye(p);
+                let nearer = shell.as_ref().is_none_or(|(d0, e0, ..)| depth < *d0 - 1e-9 || ((depth - *d0).abs() <= 1e-9 && e < *e0));
+                if nearer {
+                    shell = Some((depth, e, p, w, face));
                 }
             }
         }
@@ -769,19 +898,34 @@ pub fn snap(g: &Geometry, d: &SnapData, cursor: [f32; 2], project: &dyn Fn([f64;
     }
 
     match (shell, frame) {
-        (_, Some((fd, k))) if shell.is_none_or(|(sd, _)| fd <= sd + 1e-6) => {
+        (ref sh, Some((fd, k))) if sh.as_ref().is_none_or(|(sd, ..)| fd <= *sd + 1e-6) => {
             let (p, v) = d.frame_points[k];
-            Some(Snap { at: p, value: v, unit: d.frame_unit.clone() })
+            Some(Snap { at: p, value: v, unit: d.frame_unit.clone(), shell: None, corner: true, note: None })
         }
-        (Some((_, e)), _) => {
-            let s = g.shells[e];
-            let n = if s[3] == u32::MAX { 3 } else { 4 };
-            let k = (0..n)
-                .filter_map(|k| g.joints.get(s[k] as usize).and_then(|p| project(*p)).map(|sp| (k, dist_px(sp))))
-                .min_by(|a, b| a.1.total_cmp(&b.1))?
-                .0;
-            let at = *g.joints.get(s[k] as usize)?;
-            Some(Snap { at, value: d.shell_values.get(e)?[k], unit: d.shell_unit.clone() })
+        (Some((_, e, p, w, face)), _) => {
+            let n = if g.shells[e][3] == u32::MAX { 3 } else { 4 };
+            let values = d.shell_values.get(e).copied();
+            let note = match values {
+                None => None, // no result chosen: the shell's name only
+                Some(v) if v[..n].iter().any(|x| x.is_nan()) => {
+                    Some(if d.shell_contoured.get(e).copied().unwrap_or(true) { "no result" } else { "not contoured" })
+                }
+                Some(_) => None,
+            };
+            let usable = values.filter(|_| note.is_none());
+            // A corner within the radius: its own value (as before).
+            let near = (0..n)
+                .filter_map(|k| project(face[k].map(f64::from)).map(|sp| (k, dist_px(sp))))
+                .filter(|(_, dpx)| *dpx <= radius)
+                .min_by(|a, b| a.1.total_cmp(&b.1));
+            let (at, value, corner) = match near {
+                Some((k, _)) => (face[k].map(f64::from), usable.map_or(f32::NAN, |v| v[k]), true),
+                None => {
+                    let value = usable.map_or(f32::NAN, |v| (0..n).map(|k| w[k] * f64::from(v[k])).sum::<f64>() as f32);
+                    (p, value, false)
+                }
+            };
+            Some(Snap { at, value, unit: d.shell_unit.clone(), shell: Some(e), corner, note })
         }
         _ => None,
     }
