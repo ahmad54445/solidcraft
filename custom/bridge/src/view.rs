@@ -7,7 +7,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
 
-use solidcraft_gpu::view::{Cell, CloudStyle, ColorMode, FILTERS, GpuCloud, cloud_cell};
+use solidcraft_viewport_gpu::view::{Cell, CloudStyle, ColorMode, FILTERS, GpuCloud, cloud_cell};
 
 /// A triangle with a value at each corner.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -78,7 +78,7 @@ fn clouds(layers: &[Layer], id_base: u64) -> Vec<GpuCloud> {
                 Coloring::Plain(c) => c,
                 Coloring::Ramp(_) => [200, 200, 200],
             };
-            let mut triangles = Vec::with_capacity(layer.triangles.len() * solidcraft_gpu::view::CELL_SIZE);
+            let mut triangles = Vec::with_capacity(layer.triangles.len() * solidcraft_viewport_gpu::view::CELL_SIZE);
             for t in &layer.triangles {
                 let mut cell = Cell { corners: t.corners, rgb, ..Default::default() };
                 if has_value {
@@ -87,7 +87,7 @@ fn clouds(layers: &[Layer], id_base: u64) -> Vec<GpuCloud> {
                 }
                 cloud_cell(&mut triangles, &cell);
             }
-            let mut segments = Vec::with_capacity(layer.segments.len() * solidcraft_gpu::view::CELL_SIZE);
+            let mut segments = Vec::with_capacity(layer.segments.len() * solidcraft_viewport_gpu::view::CELL_SIZE);
             for s in &layer.segments {
                 // A segment repeats its second end; neighbours are its own ends; size 0 = a line.
                 let mut cell = Cell { corners: [s.ends[0], s.ends[1], s.ends[1]], neighbours: s.ends, rgb, ..Default::default() };
@@ -161,7 +161,7 @@ fn style(coloring: Coloring) -> CloudStyle {
 
 /// One screen-facing text glyph (docs/12 §2.1): drawn by the GPU at a world anchor with the
 /// model's depth, constant size in pixels; see [`show_sprites`].
-pub use solidcraft_gpu::view::{Sprite, SpriteAtlas};
+pub use solidcraft_viewport_gpu::view::{Sprite, SpriteAtlas};
 
 static SPRITE_VERSION: AtomicU64 = AtomicU64::new(1);
 
@@ -169,11 +169,11 @@ static SPRITE_VERSION: AtomicU64 = AtomicU64::new(1);
 /// viewport from now on, every frame, until replaced or cleared.
 pub fn show_sprites(atlas: &Arc<SpriteAtlas>, atlas_id: u64, sprites: Vec<Sprite>) {
     let version = SPRITE_VERSION.fetch_add(1, Ordering::Relaxed);
-    let set = solidcraft_gpu::view::SpriteSet { atlas_version: atlas_id, atlas: atlas.clone(), version, sprites: Arc::new(sprites) };
-    solidcraft_gpu::view::set_sprites(Some(Arc::new(set)));
+    let set = solidcraft_viewport_gpu::view::SpriteSet { atlas_version: atlas_id, atlas: atlas.clone(), version, sprites: Arc::new(sprites) };
+    solidcraft_viewport_gpu::view::set_sprites(Some(Arc::new(set)));
 }
 
 /// Remove all sprites.
 pub fn clear_sprites() {
-    solidcraft_gpu::view::set_sprites(None);
+    solidcraft_viewport_gpu::view::set_sprites(None);
 }
