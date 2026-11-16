@@ -61,6 +61,9 @@ fn set_dialog(d: TemplatesDialog) {
 /// picture goes (`None` = one window, the ordinary view).
 pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
     windows::keep_up(); // the layout is kept between sessions (§10.4)
+    windows::sync(); // a view's template follows what is changed in it (docs/15 N6)
+    rename_window(ui.ctx());
+    named_view_menu(ui.ctx());
     let w = windows::current();
     if windows::take_picker_request() {
         set_picker(Some(Picker { tile: w.active, at: full.left_top() + egui::vec2(8.0, 8.0), by_hover: false, focus: None }));
@@ -146,18 +149,8 @@ pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
         // Right-click on the title bar: view templates (§10.1, VT3).
         let id = win.id;
         bar_resp.context_menu(|ui| {
-            let list = windows::templates();
-            ui.menu_button("Apply template", |ui| {
-                if list.is_empty() {
-                    ui.weak("no templates yet");
-                }
-                for t in &list {
-                    if ui.button(&t.name).clicked() {
-                        windows::apply_template(&t.name, id);
-                        ui.close();
-                    }
-                }
-            });
+            view_menu_items(ui, id);
+            ui.separator();
             if ui.button("Save as template…").clicked() {
                 set_dialog(TemplatesDialog { open: true, tile: Some(id), name: String::new() });
                 ui.close();
@@ -356,8 +349,9 @@ fn thumbnail(ui: &mut egui::Ui, layout: Layout, marked: Option<usize>, label: im
     clicked
 }
 
-/// The View Templates dialog (§10.1, VT3): every template with *Apply* / *Delete*, and *Save*
-/// for the window it was opened from (else the active one). Non-modal.
+/// The View Templates dialog (docs/14 §10.1, docs/15): every template with its switches – which
+/// parts it rules (R1) –, *Use* (link it to the window's view), *Rename*, *Delete*; *Save* makes a
+/// template of the window it was opened from (else the active one). Non-modal.
 pub fn templates_window(ctx: &egui::Context) {
     let mut d = dialog();
     if !d.open {
@@ -365,6 +359,7 @@ pub fn templates_window(ctx: &egui::Context) {
     }
     let w = windows::current();
     let tile = d.tile.filter(|t| w.index_of(*t).is_some()).unwrap_or(w.active);
+    let view = w.view_of(tile).cloned();
     let mut open = true;
     egui::Window::new("View Templates").open(&mut open).resizable(false).collapsible(false).show(ctx, |ui| {
         ui.label(format!("Window {} – {}", w.number(tile), windows::title(&w, tile)));
@@ -374,12 +369,36 @@ pub fn templates_window(ctx: &egui::Context) {
             ui.weak("No templates yet: name the window below and save it.");
         }
         egui::Grid::new("factory_templates").striped(true).show(ui, |ui| {
+            for head in ["Template", "V/G", "Result", "Camera", "Hide", "", "", ""] {
+                ui.strong(head);
+            }
+            ui.end_row();
             for t in &list {
-                ui.label(&t.name);
-                if ui.button("Apply").on_hover_text("Camera, result, Visibility/Graphics and Hide / Isolate of the template").clicked() {
-                    windows::apply_template(&t.name, tile);
+                let used = view.as_ref().is_some_and(|v| v.template.as_deref() == Some(t.name.as_str()));
+                ui.label(if used { format!("● {}", t.name) } else { t.name.clone() });
+                let mut inc = t.include;
+                let mut changed = false;
+                for (flag, tip) in [
+                    (&mut inc.vg, "Visibility/Graphic Overrides with View Options"),
+                    (&mut inc.result, "The result: load, plate force, beam force, envelope, averaging, legend ranges"),
+                    (&mut inc.camera, "The camera"),
+                    (&mut inc.hidden, "Hide / Isolate"),
+                ] {
+                    changed |= ui.checkbox(flag, "").on_hover_text(tip).changed();
                 }
-                if ui.button("Delete").clicked() {
+                if changed {
+                    windows::set_include(&t.name, inc);
+                }
+                let label = if used { "Detach" } else { "Use" };
+                if ui.button(label).on_hover_text("Link the template to this window's view (Detach: the view keeps what it shows)").clicked()
+                    && let Some(v) = &view
+                {
+                    windows::set_view_template(&v.name, if used { None } else { Some(&t.name) });
+                }
+                if ui.button("Rename").clicked() {
+                    start_rename(Rename::Template(t.name.clone()));
+                }
+                if ui.button("Delete").on_hover_text("Its views keep what it gave them").clicked() {
                     windows::delete_template(&t.name);
                 }
                 ui.end_row();
@@ -389,7 +408,7 @@ pub fn templates_window(ctx: &egui::Context) {
         ui.horizontal(|ui| {
             ui.text_edit_singleline(&mut d.name).on_hover_text("A name that exists is replaced");
             let ok = !d.name.trim().is_empty();
-            if ui.add_enabled(ok, egui::Button::new("Save this window")).clicked() {
+            if ui.add_enabled(ok, egui::Button::new("Save this window as template")).clicked() {
                 windows::save_template(&d.name, tile);
                 d.name.clear();
             }
@@ -397,4 +416,222 @@ pub fn templates_window(ctx: &egui::Context) {
     });
     d.open = open;
     set_dialog(d);
+}
+
+// ---- Named views (docs/15) ----
+
+/// The window and view entries of a right-click menu: open a view here, the view's template.
+fn view_menu_items(ui: &mut egui::Ui, tile: u64) {
+    let w = windows::current();
+    let current = w.view_of(tile).cloned();
+    ui.menu_button("Open view", |ui| {
+        for v in &w.views {
+            let here = current.as_ref().is_some_and(|c| c.name == v.name);
+            if ui.add_enabled(!here, egui::Button::new(&v.name)).clicked() {
+                windows::open_view(&v.name, tile);
+                ui.close();
+            }
+        }
+    });
+    if let Some(v) = &current {
+        ui.menu_button("View Template", |ui| template_choice(ui, &v.name, v.template.as_deref()));
+        if ui.button("Rename view…").clicked() {
+            start_rename(Rename::View(v.name.clone()));
+            ui.close();
+        }
+    }
+}
+
+/// `<None>` and every template, the view's own marked; a click links it (N3).
+fn template_choice(ui: &mut egui::Ui, view: &str, now: Option<&str>) {
+    if ui.selectable_label(now.is_none(), "<None>").clicked() {
+        windows::set_view_template(view, None);
+        ui.close();
+    }
+    for t in windows::templates() {
+        if ui.selectable_label(now == Some(t.name.as_str()), format!("{}   ({})", t.name, t.include.summary())).clicked() {
+            windows::set_view_template(view, Some(&t.name));
+            ui.close();
+        }
+    }
+}
+
+/// What a right-click in Named Views opened a menu for.
+#[derive(Clone, Debug, PartialEq)]
+enum Target {
+    View(String),
+    Template(String),
+}
+
+static MENU: Mutex<Option<(egui::Pos2, Target)>> = Mutex::new(None);
+
+/// Factory's rows inside SolidCraft's Named Views folder (N1): every view (the template it uses at
+/// the end; a click opens it in the active window), then **View Templates** with every template
+/// (the parts it rules at the end).
+pub fn named_view_rows(ui: &mut egui::Ui, depth: usize) {
+    let w = windows::current();
+    for v in &w.views {
+        let shown = w.window_of(&v.name).map(|id| format!(" · window {}", w.number(id))).unwrap_or_default();
+        let count = format!("{}{shown}", v.template.as_deref().unwrap_or(""));
+        let r = custom_bridge::ui::tree_row(ui, &format!("factory_view:{}", v.name), depth, None, "perspective", &v.name, &count);
+        if r.clicked {
+            windows::open_view(&v.name, w.active);
+        }
+        if let Some(at) = r.context_at {
+            *MENU.lock().unwrap_or_else(PoisonError::into_inner) = Some((at, Target::View(v.name.clone())));
+        }
+    }
+    let key = "factory_view_templates";
+    let open_id = egui::Id::unique(("factory_browser_open", key));
+    let open = ui.data(|d| d.get_temp::<bool>(open_id)).unwrap_or(false);
+    let list = windows::templates();
+    let r = custom_bridge::ui::tree_row(ui, key, depth, Some(open), "folder", "View Templates", &list.len().to_string());
+    let open = if r.toggled || r.clicked { !open } else { open };
+    ui.data_mut(|d| d.insert_temp(open_id, open));
+    if open {
+        for t in &list {
+            let r = custom_bridge::ui::tree_row(ui, &format!("factory_template:{}", t.name), depth + 1, None, "params", &t.name, &t.include.summary());
+            if r.clicked {
+                set_dialog(TemplatesDialog { open: true, tile: None, ..dialog() });
+            }
+            if let Some(at) = r.context_at {
+                *MENU.lock().unwrap_or_else(PoisonError::into_inner) = Some((at, Target::Template(t.name.clone())));
+            }
+        }
+    }
+}
+
+/// The right-click menu of a view or a template row in Named Views.
+fn named_view_menu(ctx: &egui::Context) {
+    let Some((at, target)) = MENU.lock().unwrap_or_else(PoisonError::into_inner).clone() else { return };
+    let w = windows::current();
+    let mut done = false;
+    let area = egui::Area::new(egui::Id::unique("factory_named_view_menu")).order(egui::Order::Foreground).fixed_pos(at).show(ctx, |ui| {
+        egui::Frame::popup(ui.style()).show(ui, |ui| match &target {
+            Target::View(name) => {
+                if ui.button("Open").clicked() {
+                    windows::open_view(name, w.active);
+                    done = true;
+                }
+                if let Some(v) = w.views.iter().find(|v| &v.name == name) {
+                    ui.menu_button("View Template", |ui| template_choice(ui, name, v.template.as_deref()));
+                }
+                if ui.button("Rename…").clicked() {
+                    start_rename(Rename::View(name.clone()));
+                    done = true;
+                }
+                if ui.button("Duplicate").clicked() {
+                    windows::duplicate_view(name);
+                    done = true;
+                }
+                let shown = w.window_of(name).is_some();
+                if ui.add_enabled(!shown, egui::Button::new("Delete")).on_disabled_hover_text("A window shows it: open another view there first").clicked() {
+                    windows::delete_view(name);
+                    done = true;
+                }
+            }
+            Target::Template(name) => {
+                if ui.button("Edit…").clicked() {
+                    set_dialog(TemplatesDialog { open: true, tile: None, ..dialog() });
+                    done = true;
+                }
+                if ui.button("Rename…").clicked() {
+                    start_rename(Rename::Template(name.clone()));
+                    done = true;
+                }
+                if ui.button("Delete").on_hover_text("Its views keep what it gave them").clicked() {
+                    windows::delete_template(name);
+                    done = true;
+                }
+            }
+        });
+    });
+    if done || area.response.clicked_elsewhere() || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+        *MENU.lock().unwrap_or_else(PoisonError::into_inner) = None;
+    }
+}
+
+/// What the Rename dialog renames, and the text typed.
+#[derive(Clone, Debug, PartialEq)]
+enum Rename {
+    View(String),
+    Template(String),
+}
+
+static RENAME: Mutex<Option<(Rename, String)>> = Mutex::new(None);
+
+fn start_rename(what: Rename) {
+    let text = match &what {
+        Rename::View(n) | Rename::Template(n) => n.clone(),
+    };
+    *RENAME.lock().unwrap_or_else(PoisonError::into_inner) = Some((what, text));
+}
+
+/// A small dialog with the new name (names are unique, docs/15 R7).
+fn rename_window(ctx: &egui::Context) {
+    let Some((what, mut text)) = RENAME.lock().unwrap_or_else(PoisonError::into_inner).clone() else { return };
+    let (title, old) = match &what {
+        Rename::View(n) => ("Rename View", n.clone()),
+        Rename::Template(n) => ("Rename View Template", n.clone()),
+    };
+    let mut open = true;
+    let mut finished = false;
+    let mut failed = false;
+    egui::Window::new(title).id(egui::Id::unique("factory_rename")).open(&mut open).collapsible(false).resizable(false).show(ctx, |ui| {
+        let resp = ui.text_edit_singleline(&mut text);
+        let enter = resp.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
+        if ui.button("OK").clicked() || enter {
+            let ok = match &what {
+                Rename::View(_) => windows::rename_view(&old, &text),
+                Rename::Template(_) => windows::rename_template(&old, &text),
+            };
+            finished = ok || text.trim() == old;
+            failed = !finished;
+        }
+        if failed {
+            ui.colored_label(ui.visuals().error_fg_color, "That name is taken or empty.");
+        }
+    });
+    let mut slot = RENAME.lock().unwrap_or_else(PoisonError::into_inner);
+    *slot = if finished || !open { None } else { Some((what, text)) };
+}
+
+/// Over a form the active view's template rules (docs/15 R2): a note *Controlled by template "…"*
+/// and *Edit template*; `true` when the form is locked (the caller disables it). While editing,
+/// the note says the changes go to every view using the template.
+pub(crate) fn template_lock(ui: &mut egui::Ui, part: Part) -> bool {
+    let Some((name, inc)) = windows::active_template() else { return false };
+    let ruled = match part {
+        Part::Vg => inc.vg,
+        Part::Result => inc.result,
+    };
+    if !ruled {
+        return false;
+    }
+    let editing = windows::editing_template();
+    let mut locked = !editing;
+    ui.horizontal(|ui| {
+        if editing {
+            ui.colored_label(ui.visuals().warn_fg_color, format!("Editing template \"{name}\": changes go to every view using it."));
+            if ui.button("Done").clicked() {
+                windows::set_editing_template(false);
+                locked = true;
+            }
+        } else {
+            ui.label(format!("Controlled by template \"{name}\"."));
+            if ui.button("Edit template").clicked() {
+                windows::set_editing_template(true);
+                locked = false;
+            }
+        }
+    });
+    ui.separator();
+    locked
+}
+
+/// The forms a template can lock.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Part {
+    Vg,
+    Result,
 }

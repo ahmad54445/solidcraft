@@ -22,8 +22,15 @@ pub fn draw(ui: &mut egui::Ui) {
         let w = crate::windows::current();
         if w.windows.len() > 1 {
             ui.label(format!("Window {}/{}", w.number(w.active), w.windows.len()));
-            ui.separator();
         }
+        // The active window's named view and its template (docs/15 N1, N3).
+        if let Some(v) = w.view_of(w.active) {
+            ui.label(match &v.template {
+                Some(t) => format!("View: {} [{t}]", v.name),
+                None => format!("View: {}", v.name),
+            });
+        }
+        ui.separator();
         ui.label(crate::ui_select::status_text());
         ui.separator(); // the result choice is in RESULTS › DISPLAY (results panel), not here
         crate::ui_results::status_sync(ui);

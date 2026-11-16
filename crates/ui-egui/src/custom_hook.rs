@@ -138,6 +138,18 @@ pub fn browser_rows() -> Option<RowsFn> {
     BROWSER_ROWS.get().copied()
 }
 
+static NAMED_VIEW_ROWS: OnceLock<RowsFn> = OnceLock::new();
+
+/// Rows the fork adds inside Named Views, after the design's saved views (Factory's views, its
+/// docs/15). First call wins.
+pub fn set_named_view_rows(rows: RowsFn) {
+    let _ = NAMED_VIEW_ROWS.set(rows);
+}
+
+pub fn named_view_rows() -> Option<RowsFn> {
+    NAMED_VIEW_ROWS.get().copied()
+}
+
 /// An extra status bar the fork draws, always shown along the window's bottom edge (SolidCraft's
 /// own bar is added above it while its preference is on). First call wins.
 pub fn set_status_bar(draw: DrawFn) {

@@ -2264,6 +2264,9 @@ fn named_view_rows(app: &mut SolveApp, rows: &mut Rows<'_>, depth: usize, acts: 
             acts.menu = Some((p, Target::NamedView { name }));
         }
     }
+    if let Some(fork_rows) = crate::custom_hook::named_view_rows() {
+        fork_rows(rows.ui(), depth + 1); // [CUSTOM] the fork's views inside Named Views
+    }
 }
 
 /// Turn the camera to a named view (a saved one or a standard one), animated.

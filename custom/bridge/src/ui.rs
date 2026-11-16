@@ -10,6 +10,11 @@ pub fn set_browser_rows(rows: RowsFn) {
     solidcraft_ui_egui::custom_hook::set_browser_rows(rows);
 }
 
+/// Factory's rows inside SolidCraft's Named Views folder, after the design's saved views. Call once.
+pub fn set_named_view_rows(rows: RowsFn) {
+    solidcraft_ui_egui::custom_hook::set_named_view_rows(rows);
+}
+
 /// Factory's status bar along the window's bottom edge, always shown. Call once.
 pub fn set_status_bar(draw: DrawFn) {
     solidcraft_ui_egui::custom_hook::set_status_bar(draw);

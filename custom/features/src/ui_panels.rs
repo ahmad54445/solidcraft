@@ -49,6 +49,10 @@ fn results_panel(ctx: &egui::Context) {
     });
     let mut open = true;
     egui::Window::new("Results").id(egui::Id::unique("factory_results_panel")).open(&mut open).resizable(true).default_width(330.0).show(ctx, |ui| {
+        // A view template rules the result: locked until "Edit template" (docs/15 R2).
+        if crate::ui_windows::template_lock(ui, crate::ui_windows::Part::Result) {
+            ui.disable();
+        }
         if loads.is_empty() {
             ui.label("No results yet. CONNECT › CSiBridge › Send.");
             return;
@@ -224,6 +228,10 @@ fn visibility_graphics(ctx: &egui::Context) {
     let mut open = true;
     let mut close = false;
     egui::Window::new("Visibility/Graphic Overrides").id(egui::Id::unique("factory_vv")).open(&mut open).resizable(true).default_width(760.0).show(ctx, |ui| {
+        // A view template rules Visibility/Graphics: locked until "Edit template" (docs/15 R2).
+        if crate::ui_windows::template_lock(ui, crate::ui_windows::Part::Vg) {
+            ui.disable();
+        }
         ui.horizontal(|ui| {
             for (t, name) in [(Tab::Model, "Model Categories"), (Tab::Imported, "Imported Categories"), (Tab::Filters, "Filters"), (Tab::View, "View Options")] {
                 if ui.selectable_label(tab == t, name).clicked() {

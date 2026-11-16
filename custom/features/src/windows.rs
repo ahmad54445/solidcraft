@@ -138,6 +138,8 @@ pub struct Window {
     pub id: u64,
     /// `None` for the active window (its state is the ordinary one).
     pub saved: Option<Saved>,
+    /// The named view it shows (docs/15 N1).
+    pub view: String,
 }
 
 /// All windows, in zone order.
@@ -150,12 +152,22 @@ pub struct Windows {
     pub maximised: Option<u64>,
     /// The borders: vertical (x) and horizontal (y), fractions of the area (§10.2).
     pub splits: [f32; 2],
+    /// Every named view, shown in a window or not (docs/15).
+    pub views: Vec<NamedView>,
     next: u64,
 }
 
 impl Default for Windows {
     fn default() -> Self {
-        Windows { layout: Layout::One, windows: vec![Window { id: 1, saved: None }], active: 1, maximised: None, splits: [0.5, 0.5], next: 2 }
+        Windows {
+            layout: Layout::One,
+            windows: vec![Window { id: 1, saved: None, view: "View 1".into() }],
+            active: 1,
+            maximised: None,
+            splits: [0.5, 0.5],
+            views: vec![NamedView { name: "View 1".into(), ..NamedView::default() }],
+            next: 2,
+        }
     }
 }
 
@@ -167,6 +179,31 @@ impl Windows {
     /// The window's number as shown (1-based, zone order).
     pub fn number(&self, id: u64) -> usize {
         self.index_of(id).map_or(0, |k| k + 1)
+    }
+
+    /// The named view window `id` shows.
+    pub fn view_of(&self, id: u64) -> Option<&NamedView> {
+        let name = &self.windows.iter().find(|x| x.id == id)?.view;
+        self.views.iter().find(|v| &v.name == name)
+    }
+
+    /// The window showing view `name`, if any (one window at a time, docs/15 R6).
+    pub fn window_of(&self, name: &str) -> Option<u64> {
+        self.windows.iter().find(|x| x.view == name).map(|x| x.id)
+    }
+
+    /// A view name not used yet: `View n`.
+    fn free_view_name(&self, base: &str) -> String {
+        (1..).map(|n| if base == "View" { format!("View {n}") } else if n == 1 { base.to_string() } else { format!("{base} ({n})") }).find(|c| !self.views.iter().any(|v| &v.name == c)).unwrap_or_default()
+    }
+
+    /// Keep what window `id` shows as its view's own state (before the window closes).
+    fn store_own(&mut self, id: u64) {
+        let Some(state) = capture_in(self, id) else { return };
+        let Some(name) = self.windows.iter().find(|x| x.id == id).map(|x| x.view.clone()) else { return };
+        if let Some(v) = self.views.iter_mut().find(|v| v.name == name) {
+            v.own = state;
+        }
     }
 }
 
@@ -183,13 +220,18 @@ fn write<T>(f: impl FnOnce(&mut Windows) -> T) -> T {
     out
 }
 
-/// A new window, a copy of the active one (docs/14 W7).
+/// A new window, a copy of the active one (docs/14 W7), showing a new named view `View n` with
+/// the active view's template (docs/15 N1).
 fn copy_of_active(w: &mut Windows) -> Window {
     let id = w.next;
     w.next += 1;
     #[cfg(feature = "ui")]
     custom_bridge::view::park(id);
-    Window { id, saved: Some(Saved::current()) }
+    let name = w.free_view_name("View");
+    let template = w.view_of(w.active).and_then(|v| v.template.clone());
+    let own = capture_in(w, w.active).unwrap_or_default();
+    w.views.push(NamedView { name: name.clone(), template, own });
+    Window { id, saved: Some(Saved::current()), view: name }
 }
 
 /// Make window `id` the active one: the old one keeps its state, the new one gets its own back.
@@ -238,6 +280,12 @@ pub fn set_layout(layout: Layout, place: Option<(u64, usize)>) {
 
 fn set_layout_in(w: &mut Windows, layout: Layout, place: Option<(u64, usize)>) {
     let n = layout.zones();
+    if w.windows.len() > n {
+        let ids: Vec<u64> = w.windows.iter().map(|x| x.id).collect();
+        for id in ids {
+            w.store_own(id); // a closed window's view keeps what it showed (docs/15 R6)
+        }
+    }
     let mut order: Vec<Window> = std::mem::take(&mut w.windows);
     // The active window and the placed one are kept first when some must close.
     let keep_first = |order: &mut Vec<Window>, id: u64| {
@@ -304,6 +352,7 @@ pub fn close(id: u64) -> bool {
             return false;
         }
         let Some(k) = w.index_of(id) else { return false };
+        w.store_own(id); // its view keeps what it showed (docs/15 R6)
         if w.active == id {
             let next = w.windows[if k + 1 < w.windows.len() { k + 1 } else { k - 1 }].id;
             activate_in(w, next);
@@ -426,9 +475,25 @@ pub fn title(w: &Windows, id: u64) -> String {
         Some(s) => s.shown.clone(),
         None => results_view::shown(),
     };
-    let mut parts = vec![format!("{}", w.number(id))];
+    let view = w.view_of(id);
+    let mut parts = vec![match view {
+        Some(v) => match &v.template {
+            Some(t) => format!("{} [{t}]", v.name),
+            None => v.name.clone(),
+        },
+        None => format!("{}", w.number(id)),
+    }];
     if let Some(load) = &shown.choice.load {
         parts.push(load.clone());
+    }
+    // A template's load the model has not (docs/15 R4).
+    if let Some(t) = view.and_then(|v| v.template.as_ref()).and_then(|t| templates().into_iter().find(|x| &x.name == t))
+        && t.include.result
+        && let Some(l) = t.state.choice.load.as_ref()
+        && !results_view::loads().is_empty()
+        && !results_view::loads().contains(l)
+    {
+        parts.push(format!("template load \"{l}\" not in this model"));
     }
     for l in shown.shell.iter().chain(shown.frame.iter()) {
         let comp = l.title.rsplit(" – ").next().unwrap_or(&l.title);
@@ -589,12 +654,13 @@ pub struct ViewState {
     pub hidden_frames: Vec<String>,
 }
 
-/// A named view state.
+/// A named view state: a view template (docs/15). `include` says which parts it rules.
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
 pub struct Template {
     pub name: String,
     pub state: ViewState,
+    pub include: Include,
 }
 
 static TEMPLATES: RwLock<Vec<Template>> = RwLock::new(Vec::new());
@@ -606,7 +672,10 @@ pub fn templates() -> Vec<Template> {
 
 /// What window `id` shows now.
 pub fn capture(id: u64) -> Option<ViewState> {
-    let w = current();
+    capture_in(&current(), id)
+}
+
+fn capture_in(w: &Windows, id: u64) -> Option<ViewState> {
     let win = w.windows.iter().find(|x| x.id == id)?;
     #[cfg(feature = "ui")]
     let camera = custom_bridge::view::camera_of(id);
@@ -623,37 +692,86 @@ pub fn capture(id: u64) -> Option<ViewState> {
 
 /// Give window `id` everything in `st` (VT2): its result is built again on a worker thread.
 pub fn apply_state(id: u64, st: &ViewState) {
+    apply_parts(id, st, Include::all());
+}
+
+/// Whether two result choices are the same for a template: a template's load the model has not
+/// counts as the first load (docs/15 R4), so it is never taken for a change.
+fn same_result(a: &ViewState, b: &ViewState) -> bool {
+    let loads = results_view::loads();
+    let load = |c: &results_view::Choice| match &c.load {
+        Some(l) if !loads.is_empty() && !loads.contains(l) => loads.first().cloned(),
+        None if !loads.is_empty() => loads.first().cloned(),
+        other => other.clone(),
+    };
+    let strip = |c: &results_view::Choice| results_view::Choice { load: None, ..c.clone() };
+    load(&a.choice) == load(&b.choice) && strip(&a.choice) == strip(&b.choice) && a.manual_shell == b.manual_shell && a.manual_frame == b.manual_frame
+}
+
+/// Whether the elements hidden in `a` (a window, by its set) are those `b` names.
+fn same_hidden(window: &Set, b: &ViewState) -> bool {
+    *window == set_of(&(b.hidden_shells.clone(), b.hidden_frames.clone()))
+}
+
+/// Give window `id` the parts of `st` that `inc` names, and only those that differ from what it
+/// shows (a template ruling a view, docs/15 R1): nothing is built again for an unchanged result.
+pub fn apply_parts(id: u64, st: &ViewState, inc: Include) {
     #[cfg(feature = "ui")]
-    if let Some(cam) = &st.camera {
+    if inc.camera
+        && let Some(cam) = &st.camera
+        && custom_bridge::view::camera_of(id).as_ref() != Some(cam)
+    {
         custom_bridge::view::set_camera_of(id, cam);
     }
     let names = (st.hidden_shells.clone(), st.hidden_frames.clone());
     let there = model_there();
+    let Some(now) = capture(id) else { return };
     let active = current().active == id;
+    let vg = inc.vg && now.settings != st.settings;
+    let result = inc.result && !same_result(&now, st);
+    let hidden = inc.hidden && if there { !same_hidden(&if active { visibility::hidden() } else { saved_hidden(id) }, st) } else { now.hidden_shells != st.hidden_shells || now.hidden_frames != st.hidden_frames };
+    if !(vg || result || hidden) {
+        return;
+    }
     if active {
-        vv::set_quiet(st.settings.clone());
+        if vg {
+            vv::set_quiet(st.settings.clone());
+        }
+        if hidden {
+            if there {
+                visibility::set_hidden(set_of(&names));
+            } else {
+                *ACTIVE_HIDDEN_NAMES.lock().unwrap_or_else(PoisonError::into_inner) = Some(names);
+            }
+        }
+        let shown = results_view::shown();
+        let (choice, ms, mf) = if result { (st.choice.clone(), st.manual_shell, st.manual_frame) } else { (shown.choice, shown.manual_shell, shown.manual_frame) };
         if there {
-            visibility::set_hidden(set_of(&names));
-            results_view::select_with_ranges(st.choice.clone(), st.manual_shell, st.manual_frame, crate::model::read(|f| f.units));
+            results_view::select_with_ranges(choice, ms, mf, crate::model::read(|f| f.units));
         } else {
-            *ACTIVE_HIDDEN_NAMES.lock().unwrap_or_else(PoisonError::into_inner) = Some(names);
-            results_view::set_choice_quiet(st.choice.clone(), st.manual_shell, st.manual_frame);
+            results_view::set_choice_quiet(choice, ms, mf);
         }
         results_view::repaint();
         return;
     }
     write(|w| {
         let Some(s) = w.windows.iter_mut().find(|x| x.id == id).and_then(|x| x.saved.as_mut()) else { return };
-        s.settings = st.settings.clone();
-        s.shown.choice = st.choice.clone();
-        s.shown.manual_shell = st.manual_shell;
-        s.shown.manual_frame = st.manual_frame;
-        if there {
-            s.hidden = set_of(&names);
-            s.hidden_names = None;
-        } else {
-            s.hidden = Set::default();
-            s.hidden_names = Some(names);
+        if vg {
+            s.settings = st.settings.clone();
+        }
+        if result {
+            s.shown.choice = st.choice.clone();
+            s.shown.manual_shell = st.manual_shell;
+            s.shown.manual_frame = st.manual_frame;
+        }
+        if hidden {
+            if there {
+                s.hidden = set_of(&names);
+                s.hidden_names = None;
+            } else {
+                s.hidden = Set::default();
+                s.hidden_names = Some(names);
+            }
         }
     });
     if there {
@@ -661,27 +779,39 @@ pub fn apply_state(id: u64, st: &ViewState) {
     }
 }
 
+/// An inactive window's hidden set.
+fn saved_hidden(id: u64) -> Set {
+    current().windows.iter().find(|x| x.id == id).and_then(|x| x.saved.as_ref()).map(|s| s.hidden.clone()).unwrap_or_default()
+}
+
 /// Keep what window `id` shows as template `name` (a template of that name is replaced, VT1).
 pub fn save_template(name: &str, id: u64) -> bool {
     let name = name.trim();
     let Some(state) = capture(id).filter(|_| !name.is_empty()) else { return false };
-    let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
-    match t.iter_mut().find(|x| x.name == name) {
-        Some(x) => x.state = state,
-        None => t.push(Template { name: name.to_string(), state }),
+    {
+        let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
+        match t.iter_mut().find(|x| x.name == name) {
+            Some(x) => x.state = state,
+            None => t.push(Template { name: name.to_string(), state, include: Include::new_template() }),
+        }
     }
+    propagate(name, None);
     true
 }
 
-/// Apply template `name` to window `id` (VT2). `false` when there is no such template.
+/// Give window `id`'s view template `name` (linked, docs/15 N3). `false` when there is no
+/// such template.
 pub fn apply_template(name: &str, id: u64) -> bool {
-    let Some(t) = templates().into_iter().find(|x| x.name == name) else { return false };
-    apply_state(id, &t.state);
-    true
+    let Some(view) = current().windows.iter().find(|x| x.id == id).map(|x| x.view.clone()) else { return false };
+    set_view_template(&view, Some(name))
 }
 
-/// Delete template `name`.
+/// Delete template `name`; its views keep what it gave them as their own (docs/15 R3, R7).
 pub fn delete_template(name: &str) -> bool {
+    let linked: Vec<String> = current().views.iter().filter(|v| v.template.as_deref() == Some(name)).map(|v| v.name.clone()).collect();
+    for v in &linked {
+        set_view_template(v, None);
+    }
     let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
     let before = t.len();
     t.retain(|x| x.name != name);
@@ -701,12 +831,24 @@ pub struct Stored {
     pub maximised: Option<usize>,
     pub windows: Vec<ViewState>,
     pub templates: Vec<Template>,
+    /// Every named view (docs/15) and the view each window shows.
+    pub views: Vec<NamedView>,
+    pub shown: Vec<String>,
+    /// The starting templates were given once (docs/15 §3): deleted ones do not come back.
+    pub seeded: bool,
 }
 
 /// The windows and templates as they would be stored now.
 pub fn stored() -> Stored {
-    let w = current();
+    let mut w = current();
+    let ids: Vec<u64> = w.windows.iter().map(|x| x.id).collect();
+    for id in ids {
+        w.store_own(id);
+    }
     Stored {
+        views: w.views.clone(),
+        shown: w.windows.iter().map(|x| x.view.clone()).collect(),
+        seeded: SEEDED.load(std::sync::atomic::Ordering::Relaxed),
         layout: w.layout.key().to_string(),
         splits: w.splits,
         active: w.index_of(w.active).unwrap_or(0),
@@ -719,16 +861,33 @@ pub fn stored() -> Stored {
 /// Put back windows and templates as stored (on start, before any model is transferred).
 pub fn restore(st: &Stored) {
     let layout = Layout::from_key(&st.layout).unwrap_or_default();
-    let n = st.windows.len().clamp(1, MAX_WINDOWS).min(layout.zones().max(1));
+    let n = st.windows.len().max(st.shown.len()).clamp(1, MAX_WINDOWS).min(layout.zones().max(1));
     *TEMPLATES.write().unwrap_or_else(PoisonError::into_inner) = st.templates.clone();
+    SEEDED.store(st.seeded, std::sync::atomic::Ordering::Relaxed);
     reset();
-    if st.windows.is_empty() {
+    // The views; a file of §14 (no views) gets one view per window from its states.
+    let mut views = st.views.clone();
+    views.retain(|v| !v.name.trim().is_empty());
+    let shown: Vec<String> = (0..n)
+        .map(|k| {
+            st.shown.get(k).filter(|name| views.iter().any(|v| &v.name == *name)).cloned().unwrap_or_else(|| {
+                let name = (1..).map(|i| format!("View {i}")).find(|c| !views.iter().any(|v| &v.name == c)).unwrap_or_default();
+                views.push(NamedView { name: name.clone(), template: None, own: st.windows.get(k).cloned().unwrap_or_default() });
+                name
+            })
+        })
+        .collect();
+    WINDOWS.write().unwrap_or_else(PoisonError::into_inner).views = views;
+    if st.windows.is_empty() && st.shown.is_empty() {
+        WINDOWS.write().unwrap_or_else(PoisonError::into_inner).windows[0].view = shown[0].clone();
+        let state = effective_of(&current(), &shown[0]);
+        apply_state(1, &state);
         return;
     }
     let active_index = st.active.min(n - 1);
     {
         let mut w = WINDOWS.write().unwrap_or_else(PoisonError::into_inner);
-        w.windows = (0..n as u64).map(|k| Window { id: k + 1, saved: None }).collect();
+        w.windows = (0..n as u64).map(|k| Window { id: k + 1, saved: None, view: shown[k as usize].clone() }).collect();
         w.next = n as u64 + 1;
         w.active = active_index as u64 + 1;
         w.layout = if layout.zones() == n { layout } else { Layout::for_count(n, layout) };
@@ -746,8 +905,10 @@ pub fn restore(st: &Stored) {
             }
         }
     }
-    for (k, state) in st.windows.iter().take(n).enumerate() {
-        apply_state(k as u64 + 1, state);
+    let w = current();
+    for (k, name) in shown.iter().enumerate() {
+        let state = effective_of(&w, name);
+        apply_state(k as u64 + 1, &state);
     }
 }
 
@@ -767,6 +928,7 @@ pub fn keep_between_sessions() {
         restore(&st);
         *LAST.lock().unwrap_or_else(PoisonError::into_inner) = (text, None);
     }
+    seed_templates(); // the starting templates, once (docs/15 §3)
     let _ = FILE.set(path);
 }
 
@@ -822,6 +984,9 @@ fn fingerprint() -> u64 {
         }
     }
     format!("{:?}", templates()).hash(&mut h);
+    for v in &w.views {
+        (&v.name, &v.template).hash(&mut h);
+    }
     h.finish()
 }
 
@@ -874,4 +1039,427 @@ pub fn delete_template_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
         return Err(custom_bridge::Error(format!("no template {name:?}")));
     }
     template_report()
+}
+
+// ---- Named views (docs/15) ----
+
+/// Which parts of a view a template rules (docs/15 R1).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct Include {
+    /// Visibility/Graphic Overrides with View Options.
+    pub vg: bool,
+    /// The result: load, plate force, beam force, envelope, averaging, legend ranges.
+    pub result: bool,
+    pub camera: bool,
+    /// Hide / Isolate.
+    pub hidden: bool,
+}
+
+impl Default for Include {
+    /// Everything – a template kept by §14 (before the switches) rules all of a view.
+    fn default() -> Self {
+        Include::all()
+    }
+}
+
+impl Include {
+    pub fn all() -> Include {
+        Include { vg: true, result: true, camera: true, hidden: true }
+    }
+
+    /// A new template: Visibility/Graphics and the result; camera and Hide / Isolate stay the
+    /// view's own (docs/15 N5).
+    pub fn new_template() -> Include {
+        Include { vg: true, result: true, camera: false, hidden: false }
+    }
+
+    /// The template's parts of `tpl` over `own`.
+    pub fn merge(self, own: &ViewState, tpl: &ViewState) -> ViewState {
+        let mut v = own.clone();
+        if self.vg {
+            v.settings = tpl.settings.clone();
+        }
+        if self.result {
+            v.choice = tpl.choice.clone();
+            v.manual_shell = tpl.manual_shell;
+            v.manual_frame = tpl.manual_frame;
+        }
+        if self.camera && tpl.camera.is_some() {
+            v.camera = tpl.camera.clone();
+        }
+        if self.hidden {
+            v.hidden_shells = tpl.hidden_shells.clone();
+            v.hidden_frames = tpl.hidden_frames.clone();
+        }
+        v
+    }
+
+    /// Short text for the Browser and the dialogs, e.g. `V/G · Result`.
+    pub fn summary(self) -> String {
+        let parts: Vec<&str> = [(self.vg, "V/G"), (self.result, "Result"), (self.camera, "Camera"), (self.hidden, "Hide")].into_iter().filter(|(on, _)| *on).map(|(_, n)| n).collect();
+        if parts.is_empty() { "nothing".into() } else { parts.join(" · ") }
+    }
+}
+
+/// A named view: its name, its template (or none) and its own state (the parts the template does
+/// not rule, and everything without a template).
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct NamedView {
+    pub name: String,
+    pub template: Option<String>,
+    pub own: ViewState,
+}
+
+/// The views, in the order made.
+pub fn views() -> Vec<NamedView> {
+    current().views
+}
+
+/// What view `name` shows: its own state with its template's parts over it (docs/15 N4, N6).
+fn effective_of(w: &Windows, name: &str) -> ViewState {
+    let Some(v) = w.views.iter().find(|v| v.name == name) else { return ViewState::default() };
+    match v.template.as_ref().and_then(|t| templates().into_iter().find(|x| &x.name == t)) {
+        Some(t) => t.include.merge(&v.own, &t.state),
+        None => v.own.clone(),
+    }
+}
+
+/// Open view `name` in window `id` (docs/15 N2, R6): the window's view keeps what it showed; a
+/// view shown in another window makes that window active instead.
+pub fn open_view(name: &str, id: u64) -> bool {
+    let w = current();
+    if !w.views.iter().any(|v| v.name == name) || w.index_of(id).is_none() {
+        return false;
+    }
+    if let Some(other) = w.window_of(name) {
+        activate(other);
+        return true;
+    }
+    write(|w| {
+        w.store_own(id);
+        if let Some(x) = w.windows.iter_mut().find(|x| x.id == id) {
+            x.view = name.to_string();
+        }
+    });
+    let state = effective_of(&current(), name);
+    apply_state(id, &state);
+    true
+}
+
+/// Rename view `old` (names unique, docs/15 R7). `false` when the name is taken or empty.
+pub fn rename_view(old: &str, new: &str) -> bool {
+    let new = new.trim();
+    write(|w| {
+        if new.is_empty() || w.views.iter().any(|v| v.name == new) {
+            return false;
+        }
+        let Some(v) = w.views.iter_mut().find(|v| v.name == old) else { return false };
+        v.name = new.to_string();
+        for x in w.windows.iter_mut().filter(|x| x.view == old) {
+            x.view = new.to_string();
+        }
+        true
+    })
+}
+
+/// A copy of view `name` (its state and template), not shown; the copy's name.
+pub fn duplicate_view(name: &str) -> Option<String> {
+    write(|w| {
+        let ids: Vec<u64> = w.windows.iter().filter(|x| x.view == name).map(|x| x.id).collect();
+        for id in ids {
+            w.store_own(id);
+        }
+        let v = w.views.iter().find(|v| v.name == name)?.clone();
+        let copy = w.free_view_name(&format!("{name} copy"));
+        w.views.push(NamedView { name: copy.clone(), ..v });
+        Some(copy)
+    })
+}
+
+/// A new view, a copy of window `id`'s, not shown (`factory.view.new`); its name.
+pub fn new_view(id: u64) -> Option<String> {
+    let name = current().view_of(id)?.name.clone();
+    duplicate_view(&name)
+}
+
+/// Delete view `name`. A view shown in a window is not deleted (open another one there first).
+pub fn delete_view(name: &str) -> bool {
+    write(|w| {
+        if w.window_of(name).is_some() {
+            return false;
+        }
+        let before = w.views.len();
+        w.views.retain(|v| v.name != name);
+        w.views.len() != before
+    })
+}
+
+/// Give view `view` template `template` (`None` detaches, keeping what the template gave as the
+/// view's own, docs/15 R3). A view shown in a window shows the template's parts at once.
+pub fn set_view_template(view: &str, template: Option<&str>) -> bool {
+    if template.is_some_and(|t| !templates().iter().any(|x| x.name == t)) {
+        return false;
+    }
+    let shown_in = current().window_of(view);
+    let ok = write(|w| {
+        // Detaching keeps the shown state (nothing jumps).
+        if let Some(id) = shown_in {
+            w.store_own(id);
+        } else if template.is_none() {
+            let state = effective_of(w, view);
+            if let Some(v) = w.views.iter_mut().find(|v| v.name == view) {
+                v.own = state;
+            }
+        }
+        let Some(v) = w.views.iter_mut().find(|v| v.name == view) else { return false };
+        v.template = template.map(str::to_string);
+        true
+    });
+    if ok
+        && let (Some(id), Some(t)) = (shown_in, template.and_then(|t| templates().into_iter().find(|x| x.name == t)))
+    {
+        apply_parts(id, &t.state, t.include);
+    }
+    ok
+}
+
+/// Rename template `old`; its views stay linked (R7).
+pub fn rename_template(old: &str, new: &str) -> bool {
+    let new = new.trim();
+    {
+        let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
+        if new.is_empty() || t.iter().any(|x| x.name == new) {
+            return false;
+        }
+        let Some(x) = t.iter_mut().find(|x| x.name == old) else { return false };
+        x.name = new.to_string();
+    }
+    write(|w| {
+        for v in w.views.iter_mut().filter(|v| v.template.as_deref() == Some(old)) {
+            v.template = Some(new.to_string());
+        }
+    });
+    true
+}
+
+/// Set which parts template `name` rules (R1); its shown views follow at once.
+pub fn set_include(name: &str, inc: Include) -> bool {
+    {
+        let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
+        let Some(x) = t.iter_mut().find(|x| x.name == name) else { return false };
+        x.include = inc;
+    }
+    propagate(name, None);
+    true
+}
+
+/// Template `name` changed: every window whose view uses it shows its parts (N6), except `skip`
+/// (the window it was changed in).
+fn propagate(name: &str, skip: Option<u64>) {
+    let Some(t) = templates().into_iter().find(|x| x.name == name) else { return };
+    let w = current();
+    for x in &w.windows {
+        if Some(x.id) != skip && w.views.iter().any(|v| v.name == x.view && v.template.as_deref() == Some(name)) {
+            apply_parts(x.id, &t.state, t.include);
+        }
+    }
+}
+
+/// The template ruling the active window's view and its parts, if any (for the locks, R2).
+pub fn active_template() -> Option<(String, Include)> {
+    let w = current();
+    let name = w.view_of(w.active)?.template.clone()?;
+    let t = templates().into_iter().find(|x| x.name == name)?;
+    Some((t.name, t.include))
+}
+
+/// The forms are unlocked to edit the active view's template (R2): changes go to the template.
+static EDITING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+pub fn editing_template() -> bool {
+    EDITING.load(std::sync::atomic::Ordering::Relaxed)
+}
+
+pub fn set_editing_template(on: bool) {
+    EDITING.store(on, std::sync::atomic::Ordering::Relaxed);
+}
+
+/// Keep the link live (N6): what changed in the active window's ruled parts goes into its
+/// template and to every other window using it. Called every frame; looks at most 4 times a second.
+pub fn sync() {
+    static LAST_LOOK: Mutex<Option<std::time::Instant>> = Mutex::new(None);
+    {
+        let mut last = LAST_LOOK.lock().unwrap_or_else(PoisonError::into_inner);
+        if last.is_some_and(|t| t.elapsed() < std::time::Duration::from_millis(250)) {
+            return;
+        }
+        *last = Some(std::time::Instant::now());
+    }
+    let w = current();
+    let Some(name) = w.view_of(w.active).and_then(|v| v.template.clone()) else { return };
+    let Some(t) = templates().into_iter().find(|x| x.name == name) else { return };
+    let Some(now) = capture_in(&w, w.active) else { return };
+    let inc = t.include;
+    let vg = inc.vg && now.settings != t.state.settings;
+    let result = inc.result && !same_result(&now, &t.state);
+    let camera = inc.camera && now.camera.is_some() && now.camera != t.state.camera;
+    let hidden = inc.hidden && model_there() && !same_hidden(&visibility::hidden(), &t.state);
+    if !(vg || result || camera || hidden) {
+        return;
+    }
+    {
+        let mut all = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
+        let Some(x) = all.iter_mut().find(|x| x.name == name) else { return };
+        let only = Include { vg, result, camera, hidden };
+        x.state = only.merge(&x.state, &now);
+    }
+    propagate(&name, Some(w.active));
+}
+
+/// The starting templates were given (docs/15 §3).
+static SEEDED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The starting templates (docs/15 §3): plate forces, plate membrane, beam forces, beam axial,
+/// geometry.
+pub fn starting_templates() -> Vec<Template> {
+    let plain = vv::Settings::default();
+    let mut plates = plain.clone();
+    plates.frames.halftone = true;
+    plates.legend = true;
+    let mut beams = plain.clone();
+    beams.shells.halftone = true;
+    beams.legend = true;
+    let mut geometry = plain.clone();
+    geometry.contour = false;
+    geometry.legend = false;
+    geometry.shells.labels.visible = true;
+    geometry.shells.sections.visible = true;
+    geometry.frames.labels.visible = true;
+    geometry.frames.sections.visible = true;
+    let choice = |shell: usize, frame: usize| results_view::Choice { shell, frame, ..Default::default() };
+    let t = |name: &str, settings: &vv::Settings, choice: results_view::Choice| Template {
+        name: name.into(),
+        state: ViewState { settings: settings.clone(), choice, ..ViewState::default() },
+        include: Include::new_template(),
+    };
+    vec![
+        t("Plate forces", &plates, choice(3, 0)),  // M11
+        t("Plate membrane", &plates, choice(0, 0)), // F11
+        t("Beam forces", &beams, choice(0, 5)),     // M3
+        t("Beam axial", &beams, choice(0, 0)),      // P
+        t("Geometry", &geometry, choice(0, 0)),
+    ]
+}
+
+/// Add the starting templates once (a name already taken is left as it is).
+fn seed_templates() {
+    if SEEDED.swap(true, std::sync::atomic::Ordering::Relaxed) {
+        return;
+    }
+    let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
+    for s in starting_templates() {
+        if !t.iter().any(|x| x.name == s.name) {
+            t.push(s);
+        }
+    }
+}
+
+// ---- Commands `factory.view.*` and template switches (docs/15 R8) ----
+
+fn view_param(params: &Value) -> Result<String> {
+    match params.get("view").and_then(Value::as_str) {
+        Some(v) => Ok(v.to_string()),
+        None => {
+            let w = current();
+            w.view_of(w.active).map(|v| v.name.clone()).ok_or_else(|| custom_bridge::Error("no view".into()))
+        }
+    }
+}
+
+fn views_report() -> Result<Value> {
+    let w = current();
+    Ok(json!({
+        "views": w.views.iter().map(|v| json!({ "name": v.name, "template": v.template, "window": w.window_of(&v.name).map(|id| w.number(id)) })).collect::<Vec<_>>(),
+    }))
+}
+
+/// `factory.view.new`: a new named view, a copy of the active window's.
+pub fn view_new_cmd(_: &mut Ctx, _: &Value) -> Result<Value> {
+    new_view(current().active).ok_or_else(|| custom_bridge::Error("no view to copy".into()))?;
+    views_report()
+}
+
+/// `factory.view.open`: open view `view` in window `tile` (default the active one).
+pub fn view_open_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let name = view_param(params)?;
+    if !open_view(&name, tile_param(params)?) {
+        return Err(custom_bridge::Error(format!("no view {name:?}")));
+    }
+    views_report()
+}
+
+/// `factory.view.rename`: rename view `view` to `name`.
+pub fn view_rename_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let old = view_param(params)?;
+    let new = name_param(params)?;
+    if !rename_view(&old, &new) {
+        return Err(custom_bridge::Error(format!("cannot rename {old:?} to {new:?} (name taken or no such view)")));
+    }
+    views_report()
+}
+
+/// `factory.view.duplicate`: a copy of view `view`.
+pub fn view_duplicate_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let name = view_param(params)?;
+    duplicate_view(&name).ok_or_else(|| custom_bridge::Error(format!("no view {name:?}")))?;
+    views_report()
+}
+
+/// `factory.view.delete`: delete view `view` (not while a window shows it).
+pub fn view_delete_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let name = view_param(params)?;
+    if !delete_view(&name) {
+        return Err(custom_bridge::Error(format!("cannot delete {name:?}: no such view, or a window shows it")));
+    }
+    views_report()
+}
+
+/// `factory.view.set_template`: give view `view` template `template` (empty or missing: none).
+pub fn view_set_template_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let view = view_param(params)?;
+    let template = params.get("template").and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty() && *t != "<None>");
+    if !set_view_template(&view, template) {
+        return Err(custom_bridge::Error(format!("no view {view:?} or no template {template:?}")));
+    }
+    views_report()
+}
+
+/// `factory.template.rename`: rename template `template` to `name`.
+pub fn template_rename_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let old = params.get("template").and_then(Value::as_str).unwrap_or_default().to_string();
+    let new = name_param(params)?;
+    if !rename_template(&old, &new) {
+        return Err(custom_bridge::Error(format!("cannot rename template {old:?} to {new:?}")));
+    }
+    template_report()
+}
+
+/// `factory.template.include`: which parts template `template` rules (vg, result, camera, hidden).
+pub fn template_include_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let name = params.get("template").and_then(Value::as_str).unwrap_or_default().to_string();
+    let now = templates().into_iter().find(|x| x.name == name).ok_or_else(|| custom_bridge::Error(format!("no template {name:?}")))?.include;
+    let flag = |k: &str, v: bool| params.get(k).and_then(Value::as_bool).unwrap_or(v);
+    let inc = Include { vg: flag("vg", now.vg), result: flag("result", now.result), camera: flag("camera", now.camera), hidden: flag("hidden", now.hidden) };
+    set_include(&name, inc);
+    Ok(json!({ "template": name, "include": inc.summary() }))
+}
+
+/// `factory.template.edit`: unlock the forms to edit the active view's template (`on`, default toggles).
+pub fn template_edit_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let on = params.get("on").and_then(Value::as_bool).unwrap_or(!editing_template());
+    set_editing_template(on);
+    results_view::repaint();
+    Ok(json!({ "editing": on, "template": active_template().map(|t| t.0) }))
 }

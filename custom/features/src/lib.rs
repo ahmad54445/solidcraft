@@ -57,6 +57,18 @@ commands! {
         { id: "factory.window.apply_template", label: "Apply View Template", run: windows::apply_template_cmd, icon: "folder",
           params: "name: template name; tile?: window number (default the active one)" },
         { id: "factory.window.delete_template", label: "Delete View Template", run: windows::delete_template_cmd, icon: "delete", params: "name: template name" },
+        // Named views (docs/15-named-views.md)
+        { id: "factory.view.new", label: "New Named View", run: windows::view_new_cmd, icon: "perspective" },
+        { id: "factory.view.open", label: "Open Named View", run: windows::view_open_cmd, icon: "perspective", params: "view: view name; tile?: window number (default the active one)" },
+        { id: "factory.view.rename", label: "Rename Named View", run: windows::view_rename_cmd, icon: "perspective", params: "view?: view name (default the active one); name: new name" },
+        { id: "factory.view.duplicate", label: "Duplicate Named View", run: windows::view_duplicate_cmd, icon: "perspective", params: "view?: view name (default the active one)" },
+        { id: "factory.view.delete", label: "Delete Named View", run: windows::view_delete_cmd, icon: "delete", params: "view: view name (not while a window shows it)" },
+        { id: "factory.view.set_template", label: "Set View Template", run: windows::view_set_template_cmd, icon: "folder",
+          params: "view?: view name (default the active one); template?: template name (none: detach)" },
+        { id: "factory.template.rename", label: "Rename View Template", run: windows::template_rename_cmd, icon: "folder", params: "template: name; name: new name" },
+        { id: "factory.template.include", label: "View Template Parts", run: windows::template_include_cmd, icon: "folder",
+          params: "template: name; vg?, result?, camera?, hidden?: bool (the parts it rules)" },
+        { id: "factory.template.edit", label: "Edit View Template", run: windows::template_edit_cmd, icon: "folder", params: "on?: bool (toggles without)" },
         // Selection tools (docs/13-selection.md)
         { id: "factory.select.pointer", label: "Pointer/Window", run: select_cmd::pointer, icon: "select" },
         { id: "factory.select.poly", label: "Poly", run: select_cmd::poly, icon: "polygon" },
@@ -176,6 +188,7 @@ pub fn install() {
         custom_bridge::ui::set_status_bar(ui_status::draw);
         custom_bridge::view::set_overlay(ui_results::overlay);
         custom_bridge::view::set_tiles(ui_windows::layout, ui_windows::overlay);
+        custom_bridge::ui::set_named_view_rows(ui_windows::named_view_rows); // docs/15
         windows::keep_between_sessions(); // the windows and view templates of the last session (docs/14 §10.4)
     }
 }
