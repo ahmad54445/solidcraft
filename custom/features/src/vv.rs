@@ -240,6 +240,11 @@ pub fn settings() -> Settings {
     SETTINGS.read().unwrap_or_else(PoisonError::into_inner).clone()
 }
 
+/// Set the settings without rebuilding the view (switching display windows, docs/14).
+pub fn set_quiet(s: Settings) {
+    *SETTINGS.write().unwrap_or_else(PoisonError::into_inner) = s;
+}
+
 /// Commit new settings (OK / Apply, rule G7) and redraw the view once.
 pub fn apply(s: Settings) {
     let changed = {

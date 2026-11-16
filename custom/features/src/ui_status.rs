@@ -18,6 +18,12 @@ pub fn draw(ui: &mut egui::Ui) {
         // The transferred model, then Factory's own selection (docs/13 R6).
         ui.label(format!("Model: {} shells, {} frames", status.selected_shells, status.selected_frames));
         ui.separator();
+        // The active display window (docs/14 R5).
+        let w = crate::windows::current();
+        if w.windows.len() > 1 {
+            ui.label(format!("Window {}/{}", w.number(w.active), w.windows.len()));
+            ui.separator();
+        }
         ui.label(crate::ui_select::status_text());
         ui.separator(); // the result choice is in RESULTS › DISPLAY (results panel), not here
         crate::ui_results::status_sync(ui);

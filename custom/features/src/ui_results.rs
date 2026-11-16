@@ -279,7 +279,11 @@ fn value_snap(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
 
 /// The legend: one colour bar per shown layer, at the right edge of the 3D view.
 fn legend(ui: &mut egui::Ui, area: egui::Rect) {
-    let shown = results_view::shown();
+    legend_of(ui, area, &results_view::shown());
+}
+
+/// The legend of `shown` (also an inactive display window's own, docs/14).
+pub(crate) fn legend_of(ui: &mut egui::Ui, area: egui::Rect, shown: &results_view::Shown) {
     let bars: Vec<&Legend> = shown.shell.iter().chain(shown.frame.iter()).collect();
     if bars.is_empty() {
         return;

@@ -115,12 +115,34 @@ pub fn shown() -> Shown {
     SHOWN.read().unwrap_or_else(PoisonError::into_inner).clone()
 }
 
+/// Changes when the active display window changes (docs/14): a build started for another window
+/// is not swapped into this one.
+static EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The active display window's result, kept while another window is active (docs/14).
+pub fn park() -> (Shown, Arc<SnapData>) {
+    EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    (shown(), snap_data())
+}
+
+/// Make a window's kept result the shown one. A build that was running for it is started again.
+pub fn unpark(shown: Shown, snap: Arc<SnapData>) {
+    EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let busy = shown.busy;
+    *SHOWN.write().unwrap_or_else(PoisonError::into_inner) = Shown { busy: false, ..shown };
+    *SNAP.write().unwrap_or_else(PoisonError::into_inner) = snap;
+    if busy {
+        refresh();
+    }
+    repaint();
+}
+
 /// How a worker asks the UI to draw again (set once by the UI).
 pub fn set_repaint(f: Box<dyn Fn() + Send + Sync>) {
     let _ = REPAINT.set(f);
 }
 
-fn repaint() {
+pub(crate) fn repaint() {
     if let Some(repaint) = REPAINT.get() {
         repaint();
     }
@@ -146,11 +168,13 @@ pub fn select(choice: Choice, units: Units) {
         s.units = Some(units);
         s.busy = true;
     }
+    let epoch = EPOCH.load(std::sync::atomic::Ordering::Relaxed);
     std::thread::spawn(move || {
         let outcome = build_with(&transfer::geometry(), &transfer::results(), &choice, units, &settings);
-        // A newer choice may have been made meanwhile: only the latest one is shown.
+        // A newer choice may have been made meanwhile: only the latest one is shown; another
+        // display window may have become active (docs/14).
         let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
-        if s.choice != choice || s.units != Some(units) || vv::settings() != settings {
+        if s.choice != choice || s.units != Some(units) || vv::settings() != settings || EPOCH.load(std::sync::atomic::Ordering::Relaxed) != epoch {
             return;
         }
         match outcome {
@@ -258,11 +282,20 @@ pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units
 
 /// Colour the transferred elements by `choice`, drawn as the Visibility/Graphics `settings` say.
 pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units, settings: &Settings) -> Result<Built, String> {
+    build_hidden(g, blocks, choice, units, settings, None)
+}
+
+/// [`build_with`] with these elements hidden by Hide / Isolate (an inactive display window's own,
+/// docs/14) instead of the active window's.
+pub fn build_hidden(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units, settings: &Settings, hidden: Option<&crate::selection::Set>) -> Result<Built, String> {
     let find = |family: &str| choice.load.as_ref().and_then(|l| blocks.iter().find(|b| &b.name == l && b.family == family));
     let shell_block = find("shell_results");
     let frame_block = find("frame_results");
     let (mut shell_look, mut frame_look) = vv::looks(g, settings);
-    crate::visibility::apply(&mut shell_look, &mut frame_look); // Hide / Isolate (docs/13 §8)
+    match hidden {
+        Some(h) => crate::visibility::apply_set(h, &mut shell_look, &mut frame_look),
+        None => crate::visibility::apply(&mut shell_look, &mut frame_look), // Hide / Isolate (docs/13 §8)
+    }
 
     let (mut shell_values, shell_env) = match shell_block {
         Some(b) => shell_corner_values(g, &Block::read(b)?, choice.shell.min(14), choice.step)?,

@@ -15,6 +15,7 @@ pub mod sdf;
 pub mod select_cmd;
 pub mod selection;
 pub mod visibility;
+pub mod windows;
 mod plate;
 #[cfg(feature = "ui")]
 mod ui_browser;
@@ -28,6 +29,8 @@ mod ui_results;
 mod ui_select;
 #[cfg(feature = "ui")]
 mod ui_status;
+#[cfg(feature = "ui")]
+mod ui_windows;
 pub mod units;
 
 use custom_bridge::commands;
@@ -41,6 +44,13 @@ commands! {
         { id: "factory.connect.csi", label: "CSiBridge", run: connect::csi, icon: "import" },
         { id: "factory.view.results", label: "Results", run: display::results, icon: "graph" },
         { id: "factory.view.visibility_graphics", label: "Visibility/Graphics", run: display::visibility_graphics, icon: "eye" },
+        // Display windows (docs/14-display-windows.md)
+        { id: "factory.window.layout", label: "Window Layout", run: windows::layout_cmd, icon: "grid",
+          params: "layout?: 1 | 2 | 2big | 1+2 | 4 (no parameters: opens the layout picker)" },
+        { id: "factory.window.new", label: "New Window", run: windows::new_cmd, icon: "feature_group" },
+        { id: "factory.window.close", label: "Close Window", run: windows::close_cmd, icon: "delete", params: "tile?: window number (default the active one)" },
+        { id: "factory.window.activate", label: "Activate Window", run: windows::activate_cmd, icon: "select", params: "tile: window number" },
+        { id: "factory.window.maximise", label: "Maximise Window", run: windows::maximise_cmd, icon: "grid", params: "tile?: window number (default the active one)" },
         // Selection tools (docs/13-selection.md)
         { id: "factory.select.pointer", label: "Pointer/Window", run: select_cmd::pointer, icon: "select" },
         { id: "factory.select.poly", label: "Poly", run: select_cmd::poly, icon: "polygon" },
@@ -100,7 +110,11 @@ static EXTRA_TABS: &[custom_bridge::ui::Tab] = &[
     custom_bridge::ui::Tab {
         name: RESULTS_TAB,
         icon: "graph",
-        panels: &[custom_bridge::ui::Panel { name: "DISPLAY", commands: &["factory.view.results", "factory.view.visibility_graphics"] }],
+        panels: &[
+            custom_bridge::ui::Panel { name: "DISPLAY", commands: &["factory.view.results", "factory.view.visibility_graphics"] },
+            // Display windows (docs/14): layout picker, new, close, maximise.
+            custom_bridge::ui::Panel { name: "WINDOWS", commands: &["factory.window.layout", "factory.window.new", "factory.window.close", "factory.window.maximise"] },
+        ],
     },
     // Selection tools (docs/13-selection.md): screen tools, by data, the selection itself.
     custom_bridge::ui::Tab {
@@ -155,5 +169,6 @@ pub fn install() {
         custom_bridge::ui::set_browser_rows(ui_browser::rows);
         custom_bridge::ui::set_status_bar(ui_status::draw);
         custom_bridge::view::set_overlay(ui_results::overlay);
+        custom_bridge::view::set_tiles(ui_windows::layout, ui_windows::overlay);
     }
 }

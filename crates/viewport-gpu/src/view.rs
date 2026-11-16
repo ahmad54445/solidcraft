@@ -22,7 +22,9 @@ pub use ao::GroundAo;
 mod clouds;
 pub use clouds::{CELL_SIZE, Cell, CloudFilter, CloudStyle, ColorMode, FILTERS, GpuCloud, cloud_cell};
 mod sprites; // [CUSTOM] Factory: screen-facing sprites (SDF text)
-pub use sprites::{SPRITE_SIZE, Sprite, SpriteAtlas, SpriteSet, set_sprites}; // [CUSTOM]
+pub use sprites::{SPRITE_SIZE, Sprite, SpriteAtlas, SpriteSet, current_sprites, set_sprites}; // [CUSTOM]
+mod tiles; // [CUSTOM] Factory: display windows (docs/14 in Factory)
+pub use tiles::TileFrame; // [CUSTOM]
 #[cfg(not(target_arch = "wasm32"))]
 mod msaa_check;
 mod oit;
@@ -1173,6 +1175,7 @@ pub const AO_SAMPLES: u32 = 32;
 pub const AO_SAMPLES_MOVING: u32 = 8;
 
 /// Per-frame parameters.
+#[derive(Clone)] // [CUSTOM] Factory: a display window draws the frame again with its own camera
 pub struct Frame {
     /// Bounded unshadowed product-light preview. None retains the fixed studio.
     pub product_lights: Option<Vec<[f32; 16]>>,
@@ -2597,6 +2600,7 @@ pub struct Renderer {
     clouds: clouds::CloudDraws,
     sprite_pipes: sprites::SpritePipes, // [CUSTOM]
     sprites: sprites::SpriteDraws, // [CUSTOM]
+    tiles: tiles::TileDraws, // [CUSTOM] Factory: display windows
     access_bgl: wgpu::BindGroupLayout,
     /// The accessibility depth map (a 1 × 1 stand-in when there is none) and its version.
     access_bind: wgpu::BindGroup,
@@ -3616,6 +3620,7 @@ impl Renderer {
                 clouds: Default::default(),
                 sprite_pipes: sprite_pipes.join(), // [CUSTOM]
                 sprites: Default::default(), // [CUSTOM]
+                tiles: Default::default(), // [CUSTOM]
                 tri,
                 tri_cut: cut(tri_marks, tri_cap),
                 tri_planned,

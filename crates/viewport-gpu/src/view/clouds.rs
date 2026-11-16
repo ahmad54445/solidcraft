@@ -245,7 +245,17 @@ impl CloudDraws {
     }
 
     pub(super) fn paint(&self, pass: &mut wgpu::RenderPass<'_>, pipes: &CloudPipes, tally: &Tally) {
-        for u in self.0.values() {
+        self.paint_only(pass, pipes, tally, |_| true); // [CUSTOM] Factory: display windows (tiles.rs)
+    }
+
+    /// [CUSTOM] Factory: whether the cloud `id` is uploaded at `version` (a tile draws it from here).
+    pub(super) fn has(&self, id: u64, version: u64) -> bool {
+        self.0.get(&id).is_some_and(|u| u.version == version)
+    }
+
+    /// [CUSTOM] Factory: draw the uploaded clouds whose id `keep` takes (`paint` takes all).
+    pub(super) fn paint_only(&self, pass: &mut wgpu::RenderPass<'_>, pipes: &CloudPipes, tally: &Tally, keep: impl Fn(u64) -> bool) {
+        for (_, u) in self.0.iter().filter(|(id, _)| keep(**id)) {
             pass.set_bind_group(1, &u.bind, &[]);
             for (pipe, (kind, vertices)) in pipes.pipes.iter().zip(DRAWS) {
                 let Some(Some(batch)) = u.kinds.get(kind) else { continue };

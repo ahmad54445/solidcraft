@@ -22,6 +22,7 @@ pub mod browser_prompts;
 pub mod canvas;
 pub mod cli_link;
 pub mod custom_hook; // [CUSTOM] fork hook, see custom/README.md
+pub mod custom_tiles; // [CUSTOM] Factory: display windows
 #[cfg(test)]
 mod colour_tokens_tests;
 #[cfg(test)]
@@ -3952,7 +3953,7 @@ impl SolveApp {
             dim_view::set_model_drawn(Vec::new());
             render_workspace::show(self, ui);
         } else {
-            viewport::show(self, ui);
+            custom_tiles::show(self, ui); // [CUSTOM] Factory: display windows (tiles), else viewport::show
         }
     }
 
