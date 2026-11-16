@@ -6095,7 +6095,11 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     if let Some(draw) = crate::custom_hook::viewport_overlay() {
         // [CUSTOM] fork's overlay (result legend, value snap) with this frame's projection
         let eye = proj.cam.eye();
-        let view = crate::custom_hook::ViewInfo { project: &|p: [f64; 3]| proj.to_screen(Vec3::new(p[0], p[1], p[2])), eye: [eye.x, eye.y, eye.z] };
+        let view = crate::custom_hook::ViewInfo {
+            project: &|p: [f64; 3]| proj.to_screen(Vec3::new(p[0], p[1], p[2])),
+            eye: [eye.x, eye.y, eye.z],
+            pointer_on_view: resp.contains_pointer(),
+        };
         draw(ui, overlay_rect, &view);
     }
     placement_note(app, &painter, overlay_rect);
@@ -6700,6 +6704,8 @@ pub fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
         if resp.drag_stopped()
             && let Some(bx) = app.viewport.boxsel.take()
         {
+            crate::custom_hook::push_box_gesture(&bx); // [CUSTOM] the fork selects its own elements too
+            ui.ctx().request_repaint(); // [CUSTOM] the fork's overlay (drawn before this) reads it next frame
             box_select(app, &proj, bx, add);
         }
     } else {

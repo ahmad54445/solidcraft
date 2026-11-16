@@ -157,6 +157,8 @@ pub struct TreeRow {
     pub toggled: bool,
     /// The row was right-clicked here.
     pub context_at: Option<egui::Pos2>,
+    /// The eye was clicked (rows drawn with [`tree_row_eye`]).
+    pub eye: bool,
 }
 
 /// One browser row drawn exactly like SolidCraft's: `open` is `Some` for rows that fold,
@@ -167,7 +169,17 @@ pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, 
     let (compact, eye_left) = (flag("sc_compact_tree"), flag("sc_tree_eye_left"));
     let row = crate::ui_kit::Row { depth, fold: open, icon, label, name: true, count, compact, eye_left, ..Default::default() };
     let out = crate::ui_kit::tree_row(ui, ui.scope_id().with(("custom_row", key)), &row);
-    TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary }
+    TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary, eye: false }
+}
+
+/// [`tree_row`] with SolidCraft's eye: `visible` is what it shows; [`TreeRow::eye`] when clicked.
+#[allow(clippy::too_many_arguments)]
+pub fn tree_row_eye(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, icon: &str, label: &str, count: &str, visible: bool) -> TreeRow {
+    let flag = |id: &str| ui.ctx().data(|d| d.get_temp::<bool>(egui::Id::unique(id))).unwrap_or(false);
+    let (compact, eye_left) = (flag("sc_compact_tree"), flag("sc_tree_eye_left"));
+    let row = crate::ui_kit::Row { depth, fold: open, eye: Some(visible), icon, label, name: true, count, compact, eye_left, dim: !visible, ..Default::default() };
+    let out = crate::ui_kit::tree_row(ui, ui.scope_id().with(("custom_row", key)), &row);
+    TreeRow { clicked: out.clicked, toggled: out.fold, context_at: out.secondary, eye: out.eye }
 }
 
 // ---- 3D view: the fork's own elements and their overlay (docs/10-viewport-results.md) ----
@@ -180,6 +192,9 @@ pub struct ViewInfo<'a> {
     pub project: &'a dyn Fn([f64; 3]) -> Option<egui::Pos2>,
     /// Camera position (m), for "closest to the viewer".
     pub eye: [f64; 3],
+    /// The pointer is over the 3D view itself (not over a window, menu or panel above it), as the
+    /// view's own response sees it.
+    pub pointer_on_view: bool,
 }
 
 /// What the fork draws over the 3D view.
@@ -215,4 +230,34 @@ pub fn set_viewport_overlay(draw: OverlayFn) {
 
 pub fn viewport_overlay() -> Option<OverlayFn> {
     VIEWPORT_OVERLAY.get().copied()
+}
+
+// ---- Selection: the box / lasso the user dragged in the 3D view (docs/13-selection.md) ----
+
+/// A finished box selection in the 3D view, in screen points: a rectangle (`lasso` empty) by
+/// window or crossing, or a freehand lasso (window).
+#[derive(Clone, Debug, PartialEq)]
+pub struct BoxGesture {
+    pub min: [f32; 2],
+    pub max: [f32; 2],
+    pub crossing: bool,
+    pub lasso: Vec<[f32; 2]>,
+}
+
+static BOX_GESTURES: std::sync::Mutex<Vec<BoxGesture>> = std::sync::Mutex::new(Vec::new());
+
+/// Called by the viewport when a box selection ends (it still selects SolidCraft's own items).
+pub(crate) fn push_box_gesture(b: &crate::selection::BoxSel) {
+    let g = BoxGesture {
+        min: [b.rect.min.x, b.rect.min.y],
+        max: [b.rect.max.x, b.rect.max.y],
+        crossing: b.crossing,
+        lasso: b.lasso.iter().map(|p| [p.x, p.y]).collect(),
+    };
+    BOX_GESTURES.lock().unwrap_or_else(std::sync::PoisonError::into_inner).push(g);
+}
+
+/// The box selections since the last call (the fork reads them in its viewport overlay).
+pub fn take_box_gestures() -> Vec<BoxGesture> {
+    std::mem::take(&mut *BOX_GESTURES.lock().unwrap_or_else(std::sync::PoisonError::into_inner))
 }

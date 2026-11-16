@@ -25,6 +25,7 @@ pub fn status_sync(ui: &mut egui::Ui) {
 /// Drawn over the 3D view every frame: the legend and the value under the cursor. Labels,
 /// sections and values are drawn by the GPU (see `stable_labels`).
 pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
+    crate::ui_select::overlay(ui, area, view); // selection tools (docs/13)
     let flags = crate::vv::overlay();
     stable_labels(ui, area, view, flags);
     if flags.legend {

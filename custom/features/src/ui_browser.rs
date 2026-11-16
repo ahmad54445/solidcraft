@@ -5,9 +5,18 @@
 //! branch: Expand All / Collapse All (that branch and its descendants). Load Case and Load
 //! Combination: right-click → Properties (their tables are drawn by [`windows`], which the status
 //! bar calls every frame).
+//!
+//! Hide / Isolate (docs/13 §8): Elements › Shells / Frames, every section under Properties ›
+//! Section and every group have an **eye** – a click hides them all when any is shown, else shows
+//! them; a click on the row's name **selects** them (added to the selection, Ctrl removes).
+//! *Hidden elements* shows how many are hidden by hand; its eye shows them all again.
+
+use std::sync::Arc;
 
 use custom_bridge::ui::egui;
-use custom_bridge::ui::tree_row;
+use custom_bridge::ui::{tree_row, tree_row_eye};
+
+use crate::selection::{self, Kinds, Scope, Set};
 
 use crate::model::{self, BOUNDARY_KINDS, DESIGN_KINDS};
 
@@ -87,11 +96,20 @@ pub fn rows(ui: &mut egui::Ui, depth: usize) {
     // Structure
     folder(ui, "structure", d, "component", "Structure", Some(v.elements), true, |ui| {
         leaf(ui, "nodes", d + 1, "point", "Nodes", Some(v.nodes));
-        leaf(ui, "elements", d + 1, "frame_member", "Elements", Some(v.elements));
+        let sets = element_sets();
+        folder(ui, "elements", d + 1, "frame_member", "Elements", Some(v.elements), true, |ui| {
+            eye_row(ui, "elements/shells", d + 2, "shell", "Shells", &sets.shells);
+            eye_row(ui, "elements/frames", d + 2, "frame_member", "Frames", &sets.frames);
+        });
+        hidden_row(ui, d + 1);
         leaf(ui, "node_local_axis", d + 1, "axis", "Node Local Axis", Some(v.node_local_axes));
         folder(ui, "properties", d + 1, "params", "Properties", Some(v.materials + v.sections + v.thicknesses), true, |ui| {
             leaf(ui, "material", d + 2, "material", "Material", Some(v.materials));
-            leaf(ui, "section", d + 2, "section", "Section", Some(v.sections));
+            folder(ui, "section", d + 2, "section", "Section", Some(v.sections), !sets.sections.is_empty(), |ui| {
+                for (k, (name, set)) in sets.sections.iter().enumerate() {
+                    eye_row(ui, &format!("section/{k}"), d + 3, "section", name, set);
+                }
+            });
             leaf(ui, "thickness", d + 2, "thicken", "Thickness", Some(v.thicknesses));
         });
         folder(ui, "boundaries", d + 1, "boundary", "Boundaries", Some(v.boundaries.iter().sum()), true, |ui| {
@@ -119,7 +137,7 @@ pub fn rows(ui: &mut egui::Ui, depth: usize) {
     // Groups: each group expands to its members
     folder(ui, "groups", d, "folder", "Groups", Some(v.groups.len()), !v.groups.is_empty(), |ui| {
         for (i, (name, members)) in v.groups.iter().enumerate() {
-            list(ui, &group_key(i), d + 1, "folder", name, members, "list");
+            group_row(ui, &group_key(i), d + 1, name, members);
         }
     });
 
@@ -315,4 +333,109 @@ fn load_combinations_table(ui: &mut egui::Ui) {
             }
         });
     });
+}
+
+// ---- Hide / Isolate from the Browser (docs/13 §8) -----------------------------------------------
+
+/// The element sets the Browser's eyes stand for, built once per transfer.
+struct Sets {
+    shells: Set,
+    frames: Set,
+    /// Shell sections, then frame sections: (name, its elements).
+    sections: Vec<(String, Set)>,
+}
+
+fn element_sets() -> Arc<Sets> {
+    use std::sync::Mutex;
+    static CACHE: Mutex<Option<(usize, Arc<Sets>)>> = Mutex::new(None);
+    let g = crate::transfer::geometry();
+    let key = Arc::as_ptr(&g) as usize;
+    let mut cache = CACHE.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    if let Some((k, sets)) = cache.as_ref()
+        && *k == key
+    {
+        return sets.clone();
+    }
+    let mut shells = Set::empty(&g);
+    let mut frames = Set::empty(&g);
+    let mut shell_sections: Vec<Set> = (0..g.shell_sections.len()).map(|_| Set::empty(&g)).collect();
+    let mut frame_sections: Vec<Set> = (0..g.frame_sections.len()).map(|_| Set::empty(&g)).collect();
+    for (e, s) in g.shells.iter().enumerate() {
+        shells.shells.set(e, true);
+        if let Some(set) = shell_sections.get_mut(s[4] as usize) {
+            set.shells.set(e, true);
+        }
+    }
+    for (e, f) in g.frames.iter().enumerate() {
+        frames.frames.set(e, true);
+        if let Some(set) = frame_sections.get_mut(f[2] as usize) {
+            set.frames.set(e, true);
+        }
+    }
+    let sections = g
+        .shell_sections
+        .iter()
+        .cloned()
+        .zip(shell_sections)
+        .chain(g.frame_sections.iter().cloned().zip(frame_sections))
+        .filter(|(_, set)| !set.is_empty())
+        .collect();
+    let sets = Arc::new(Sets { shells, frames, sections });
+    *cache = Some((key, sets.clone()));
+    sets
+}
+
+/// A row standing for `set`: count, eye (hide / show), click on the name selects.
+fn eye_row(ui: &mut egui::Ui, key: &str, depth: usize, icon: &str, label: &str, set: &Set) {
+    let (hidden, total) = crate::visibility::hidden_of(set);
+    let count = if hidden > 0 { format!("{} / {total}", total - hidden) } else { total.to_string() };
+    let r = tree_row_eye(ui, key, depth, None, icon, label, &count, hidden < total);
+    eye_and_select(ui, &r, set);
+}
+
+/// A group: the arrow folds it (its members), the eye hides / shows it, the name selects it.
+fn group_row(ui: &mut egui::Ui, key: &str, depth: usize, name: &str, members: &[String]) {
+    let g = crate::transfer::geometry();
+    let set = selection::in_groups(Scope { g: &g, shell_shown: &[], frame_shown: &[], kinds: Kinds::default() }, members).set;
+    let (hidden, total) = crate::visibility::hidden_of(&set);
+    let open = is_open(ui, key, false);
+    let fold = (!members.is_empty()).then_some(open);
+    let r = tree_row_eye(ui, key, depth, fold, "folder", name, &members.len().to_string(), total == 0 || hidden < total);
+    if r.toggled {
+        set_open(ui.ctx(), key, !open);
+    }
+    if let Some(at) = r.context_at {
+        open_menu(ui, at, Menu::Branch(key.to_string()));
+    }
+    eye_and_select(ui, &r, &set);
+    if open && !r.toggled {
+        for (i, m) in members.iter().enumerate() {
+            leaf(ui, &format!("{key}/{i}"), depth + 1, "list", m, None);
+        }
+    }
+}
+
+fn eye_and_select(ui: &egui::Ui, r: &custom_bridge::ui::TreeRow, set: &Set) {
+    if r.eye {
+        crate::visibility::toggle(set);
+        // Hidden elements leave the selection (they cannot be selected, docs/13 R2).
+        selection::apply(selection::Found { set: crate::visibility::hidden(), hidden: 0 }, true);
+        crate::results_view::refresh();
+    } else if r.clicked {
+        let remove = ui.input(|i| i.modifiers.ctrl || i.modifiers.command);
+        let shown = crate::results_view::snap_data();
+        let g = crate::transfer::geometry();
+        let scope = Scope { g: &g, shell_shown: &shown.shell_shown, frame_shown: &shown.frame_shown, kinds: selection::kinds() };
+        selection::apply(selection::within(scope, set), remove);
+    }
+}
+
+/// How many elements are hidden by hand; its eye shows them all again.
+fn hidden_row(ui: &mut egui::Ui, depth: usize) {
+    let (shells, frames) = crate::visibility::hidden().counts();
+    let r = tree_row_eye(ui, "hidden_elements", depth, None, "suppress", "Hidden elements", &(shells + frames).to_string(), shells + frames == 0);
+    if r.eye && shells + frames > 0 {
+        crate::visibility::show_all();
+        crate::results_view::refresh();
+    }
 }

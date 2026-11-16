@@ -15,7 +15,10 @@ pub fn draw(ui: &mut egui::Ui) {
     let ram = ram_mb(ui.ctx());
     ui.horizontal_centered(|ui| {
         ui.add_space(8.0);
-        ui.label(format!("Selected: {} shells, {} frames", status.selected_shells, status.selected_frames));
+        // The transferred model, then Factory's own selection (docs/13 R6).
+        ui.label(format!("Model: {} shells, {} frames", status.selected_shells, status.selected_frames));
+        ui.separator();
+        ui.label(crate::ui_select::status_text());
         ui.separator(); // the result choice is in RESULTS › DISPLAY (results panel), not here
         crate::ui_results::status_sync(ui);
         let units_button = ui.button(format!("Units: {} ▾", units.short()));

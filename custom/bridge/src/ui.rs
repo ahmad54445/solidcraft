@@ -21,6 +21,12 @@ pub fn tree_row(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, 
     solidcraft_ui_egui::custom_hook::tree_row(ui, key, depth, open, icon, label, count)
 }
 
+/// [`tree_row`] with an eye showing `visible`; `TreeRow::eye` is true when it was clicked.
+#[allow(clippy::too_many_arguments)]
+pub fn tree_row_eye(ui: &mut egui::Ui, key: &str, depth: usize, open: Option<bool>, icon: &str, label: &str, count: &str, visible: bool) -> TreeRow {
+    solidcraft_ui_egui::custom_hook::tree_row_eye(ui, key, depth, open, icon, label, count, visible)
+}
+
 /// Show only these toolbar tabs (names from [`crate::names::tabs`]); every other tab is hidden
 /// from the ribbon and from the toolbar menu. Call once at start-up, before the window opens.
 pub fn show_toolbar_tabs(tabs: &'static [&'static str]) {
