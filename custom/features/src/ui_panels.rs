@@ -31,7 +31,7 @@ fn planned(ui: &mut egui::Ui, text: &str, why: &str) {
 const SHELL_GRID: [[usize; 3]; 5] = [[0, 1, 2], [8, 9, 10], [3, 4, 5], [11, 12, 13], [6, 7, 14]];
 
 #[derive(Clone, Copy, PartialEq, Eq)]
-enum ResultType {
+pub(crate) enum ResultType {
     Plate,
     Beam,
 }
@@ -57,96 +57,9 @@ fn results_panel(ctx: &egui::Context) {
             ui.label("No results yet. CONNECT › CSiBridge › Send.");
             return;
         }
-        // Result type
-        egui::ComboBox::from_id_salt("factory_panel_type")
-            .selected_text(if kind == ResultType::Plate { "Plate Forces/Moments" } else { "Beam Forces/Moments" })
-            .show_ui(ui, |ui| {
-                ui.selectable_value(&mut kind, ResultType::Plate, "Plate Forces/Moments");
-                ui.selectable_value(&mut kind, ResultType::Beam, "Beam Forces/Moments");
-            });
-        ui.add_space(4.0);
-
-        // Load cases / combinations and step
+        result_choices(ui, &mut choice, &mut settings, &loads, shown.envelope, &mut kind, "factory_panel");
         ui.group(|ui| {
-            ui.strong("Load Cases/Combinations");
-            egui::ComboBox::from_id_salt("factory_panel_lc").width(240.0).selected_text(choice.load.clone().unwrap_or_else(|| "—".into())).show_ui(ui, |ui| {
-                for l in &loads {
-                    ui.selectable_value(&mut choice.load, Some(l.clone()), l);
-                }
-            });
-            ui.horizontal(|ui| {
-                ui.label("Step");
-                ui.add_enabled_ui(shown.envelope, |ui| {
-                    egui::ComboBox::from_id_salt("factory_panel_step").selected_text(if !shown.envelope { "—" } else if choice.step == Step::Max { "Max" } else { "Min" }).show_ui(ui, |ui| {
-                        ui.selectable_value(&mut choice.step, Step::Max, "Max");
-                        ui.selectable_value(&mut choice.step, Step::Min, "Min");
-                    });
-                });
-            });
-        });
-
-        if kind == ResultType::Plate {
-            // Plate force options
-            ui.group(|ui| {
-                ui.strong("Plate Force Options");
-                ui.horizontal(|ui| {
-                    let _ = ui.radio(true, "Local");
-                    ui.add_enabled(false, egui::RadioButton::new(false, "UCS")).on_disabled_hover_text("Planned: needs the element local axes from CSiBridge (docs/10 §7.3).");
-                });
-                ui.horizontal(|ui| {
-                    ui.radio_value(&mut choice.averaging, Averaging::Element, "Element");
-                    ui.radio_value(&mut choice.averaging, Averaging::Nodal, "Avg. Nodal");
-                });
-                ui.add_enabled(choice.averaging == Averaging::Nodal, egui::Checkbox::new(&mut choice.active_only, "Avg. Nodal Active Only"));
-            });
-            // Components
-            ui.group(|ui| {
-                ui.strong("Components");
-                egui::Grid::new("factory_panel_components").num_columns(3).show(ui, |ui| {
-                    for row in SHELL_GRID {
-                        for c in row {
-                            ui.radio_value(&mut choice.shell, c, SHELL_PANEL_NAMES[c]);
-                        }
-                        ui.end_row();
-                    }
-                });
-                planned(ui, "Wood Armer Moment", "Planned: formulas and sign conventions to be fixed against the design code first (docs/10 §7.2).");
-                ui.horizontal(|ui| {
-                    planned(ui, "Fvector", "Planned: principal-direction arrows (docs/10 §7.2).");
-                    planned(ui, "Mvector", "Planned: principal-direction arrows (docs/10 §7.2).");
-                });
-            });
-        } else {
-            ui.group(|ui| {
-                ui.strong("Components");
-                egui::Grid::new("factory_panel_frame_components").num_columns(3).show(ui, |ui| {
-                    for (k, name) in FRAME_COMPONENTS.iter().enumerate() {
-                        ui.radio_value(&mut choice.frame, k, *name);
-                        if k % 3 == 2 {
-                            ui.end_row();
-                        }
-                    }
-                });
-            });
-        }
-
-        // Type of display
-        ui.group(|ui| {
-            ui.strong("Type of Display");
-            egui::Grid::new("factory_panel_display").num_columns(2).show(ui, |ui| {
-                ui.checkbox(&mut settings.contour, "Contour");
-                planned(ui, "Deform", "Planned: needs displacements (Results.JointDispl) and the phase-2 pipeline (docs/10 §7.4).");
-                ui.end_row();
-                ui.checkbox(&mut settings.values, "Values");
-                ui.checkbox(&mut settings.legend, "Legend");
-                ui.end_row();
-                planned(ui, "Animate", "Planned: phase-2 pipeline (docs/10 §7.4).");
-                planned(ui, "Undeformed", "Planned: with Deform (docs/10 §7.4).");
-                ui.end_row();
-                planned(ui, "Mirrored", "Planned (docs/10 §7.4).");
-                planned(ui, "Cutting Diagram", "Planned (docs/10 §7.4).");
-                ui.end_row();
-            });
+            ui.strong("Contour Range");
             contour_range(ui, &shown, kind);
         });
     });
@@ -161,6 +74,104 @@ fn results_panel(ctx: &egui::Context) {
         results_view::select(choice, units);
         crate::model::write(|f| f.status.current_load = results_view::shown().choice.load);
     }
+}
+
+/// The result choices (docs/10 §7): result type, load and step, plate force options and components,
+/// beam components, type of display. Used by the Results panel (the active view) and by the view
+/// template editor (docs/15 §9); `salt` keeps their widgets apart.
+#[allow(clippy::too_many_arguments)]
+fn result_choices(ui: &mut egui::Ui, choice: &mut results_view::Choice, settings: &mut Settings, loads: &[String], envelope: bool, kind: &mut ResultType, salt: &str) {
+    // Result type
+    egui::ComboBox::from_id_salt(format!("{salt}_type"))
+        .selected_text(if *kind == ResultType::Plate { "Plate Forces/Moments" } else { "Beam Forces/Moments" })
+        .show_ui(ui, |ui| {
+            ui.selectable_value(kind, ResultType::Plate, "Plate Forces/Moments");
+            ui.selectable_value(kind, ResultType::Beam, "Beam Forces/Moments");
+        });
+    ui.add_space(4.0);
+
+    // Load cases / combinations and step
+    ui.group(|ui| {
+        ui.strong("Load Cases/Combinations");
+        egui::ComboBox::from_id_salt(format!("{salt}_lc")).width(240.0).selected_text(choice.load.clone().unwrap_or_else(|| "—".into())).show_ui(ui, |ui| {
+            for l in loads {
+                ui.selectable_value(&mut choice.load, Some(l.clone()), l);
+            }
+        });
+        ui.horizontal(|ui| {
+            ui.label("Step");
+            ui.add_enabled_ui(envelope, |ui| {
+                egui::ComboBox::from_id_salt(format!("{salt}_step")).selected_text(if !envelope { "—" } else if choice.step == Step::Max { "Max" } else { "Min" }).show_ui(ui, |ui| {
+                    ui.selectable_value(&mut choice.step, Step::Max, "Max");
+                    ui.selectable_value(&mut choice.step, Step::Min, "Min");
+                });
+            });
+        });
+    });
+
+    if *kind == ResultType::Plate {
+        // Plate force options
+        ui.group(|ui| {
+            ui.strong("Plate Force Options");
+            ui.horizontal(|ui| {
+                let _ = ui.radio(true, "Local");
+                ui.add_enabled(false, egui::RadioButton::new(false, "UCS")).on_disabled_hover_text("Planned: needs the element local axes from CSiBridge (docs/10 §7.3).");
+            });
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut choice.averaging, Averaging::Element, "Element");
+                ui.radio_value(&mut choice.averaging, Averaging::Nodal, "Avg. Nodal");
+            });
+            ui.add_enabled(choice.averaging == Averaging::Nodal, egui::Checkbox::new(&mut choice.active_only, "Avg. Nodal Active Only"));
+        });
+        // Components
+        ui.group(|ui| {
+            ui.strong("Components");
+            egui::Grid::new(format!("{salt}_components")).num_columns(3).show(ui, |ui| {
+                for row in SHELL_GRID {
+                    for c in row {
+                        ui.radio_value(&mut choice.shell, c, SHELL_PANEL_NAMES[c]);
+                    }
+                    ui.end_row();
+                }
+            });
+            planned(ui, "Wood Armer Moment", "Planned: formulas and sign conventions to be fixed against the design code first (docs/10 §7.2).");
+            ui.horizontal(|ui| {
+                planned(ui, "Fvector", "Planned: principal-direction arrows (docs/10 §7.2).");
+                planned(ui, "Mvector", "Planned: principal-direction arrows (docs/10 §7.2).");
+            });
+        });
+    } else {
+        ui.group(|ui| {
+            ui.strong("Components");
+            egui::Grid::new(format!("{salt}_frame_components")).num_columns(3).show(ui, |ui| {
+                for (k, name) in FRAME_COMPONENTS.iter().enumerate() {
+                    ui.radio_value(&mut choice.frame, k, *name);
+                    if k % 3 == 2 {
+                        ui.end_row();
+                    }
+                }
+            });
+        });
+    }
+
+    // Type of display
+    ui.group(|ui| {
+        ui.strong("Type of Display");
+        egui::Grid::new(format!("{salt}_display")).num_columns(2).show(ui, |ui| {
+            ui.checkbox(&mut settings.contour, "Contour");
+            planned(ui, "Deform", "Planned: needs displacements (Results.JointDispl) and the phase-2 pipeline (docs/10 §7.4).");
+            ui.end_row();
+            ui.checkbox(&mut settings.values, "Values");
+            ui.checkbox(&mut settings.legend, "Legend");
+            ui.end_row();
+            planned(ui, "Animate", "Planned: phase-2 pipeline (docs/10 §7.4).");
+            planned(ui, "Undeformed", "Planned: with Deform (docs/10 §7.4).");
+            ui.end_row();
+            planned(ui, "Mirrored", "Planned (docs/10 §7.4).");
+            planned(ui, "Cutting Diagram", "Planned (docs/10 §7.4).");
+            ui.end_row();
+        });
+    });
 }
 
 /// Contour range: automatic (min/max of what is shown) or typed – typed ranges change only the
@@ -232,37 +243,9 @@ fn visibility_graphics(ctx: &egui::Context) {
         if crate::ui_windows::template_lock(ui, crate::ui_windows::Part::Vg) {
             ui.disable();
         }
+        vg_form(ui, &mut edit, &mut tab, &geometry);
         ui.horizontal(|ui| {
-            for (t, name) in [(Tab::Model, "Model Categories"), (Tab::Imported, "Imported Categories"), (Tab::Filters, "Filters"), (Tab::View, "View Options")] {
-                if ui.selectable_label(tab == t, name).clicked() {
-                    tab = t;
-                }
-            }
-        });
-        ui.separator();
-        match tab {
-            Tab::Model => model_tab(ui, &mut edit, &geometry),
-            Tab::Imported => imported_tab(ui),
-            Tab::Filters => filters_tab(ui, &mut edit, &geometry),
-            Tab::View => view_tab(ui, &mut edit),
-        }
-        ui.separator();
-        ui.horizontal(|ui| {
-            if ui.button("All").clicked() {
-                edit.shells.visible = true;
-                edit.frames.visible = true;
-            }
-            if ui.button("None").clicked() {
-                edit.shells.visible = false;
-                edit.frames.visible = false;
-            }
-            if ui.button("Invert").clicked() {
-                edit.shells.visible = !edit.shells.visible;
-                edit.frames.visible = !edit.frames.visible;
-            }
-            if ui.button("Reset view").clicked() {
-                edit = Settings::default();
-            }
+            vg_buttons(ui, &mut edit);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                 if ui.button("Apply").clicked() {
                     vv::apply(edit.clone());
@@ -284,6 +267,45 @@ fn visibility_graphics(ctx: &egui::Context) {
         ctx.data_mut(|d| d.insert_temp(edit_id, edit));
     }
     ctx.data_mut(|d| d.insert_temp(tab_id, tab as u8));
+}
+
+/// The Visibility/Graphic Overrides tabs (docs/12) on `edit`: the active view's copy or a view
+/// template's (docs/15 §9).
+fn vg_form(ui: &mut egui::Ui, edit: &mut Settings, tab: &mut Tab, geometry: &crate::transfer::Geometry) {
+    ui.horizontal(|ui| {
+        for (t, name) in [(Tab::Model, "Model Categories"), (Tab::Imported, "Imported Categories"), (Tab::Filters, "Filters"), (Tab::View, "View Options")] {
+            if ui.selectable_label(*tab == t, name).clicked() {
+                *tab = t;
+            }
+        }
+    });
+    ui.separator();
+    match tab {
+        Tab::Model => model_tab(ui, edit, geometry),
+        Tab::Imported => imported_tab(ui),
+        Tab::Filters => filters_tab(ui, edit, geometry),
+        Tab::View => view_tab(ui, edit),
+    }
+    ui.separator();
+}
+
+/// All / None / Invert / Reset view under the form.
+fn vg_buttons(ui: &mut egui::Ui, edit: &mut Settings) {
+    if ui.button("All").clicked() {
+        edit.shells.visible = true;
+        edit.frames.visible = true;
+    }
+    if ui.button("None").clicked() {
+        edit.shells.visible = false;
+        edit.frames.visible = false;
+    }
+    if ui.button("Invert").clicked() {
+        edit.shells.visible = !edit.shells.visible;
+        edit.frames.visible = !edit.frames.visible;
+    }
+    if ui.button("Reset view").clicked() {
+        *edit = Settings::default();
+    }
 }
 
 const NO_TRANSPARENCY: &str = "Planned: SolidCraft's point-cloud shader has no transparency (docs/12 §5).";
@@ -545,4 +567,274 @@ fn filters_tab(ui: &mut egui::Ui, s: &mut Settings, g: &crate::transfer::Geometr
         s.filters.push(Filter { enabled: true, rule: Rule::SectionIs(sections.first().cloned().unwrap_or_default()), action: Action::Halftone });
     }
     ui.weak("A later filter wins over an earlier one; a hidden category stays hidden (docs/12 §3).");
+}
+
+// ---------------------------------------------------------------------------------------------
+// View Templates editor (docs/15 §9)
+
+/// The View Templates editor's state: the template chosen on the left, the tab on the right, the
+/// working copy (template, its state, its switches) until OK / Apply, and the result type shown.
+#[derive(Clone, Default)]
+pub(crate) struct TemplateEditor {
+    pub open: bool,
+    /// The window it was opened from (its view gets *Use* / *Detach*); `None` = the active one.
+    pub tile: Option<u64>,
+    pub selected: Option<String>,
+    /// The name typed for *New* / *Rename*.
+    pub name: String,
+    tab: u8,
+    vg_tab: u8,
+    beam: bool,
+    work: Option<(String, crate::windows::ViewState, crate::windows::Include)>,
+}
+
+static EDITOR: std::sync::Mutex<Option<TemplateEditor>> = std::sync::Mutex::new(None);
+
+/// The editor's state (closed when never opened).
+pub(crate) fn editor() -> TemplateEditor {
+    EDITOR.lock().unwrap_or_else(std::sync::PoisonError::into_inner).clone().unwrap_or_default()
+}
+
+pub(crate) fn set_editor(e: TemplateEditor) {
+    *EDITOR.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(e);
+}
+
+/// Open the editor on template `selected` (or the first), for window `tile`'s view.
+pub(crate) fn open_template_editor(selected: Option<String>, tile: Option<u64>) {
+    let mut e = editor();
+    e.open = true;
+    e.tile = tile;
+    if selected.is_some() {
+        e.selected = selected;
+        e.work = None;
+    }
+    set_editor(e);
+}
+
+const EDITOR_TABS: [&str; 3] = ["Visibility/Graphic Overrides", "Result", "Camera & Hide / Isolate"];
+
+/// View Templates (docs/15 §9), as in BIM programs: the templates on the left (New, Duplicate,
+/// Rename, Delete); on the right the chosen template's parts – which it rules, then its whole
+/// **Visibility/Graphic Overrides** form (§12), its **Result** (load, plate force, beam force,
+/// envelope, averaging, display, legend ranges) and its camera and Hide / Isolate. OK / Apply give
+/// it to every view using it; the template is edited here, not in a view.
+pub(crate) fn template_editor(ctx: &egui::Context) {
+    let mut e = editor();
+    if !e.open {
+        return;
+    }
+    let w = crate::windows::current();
+    let tile = e.tile.filter(|t| w.index_of(*t).is_some()).unwrap_or(w.active);
+    let view = w.view_of(tile).cloned();
+    let list = crate::windows::templates();
+    if e.selected.as_ref().is_none_or(|s| !list.iter().any(|t| &t.name == s)) {
+        e.selected = list.first().map(|t| t.name.clone());
+        e.work = None;
+    }
+    // The working copy follows the chosen template until it is changed here.
+    if let Some(sel) = &e.selected
+        && e.work.as_ref().is_none_or(|(n, _, _)| n != sel)
+        && let Some(t) = list.iter().find(|t| &t.name == sel)
+    {
+        e.work = Some((t.name.clone(), t.state.clone(), t.include));
+    }
+    let geometry = crate::transfer::geometry();
+    let loads = results_view::loads();
+    let mut open = true;
+    let mut close = false;
+    egui::Window::new("View Templates").id(egui::Id::unique("factory_template_editor")).open(&mut open).resizable(true).default_width(980.0).default_height(620.0).show(ctx, |ui| {
+        ui.horizontal_top(|ui| {
+            // Left: the templates.
+            ui.vertical(|ui| {
+                ui.set_width(210.0);
+                ui.strong("View Templates");
+                egui::ScrollArea::vertical().id_salt("factory_template_list").max_height(380.0).show(ui, |ui| {
+                    for t in &list {
+                        let users = w.views.iter().filter(|v| v.template.as_deref() == Some(t.name.as_str())).count();
+                        let label = if users > 0 { format!("{}   ({users})", t.name) } else { t.name.clone() };
+                        if ui.selectable_label(e.selected.as_deref() == Some(t.name.as_str()), label).on_hover_text(t.include.summary()).clicked() {
+                            e.selected = Some(t.name.clone());
+                            e.work = None;
+                        }
+                    }
+                    if list.is_empty() {
+                        ui.weak("No templates.");
+                    }
+                });
+                ui.separator();
+                ui.text_edit_singleline(&mut e.name).on_hover_text("Name for New / Rename");
+                ui.horizontal_wrapped(|ui| {
+                    let named = !e.name.trim().is_empty();
+                    if ui.add_enabled(named, egui::Button::new("New")).on_hover_text("From this window's view as it is now").clicked() && crate::windows::save_template(&e.name, tile) {
+                        e.selected = Some(e.name.trim().to_string());
+                        e.work = None;
+                        e.name.clear();
+                    }
+                    if let Some(sel) = e.selected.clone() {
+                        if ui.button("Duplicate").clicked()
+                            && let Some(copy) = crate::windows::duplicate_template(&sel)
+                        {
+                            e.selected = Some(copy);
+                            e.work = None;
+                        }
+                        if ui.add_enabled(named, egui::Button::new("Rename")).clicked() && crate::windows::rename_template(&sel, &e.name) {
+                            e.selected = Some(e.name.trim().to_string());
+                            e.work = None;
+                            e.name.clear();
+                        }
+                        if ui.button("Delete").on_hover_text("Its views keep what it gave them").clicked() {
+                            crate::windows::delete_template(&sel);
+                            e.selected = None;
+                            e.work = None;
+                        }
+                    }
+                });
+            });
+            ui.separator();
+            // Right: the chosen template.
+            ui.vertical(|ui| {
+                let Some((name, state, inc)) = e.work.as_mut() else {
+                    ui.label("Choose a template on the left, or make a new one.");
+                    return;
+                };
+                ui.heading(name.as_str());
+                let users: Vec<&str> = w.views.iter().filter(|v| v.template.as_deref() == Some(name.as_str())).map(|v| v.name.as_str()).collect();
+                ui.weak(if users.is_empty() { "Used by no view yet.".to_string() } else { format!("Used by: {}", users.join(", ")) });
+                ui.horizontal(|ui| {
+                    ui.label("This template rules:");
+                    ui.checkbox(&mut inc.vg, "Visibility/Graphics");
+                    ui.checkbox(&mut inc.result, "Result");
+                    ui.checkbox(&mut inc.camera, "Camera");
+                    ui.checkbox(&mut inc.hidden, "Hide / Isolate");
+                });
+                ui.separator();
+                ui.horizontal(|ui| {
+                    for (k, t) in EDITOR_TABS.iter().enumerate() {
+                        if ui.selectable_label(e.tab as usize == k, *t).clicked() {
+                            e.tab = k as u8;
+                        }
+                    }
+                });
+                ui.separator();
+                egui::ScrollArea::vertical().id_salt("factory_template_parts").max_height(460.0).show(ui, |ui| match e.tab {
+                    0 => {
+                        if !inc.vg {
+                            ui.weak("Not ruled: each view keeps its own Visibility/Graphics.");
+                        }
+                        let mut tab = match e.vg_tab {
+                            1 => Tab::Imported,
+                            2 => Tab::Filters,
+                            3 => Tab::View,
+                            _ => Tab::Model,
+                        };
+                        vg_form(ui, &mut state.settings, &mut tab, &geometry);
+                        ui.horizontal(|ui| vg_buttons(ui, &mut state.settings));
+                        e.vg_tab = tab as u8;
+                    }
+                    1 => {
+                        if !inc.result {
+                            ui.weak("Not ruled: each view keeps its own result.");
+                        }
+                        if loads.is_empty() {
+                            ui.weak("No model transferred: the load list is empty; the template keeps its load.");
+                        }
+                        let mut kind = if e.beam { ResultType::Beam } else { ResultType::Plate };
+                        result_choices(ui, &mut state.choice, &mut state.settings, &loads, true, &mut kind, "factory_template");
+                        e.beam = kind == ResultType::Beam;
+                        ui.group(|ui| {
+                            ui.strong("Contour Range");
+                            range_row(ui, "Plate (shells)", &mut state.manual_shell, "factory_template_range_shell");
+                            range_row(ui, "Beam (frames)", &mut state.manual_frame, "factory_template_range_frame");
+                        });
+                    }
+                    _ => {
+                        let now = crate::windows::capture(tile);
+                        ui.group(|ui| {
+                            ui.strong("Camera");
+                            ui.label(if state.camera.is_some() { "Set" } else { "Not set: the view's own camera" });
+                            ui.horizontal(|ui| {
+                                if ui.button("Take from this window").clicked()
+                                    && let Some(n) = &now
+                                {
+                                    state.camera = n.camera.clone();
+                                }
+                                if ui.button("Clear").clicked() {
+                                    state.camera = None;
+                                }
+                            });
+                        });
+                        ui.group(|ui| {
+                            ui.strong("Hide / Isolate (by element name)");
+                            ui.label(format!("{} shells, {} frames hidden", state.hidden_shells.len(), state.hidden_frames.len()));
+                            ui.horizontal(|ui| {
+                                if ui.button("Take from this window").clicked()
+                                    && let Some(n) = &now
+                                {
+                                    state.hidden_shells = n.hidden_shells.clone();
+                                    state.hidden_frames = n.hidden_frames.clone();
+                                }
+                                if ui.button("Clear").clicked() {
+                                    state.hidden_shells.clear();
+                                    state.hidden_frames.clear();
+                                }
+                            });
+                        });
+                    }
+                });
+            });
+        });
+        ui.separator();
+        ui.horizontal(|ui| {
+            if let (Some(v), Some(sel)) = (&view, &e.selected) {
+                let used = v.template.as_deref() == Some(sel.as_str());
+                let text = if used { format!("Detach from {}", v.name) } else { format!("Use for {}", v.name) };
+                if ui.button(text).on_hover_text("Link the template to this window's view (Detach: the view keeps what it shows)").clicked() {
+                    crate::windows::set_view_template(&v.name, if used { None } else { Some(sel) });
+                }
+            }
+            ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                let commit = |e: &TemplateEditor| {
+                    if let Some((name, state, inc)) = &e.work {
+                        crate::windows::set_template(name, state.clone(), *inc);
+                    }
+                };
+                if ui.button("Apply").on_hover_text("Every view using the template shows it").clicked() {
+                    commit(&e);
+                }
+                if ui.button("Cancel").clicked() {
+                    e.work = None;
+                    close = true;
+                }
+                if ui.button("OK").clicked() {
+                    commit(&e);
+                    close = true;
+                }
+            });
+        });
+    });
+    if close || !open {
+        e.open = false;
+        e.work = None;
+    }
+    set_editor(e);
+}
+
+/// One contour range of a template: automatic, or typed min / max.
+fn range_row(ui: &mut egui::Ui, label: &str, range: &mut Option<[f32; 2]>, salt: &str) {
+    ui.horizontal(|ui| {
+        ui.label(label);
+        let mut manual = range.is_some();
+        ui.push_id(salt, |ui| {
+            ui.radio_value(&mut manual, false, "Auto");
+            ui.radio_value(&mut manual, true, "Manual");
+        });
+        let mut r = range.unwrap_or([0.0, 1.0]);
+        ui.add_enabled_ui(manual, |ui| {
+            ui.label("min");
+            ui.add(egui::DragValue::new(&mut r[0]).speed(0.1));
+            ui.label("max");
+            ui.add(egui::DragValue::new(&mut r[1]).speed(0.1));
+        });
+        *range = (manual && r[1] > r[0]).then_some(r).or(if manual { *range } else { None });
+    });
 }

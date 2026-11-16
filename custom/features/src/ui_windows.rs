@@ -39,24 +39,6 @@ fn set_picker(p: Option<Picker>) {
     *PICKER.lock().unwrap_or_else(PoisonError::into_inner) = p;
 }
 
-/// The View Templates dialog: open, the window it saves from / applies to, the name typed.
-#[derive(Clone, Default)]
-struct TemplatesDialog {
-    open: bool,
-    tile: Option<u64>,
-    name: String,
-}
-
-static DIALOG: Mutex<Option<TemplatesDialog>> = Mutex::new(None);
-
-fn dialog() -> TemplatesDialog {
-    DIALOG.lock().unwrap_or_else(PoisonError::into_inner).clone().unwrap_or_default()
-}
-
-fn set_dialog(d: TemplatesDialog) {
-    *DIALOG.lock().unwrap_or_else(PoisonError::into_inner) = Some(d);
-}
-
 /// The view area: frames and title bars of the windows, the borders, the layout picker; where each
 /// picture goes (`None` = one window, the ordinary view).
 pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
@@ -69,7 +51,7 @@ pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
         set_picker(Some(Picker { tile: w.active, at: full.left_top() + egui::vec2(8.0, 8.0), by_hover: false, focus: None }));
     }
     if windows::take_templates_request() {
-        set_dialog(TemplatesDialog { open: true, tile: None, ..dialog() });
+        crate::ui_panels::open_template_editor(None, None);
     }
     draw_picker(ui.ctx(), &w);
     if w.windows.len() == 1 {
@@ -151,12 +133,12 @@ pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
         bar_resp.context_menu(|ui| {
             view_menu_items(ui, id);
             ui.separator();
-            if ui.button("Save as template…").clicked() {
-                set_dialog(TemplatesDialog { open: true, tile: Some(id), name: String::new() });
+            if ui.button("New template from this view…").clicked() {
+                crate::ui_panels::open_template_editor(None, Some(id));
                 ui.close();
             }
             if ui.button("View Templates…").clicked() {
-                set_dialog(TemplatesDialog { open: true, tile: Some(id), ..dialog() });
+                crate::ui_panels::open_template_editor(None, Some(id));
                 ui.close();
             }
         });
@@ -349,73 +331,9 @@ fn thumbnail(ui: &mut egui::Ui, layout: Layout, marked: Option<usize>, label: im
     clicked
 }
 
-/// The View Templates dialog (docs/14 §10.1, docs/15): every template with its switches – which
-/// parts it rules (R1) –, *Use* (link it to the window's view), *Rename*, *Delete*; *Save* makes a
-/// template of the window it was opened from (else the active one). Non-modal.
+/// The View Templates editor (docs/15 §9), drawn every frame while open.
 pub fn templates_window(ctx: &egui::Context) {
-    let mut d = dialog();
-    if !d.open {
-        return;
-    }
-    let w = windows::current();
-    let tile = d.tile.filter(|t| w.index_of(*t).is_some()).unwrap_or(w.active);
-    let view = w.view_of(tile).cloned();
-    let mut open = true;
-    egui::Window::new("View Templates").open(&mut open).resizable(false).collapsible(false).show(ctx, |ui| {
-        ui.label(format!("Window {} – {}", w.number(tile), windows::title(&w, tile)));
-        ui.separator();
-        let list = windows::templates();
-        if list.is_empty() {
-            ui.weak("No templates yet: name the window below and save it.");
-        }
-        egui::Grid::new("factory_templates").striped(true).show(ui, |ui| {
-            for head in ["Template", "V/G", "Result", "Camera", "Hide", "", "", ""] {
-                ui.strong(head);
-            }
-            ui.end_row();
-            for t in &list {
-                let used = view.as_ref().is_some_and(|v| v.template.as_deref() == Some(t.name.as_str()));
-                ui.label(if used { format!("● {}", t.name) } else { t.name.clone() });
-                let mut inc = t.include;
-                let mut changed = false;
-                for (flag, tip) in [
-                    (&mut inc.vg, "Visibility/Graphic Overrides with View Options"),
-                    (&mut inc.result, "The result: load, plate force, beam force, envelope, averaging, legend ranges"),
-                    (&mut inc.camera, "The camera"),
-                    (&mut inc.hidden, "Hide / Isolate"),
-                ] {
-                    changed |= ui.checkbox(flag, "").on_hover_text(tip).changed();
-                }
-                if changed {
-                    windows::set_include(&t.name, inc);
-                }
-                let label = if used { "Detach" } else { "Use" };
-                if ui.button(label).on_hover_text("Link the template to this window's view (Detach: the view keeps what it shows)").clicked()
-                    && let Some(v) = &view
-                {
-                    windows::set_view_template(&v.name, if used { None } else { Some(&t.name) });
-                }
-                if ui.button("Rename").clicked() {
-                    start_rename(Rename::Template(t.name.clone()));
-                }
-                if ui.button("Delete").on_hover_text("Its views keep what it gave them").clicked() {
-                    windows::delete_template(&t.name);
-                }
-                ui.end_row();
-            }
-        });
-        ui.separator();
-        ui.horizontal(|ui| {
-            ui.text_edit_singleline(&mut d.name).on_hover_text("A name that exists is replaced");
-            let ok = !d.name.trim().is_empty();
-            if ui.add_enabled(ok, egui::Button::new("Save this window as template")).clicked() {
-                windows::save_template(&d.name, tile);
-                d.name.clear();
-            }
-        });
-    });
-    d.open = open;
-    set_dialog(d);
+    crate::ui_panels::template_editor(ctx);
 }
 
 // ---- Named views (docs/15) ----
@@ -492,7 +410,7 @@ pub fn named_view_rows(ui: &mut egui::Ui, depth: usize) {
         for t in &list {
             let r = custom_bridge::ui::tree_row(ui, &format!("factory_template:{}", t.name), depth + 1, None, "params", &t.name, &t.include.summary());
             if r.clicked {
-                set_dialog(TemplatesDialog { open: true, tile: None, ..dialog() });
+                crate::ui_panels::open_template_editor(Some(t.name.clone()), None);
             }
             if let Some(at) = r.context_at {
                 *MENU.lock().unwrap_or_else(PoisonError::into_inner) = Some((at, Target::Template(t.name.clone())));
@@ -532,7 +450,7 @@ fn named_view_menu(ctx: &egui::Context) {
             }
             Target::Template(name) => {
                 if ui.button("Edit…").clicked() {
-                    set_dialog(TemplatesDialog { open: true, tile: None, ..dialog() });
+                    crate::ui_panels::open_template_editor(Some(name.clone()), None);
                     done = true;
                 }
                 if ui.button("Rename…").clicked() {

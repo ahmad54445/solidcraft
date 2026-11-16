@@ -1225,6 +1225,33 @@ pub fn set_view_template(view: &str, template: Option<&str>) -> bool {
     ok
 }
 
+/// Template `name`, if there is one.
+pub fn template(name: &str) -> Option<Template> {
+    templates().into_iter().find(|x| x.name == name)
+}
+
+/// Give template `name` this state and these switches (the View Templates editor, docs/15 §9):
+/// every window whose view uses it shows it at once (N6).
+pub fn set_template(name: &str, state: ViewState, include: Include) -> bool {
+    {
+        let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
+        let Some(x) = t.iter_mut().find(|x| x.name == name) else { return false };
+        x.state = state;
+        x.include = include;
+    }
+    propagate(name, None);
+    true
+}
+
+/// A copy of template `name` (`name copy`); the copy's name.
+pub fn duplicate_template(name: &str) -> Option<String> {
+    let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
+    let src = t.iter().find(|x| x.name == name)?.clone();
+    let copy = (1..).map(|n| if n == 1 { format!("{name} copy") } else { format!("{name} copy ({n})") }).find(|c| !t.iter().any(|x| &x.name == c))?;
+    t.push(Template { name: copy.clone(), ..src });
+    Some(copy)
+}
+
 /// Rename template `old`; its views stay linked (R7).
 pub fn rename_template(old: &str, new: &str) -> bool {
     let new = new.trim();

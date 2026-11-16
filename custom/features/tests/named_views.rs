@@ -154,3 +154,27 @@ fn s3_starting_templates_and_the_saved_views() {
     assert_eq!(windows::current().views.len(), 2);
     windows::delete_template("Plan");
 }
+
+#[test]
+fn s9_a_template_is_edited_in_the_editor_and_its_views_follow() {
+    let _g = start();
+    assert!(windows::save_template("Edited", windows::current().active));
+    assert!(windows::set_view_template("View 1", Some("Edited")));
+    // The editor gives the template its own V/G and result – not taken from a view.
+    let mut t = windows::template("Edited").expect("there");
+    t.state.settings.values = true;
+    t.state.choice.shell = 4; // M22 (plate force)
+    t.state.choice.frame = 5; // M3 (beam force)
+    t.state.manual_shell = Some([-10.0, 10.0]);
+    assert!(windows::set_template("Edited", t.state.clone(), t.include));
+    assert!(vv::settings().values, "the view using it shows its Visibility/Graphics");
+    let shown = results_view::shown();
+    assert_eq!((shown.choice.shell, shown.choice.frame, shown.manual_shell), (4, 5, Some([-10.0, 10.0])), "and its result");
+    // Duplicate: a copy with the same parts, linked to no view.
+    let copy = windows::duplicate_template("Edited").expect("copy");
+    assert_eq!(copy, "Edited copy");
+    assert_eq!(windows::template(&copy).map(|c| c.state), Some(t.state));
+    assert!(!windows::set_template("nothing", windows::ViewState::default(), Include::all()));
+    windows::delete_template(&copy);
+    windows::delete_template("Edited");
+}
