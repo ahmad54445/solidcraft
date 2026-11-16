@@ -154,6 +154,9 @@ pub struct Windows {
     pub splits: [f32; 2],
     /// Every named view, shown in a window or not (docs/15).
     pub views: Vec<NamedView>,
+    /// SolidCraft's named views (standard Top / Front / Right / Home and the design's saved views)
+    /// with the template each has: (view name, template) (docs/15 §10).
+    pub named_templates: Vec<(String, String)>,
     next: u64,
 }
 
@@ -166,6 +169,7 @@ impl Default for Windows {
             maximised: None,
             splits: [0.5, 0.5],
             views: vec![NamedView { name: "View 1".into(), ..NamedView::default() }],
+            named_templates: Vec::new(),
             next: 2,
         }
     }
@@ -812,6 +816,7 @@ pub fn delete_template(name: &str) -> bool {
     for v in &linked {
         set_view_template(v, None);
     }
+    write(|w| w.named_templates.retain(|(_, t)| t != name));
     let mut t = TEMPLATES.write().unwrap_or_else(PoisonError::into_inner);
     let before = t.len();
     t.retain(|x| x.name != name);
@@ -836,6 +841,8 @@ pub struct Stored {
     pub shown: Vec<String>,
     /// The starting templates were given once (docs/15 §3): deleted ones do not come back.
     pub seeded: bool,
+    /// SolidCraft's named views and their templates (docs/15 §10).
+    pub named_templates: Vec<(String, String)>,
 }
 
 /// The windows and templates as they would be stored now.
@@ -848,6 +855,7 @@ pub fn stored() -> Stored {
     Stored {
         views: w.views.clone(),
         shown: w.windows.iter().map(|x| x.view.clone()).collect(),
+        named_templates: w.named_templates.clone(),
         seeded: SEEDED.load(std::sync::atomic::Ordering::Relaxed),
         layout: w.layout.key().to_string(),
         splits: w.splits,
@@ -877,7 +885,11 @@ pub fn restore(st: &Stored) {
             })
         })
         .collect();
-    WINDOWS.write().unwrap_or_else(PoisonError::into_inner).views = views;
+    {
+        let mut w = WINDOWS.write().unwrap_or_else(PoisonError::into_inner);
+        w.views = views;
+        w.named_templates = st.named_templates.clone();
+    }
     if st.windows.is_empty() && st.shown.is_empty() {
         WINDOWS.write().unwrap_or_else(PoisonError::into_inner).windows[0].view = shown[0].clone();
         let state = effective_of(&current(), &shown[0]);
@@ -987,6 +999,7 @@ fn fingerprint() -> u64 {
     for v in &w.views {
         (&v.name, &v.template).hash(&mut h);
     }
+    w.named_templates.hash(&mut h);
     h.finish()
 }
 
@@ -1267,6 +1280,9 @@ pub fn rename_template(old: &str, new: &str) -> bool {
         for v in w.views.iter_mut().filter(|v| v.template.as_deref() == Some(old)) {
             v.template = Some(new.to_string());
         }
+        for (_, t) in w.named_templates.iter_mut().filter(|(_, t)| t == old) {
+            *t = new.to_string();
+        }
     });
     true
 }
@@ -1489,4 +1505,52 @@ pub fn template_edit_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     set_editing_template(on);
     results_view::repaint();
     Ok(json!({ "editing": on, "template": active_template().map(|t| t.0) }))
+}
+
+// ---- SolidCraft's named views with a template (docs/15 §10) ----
+
+/// The template of SolidCraft's named view `view` (Top, Front, Right, Home or a saved view).
+pub fn named_template(view: &str) -> Option<String> {
+    current().named_templates.iter().find(|(v, _)| v == view).map(|(_, t)| t.clone())
+}
+
+/// Give SolidCraft's named view `view` template `template` (`None`: no template). `false` when
+/// there is no such template.
+pub fn set_named_template(view: &str, template: Option<&str>) -> bool {
+    if template.is_some_and(|t| !template_exists(t)) {
+        return false;
+    }
+    write(|w| {
+        w.named_templates.retain(|(v, _)| v != view);
+        if let Some(t) = template {
+            w.named_templates.push((view.to_string(), t.to_string()));
+        }
+    });
+    true
+}
+
+fn template_exists(name: &str) -> bool {
+    templates().iter().any(|t| t.name == name)
+}
+
+
+/// SolidCraft's named view `view` was opened (its camera is set by SolidCraft): with a template,
+/// the active window's view takes that template (linked, N3) – its V/G and result show at once.
+/// Without one nothing changes.
+pub fn named_view_opened(view: &str) {
+    let Some(t) = named_template(view) else { return };
+    let w = current();
+    let Some(active_view) = w.view_of(w.active).map(|v| v.name.clone()) else { return };
+    set_view_template(&active_view, Some(&t));
+}
+
+/// `factory.view.set_named_template`: give SolidCraft's named view `view` (Top, Front, Right,
+/// Home or a saved view) template `template` (missing or empty: none).
+pub fn view_set_named_template_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let view = params.get("view").and_then(Value::as_str).map(str::trim).filter(|v| !v.is_empty()).ok_or_else(|| custom_bridge::Error("give the named view".into()))?;
+    let template = params.get("template").and_then(Value::as_str).map(str::trim).filter(|t| !t.is_empty() && *t != "<None>");
+    if !set_named_template(view, template) {
+        return Err(custom_bridge::Error(format!("no template {template:?}")));
+    }
+    Ok(json!({ "view": view, "template": template }))
 }

@@ -138,6 +138,45 @@ pub fn browser_rows() -> Option<RowsFn> {
     BROWSER_ROWS.get().copied()
 }
 
+/// One entry the fork adds to a named view's menu: a command run with `params`.
+pub struct NamedViewChoice {
+    pub label: String,
+    pub command: String,
+    pub params: serde_json::Value,
+}
+
+/// The fork's submenu for named view `name` (its title and entries); empty = none.
+pub type NamedViewItemsFn = fn(&str) -> (String, Vec<NamedViewChoice>);
+/// Called when named view `name` (a standard or a saved one) is opened.
+pub type NamedViewOpenedFn = fn(&str);
+
+static NAMED_VIEW_HOOKS: OnceLock<(NamedViewItemsFn, NamedViewOpenedFn)> = OnceLock::new();
+
+/// Add a submenu to every named view's menu and hear when one is opened (Factory: a view
+/// template per named view, its docs/15). First call wins.
+pub fn set_named_view_hooks(items: NamedViewItemsFn, opened: NamedViewOpenedFn) {
+    let _ = NAMED_VIEW_HOOKS.set((items, opened));
+}
+
+/// Named view `name` was opened.
+pub fn named_view_opened(name: &str) {
+    if let Some((_, opened)) = NAMED_VIEW_HOOKS.get() {
+        opened(name);
+    }
+}
+
+/// The fork's entries for named view `name`, as one submenu.
+pub(crate) fn named_view_items(name: &str) -> Vec<crate::ui_kit::Item> {
+    let Some((items, _)) = NAMED_VIEW_HOOKS.get() else { return Vec::new() };
+    let (title, choices) = items(name);
+    if choices.is_empty() {
+        return Vec::new();
+    }
+    let mut sub = crate::ui_kit::Item::action("ui.forkSubmenu", &title, "folder");
+    sub.children = choices.into_iter().map(|c| crate::ui_kit::Item::action(&c.command, &c.label, "").with(c.params)).collect();
+    vec![crate::ui_kit::Item::sep(), sub]
+}
+
 static NAMED_VIEW_ROWS: OnceLock<RowsFn> = OnceLock::new();
 
 /// Rows the fork adds inside Named Views, after the design's saved views (Factory's views, its

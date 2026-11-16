@@ -374,6 +374,23 @@ fn template_choice(ui: &mut egui::Ui, view: &str, now: Option<&str>) {
     }
 }
 
+/// The submenu *View Template* in the menu of SolidCraft's named views (Top, Front, Right, Home
+/// and the design's saved views, docs/15 §10): `<None>` and every template, the view's own marked.
+pub fn named_view_items(view: &str) -> (String, Vec<custom_bridge::ui::NamedViewChoice>) {
+    let now = windows::named_template(view);
+    let mark = |on: bool, label: &str| if on { format!("● {label}") } else { label.to_string() };
+    let choice = |template: &str, label: String| custom_bridge::ui::NamedViewChoice {
+        label,
+        command: "factory.view.set_named_template".into(),
+        params: custom_bridge::json!({ "view": view, "template": template }),
+    };
+    let mut items = vec![choice("", mark(now.is_none(), "<None>"))];
+    for t in windows::templates() {
+        items.push(choice(&t.name, mark(now.as_deref() == Some(t.name.as_str()), &t.name)));
+    }
+    ("View Template".into(), items)
+}
+
 /// What a right-click in Named Views opened a menu for.
 #[derive(Clone, Debug, PartialEq)]
 enum Target {

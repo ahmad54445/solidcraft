@@ -178,3 +178,30 @@ fn s9_a_template_is_edited_in_the_editor_and_its_views_follow() {
     windows::delete_template(&copy);
     windows::delete_template("Edited");
 }
+
+#[test]
+fn s10_solidcraft_named_views_take_a_template() {
+    let _g = start();
+    assert!(windows::save_template("Beam", windows::current().active));
+    assert!(windows::set_named_template("Top", Some("Beam")));
+    assert!(!windows::set_named_template("Front", Some("nothing")), "only existing templates");
+    assert_eq!(windows::named_template("Top").as_deref(), Some("Beam"));
+    // Opening Top gives the active window's view that template (linked).
+    windows::named_view_opened("Top");
+    assert_eq!(view_of_active().template.as_deref(), Some("Beam"));
+    windows::named_view_opened("Front"); // no template: nothing changes
+    assert_eq!(view_of_active().template.as_deref(), Some("Beam"));
+    // Renaming and deleting the template follow (R7).
+    assert!(windows::rename_template("Beam", "Beams"));
+    assert_eq!(windows::named_template("Top").as_deref(), Some("Beams"));
+    assert!(windows::delete_template("Beams"));
+    assert_eq!(windows::named_template("Top"), None);
+    // Kept with the windows (§4).
+    assert!(windows::save_template("Plan", windows::current().active));
+    assert!(windows::set_named_template("Home", Some("Plan")));
+    let back: windows::Stored = serde_json::from_str(&serde_json::to_string(&windows::stored()).expect("JSON")).expect("read back");
+    windows::reset();
+    windows::restore(&back);
+    assert_eq!(windows::named_template("Home").as_deref(), Some("Plan"));
+    windows::delete_template("Plan");
+}

@@ -65,6 +65,8 @@ commands! {
         { id: "factory.view.delete", label: "Delete Named View", run: windows::view_delete_cmd, icon: "delete", params: "view: view name (not while a window shows it)" },
         { id: "factory.view.set_template", label: "Set View Template", run: windows::view_set_template_cmd, icon: "folder",
           params: "view?: view name (default the active one); template?: template name (none: detach)" },
+        { id: "factory.view.set_named_template", label: "Template of a Named View", run: windows::view_set_named_template_cmd, icon: "folder",
+          params: "view: Top, Front, Right, Home or a saved view; template?: template name (none: no template)" },
         { id: "factory.template.rename", label: "Rename View Template", run: windows::template_rename_cmd, icon: "folder", params: "template: name; name: new name" },
         { id: "factory.template.include", label: "View Template Parts", run: windows::template_include_cmd, icon: "folder",
           params: "template: name; vg?, result?, camera?, hidden?: bool (the parts it rules)" },
@@ -189,6 +191,7 @@ pub fn install() {
         custom_bridge::view::set_overlay(ui_results::overlay);
         custom_bridge::view::set_tiles(ui_windows::layout, ui_windows::overlay);
         custom_bridge::ui::set_named_view_rows(ui_windows::named_view_rows); // docs/15
+        custom_bridge::ui::set_named_view_hooks(ui_windows::named_view_items, windows::named_view_opened); // docs/15 §10
         windows::keep_between_sessions(); // the windows and view templates of the last session (docs/14 §10.4)
     }
 }
