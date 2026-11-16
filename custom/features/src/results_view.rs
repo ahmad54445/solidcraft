@@ -23,7 +23,7 @@ pub const FRAME_COMPONENTS: [&str; 6] = ["P", "V2", "V3", "T", "M2", "M3"];
 pub const AXIS_COLOURS: [[u8; 3]; 3] = [[220, 50, 40], [40, 170, 60], [40, 90, 220]];
 
 /// Envelope side.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Step {
     #[default]
     Max,
@@ -32,7 +32,7 @@ pub enum Step {
 
 /// Value at a shell joint: the element's own (may jump between elements) or the average of all
 /// elements meeting there (smooth).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Averaging {
     #[default]
     Element,
@@ -40,7 +40,8 @@ pub enum Averaging {
 }
 
 /// What the user chose.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Choice {
     /// Load case or combination; `None` = elements without colours.
     pub load: Option<String>,
@@ -249,6 +250,41 @@ pub fn set_manual_ranges(shell: Option<[f32; 2]>, frame: Option<[f32; 2]>) {
     }
     drop(s);
     repaint();
+}
+
+/// Set the choice and the typed legend ranges without building (a window restored before a model
+/// is there, docs/14 §10.4); [`show_kept_or_first`] builds it after the transfer.
+pub fn set_choice_quiet(choice: Choice, manual_shell: Option<[f32; 2]>, manual_frame: Option<[f32; 2]>) {
+    let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
+    s.choice = choice;
+    s.manual_shell = manual_shell;
+    s.manual_frame = manual_frame;
+}
+
+/// Show `choice` with these typed legend ranges (a view template applied, docs/14 §10.1); a load
+/// the model has not is replaced by the first one.
+pub fn select_with_ranges(mut choice: Choice, manual_shell: Option<[f32; 2]>, manual_frame: Option<[f32; 2]>, units: Units) {
+    let loads = loads();
+    if choice.load.as_ref().is_none_or(|l| !loads.contains(l)) {
+        choice.load = loads.into_iter().next();
+    }
+    {
+        let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
+        s.manual_shell = manual_shell;
+        s.manual_frame = manual_frame;
+    }
+    select(choice, units);
+}
+
+/// After a transfer: the shown choice again when the new model has its load (a window keeps its
+/// result, docs/14 R4), else the first load.
+pub fn show_kept_or_first() {
+    let s = shown();
+    if s.choice.load.as_ref().is_some_and(|l| loads().contains(l)) {
+        select(s.choice, crate::model::read(|f| f.units));
+    } else {
+        show_first();
+    }
 }
 
 /// After a transfer: the first load, the first components, current units.

@@ -54,6 +54,10 @@ struct State {
     cams: HashMap<u64, Camera>,
     /// The active view's last frame (cloned, its records are shared).
     last: Option<Frame>,
+    /// The active view's camera as last drawn (`app.cam`).
+    active_cam: Option<Camera>,
+    /// Cameras the fork set for tiles (a view template, a saved layout), applied on the next frame.
+    pending: HashMap<u64, Camera>,
 }
 
 static STATE: Mutex<Option<State>> = Mutex::new(None);
@@ -69,6 +73,22 @@ pub(crate) fn remember(frame: &Frame) {
     }
 }
 
+/// Tile `tile`'s camera as JSON (SolidCraft's `Camera`): an inactive tile's own, else the active
+/// view's. `None` before the view was drawn.
+pub fn camera_json(tile: u64) -> Option<String> {
+    with(|s| s.pending.get(&tile).or_else(|| s.cams.get(&tile)).or(s.active_cam.as_ref()).and_then(|c| serde_json::to_string(c).ok()))
+}
+
+/// Give tile `tile` this camera (JSON from [`camera_json`]); applied on the next frame. `false`
+/// when the text is not a camera.
+pub fn set_camera_json(tile: u64, json: &str) -> bool {
+    let Ok(cam) = serde_json::from_str::<Camera>(json) else { return false };
+    with(|s| {
+        s.pending.insert(tile, cam);
+    });
+    true
+}
+
 /// The view area: one view, or the tiles.
 pub(crate) fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     let full = ui.max_rect();
@@ -78,8 +98,15 @@ pub(crate) fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
     };
     let plan = layout(ui, full).filter(|p| p.tiles.iter().any(|(id, _)| *id == p.active));
     let Some(plan) = plan else {
-        with(|s| *s = State::default());
+        // One view: a camera set for it (the only tile) is the view's.
+        with(|s| {
+            if let Some(cam) = s.pending.drain().map(|(_, c)| c).last() {
+                app.cam = cam;
+            }
+            *s = State { active_cam: Some(app.cam), ..State::default() };
+        });
         crate::viewport::show(app, ui);
+        with(|s| s.active_cam = Some(app.cam));
         return;
     };
     // The active tile's camera is `app.cam`; the one it replaces is kept.
@@ -100,10 +127,19 @@ pub(crate) fn show(app: &mut SolveApp, ui: &mut egui::Ui) {
                 s.cams.entry(*id).or_insert(app.cam);
             }
         }
+        // Cameras set by the fork: the active tile's into `app.cam`, the others' kept.
+        for (id, cam) in s.pending.drain() {
+            if id == plan.active {
+                app.cam = cam;
+            } else if plan.tiles.iter().any(|(t, _)| *t == id) {
+                s.cams.insert(id, cam);
+            }
+        }
         s.last = None;
     });
     let active_rect = plan.tiles.iter().find(|(id, _)| *id == plan.active).map_or(full, |(_, r)| *r);
     ui.scope_builder(egui::UiBuilder::new().max_rect(active_rect), |ui| crate::viewport::show(app, ui));
+    with(|s| s.active_cam = Some(app.cam));
     let last = with(|s| s.last.clone());
     let t = Tokens::get();
     let ppp = ui.ctx().pixels_per_point();

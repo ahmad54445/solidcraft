@@ -16,6 +16,7 @@ pub fn show(ctx: &egui::Context) {
         visibility_graphics(ctx);
     }
     crate::ui_select::window(ctx); // selection dialogs (docs/13)
+    crate::ui_windows::templates_window(ctx); // view templates (docs/14 §10.1)
 }
 
 /// Planned items: shown greyed with the reason.

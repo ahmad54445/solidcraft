@@ -294,3 +294,13 @@ pub use solidcraft_ui_egui::custom_tiles::{LayoutFn, TileOverlayFn, TilePlan};
 pub fn set_tiles(layout: LayoutFn, overlay: TileOverlayFn) {
     solidcraft_ui_egui::custom_tiles::set_tiles(layout, tile_content, overlay);
 }
+
+/// Window `tile`'s camera as text (kept in a view template or the saved layout, docs/14 §10).
+pub fn camera_of(tile: u64) -> Option<String> {
+    solidcraft_ui_egui::custom_tiles::camera_json(tile)
+}
+
+/// Give window `tile` a camera saved by [`camera_of`] (applied on the next frame).
+pub fn set_camera_of(tile: u64, camera: &str) -> bool {
+    solidcraft_ui_egui::custom_tiles::set_camera_json(tile, camera)
+}

@@ -14,6 +14,8 @@ ui = ["custom-bridge/ui", "dep:memory-stats"]
 custom-bridge = { path = "../bridge" }
 # Agent protocol (JSON lines); workspace version, the same SolidCraft uses
 serde_json = { workspace = true }
+# View templates and the saved window layout (docs/14 §10) – not a SolidCraft crate
+serde = { workspace = true }
 # SDF text in the 3D view (src/sdf.rs): glyph outlines and egui's default fonts (not SolidCraft crates)
 ttf-parser = { workspace = true }
 epaint_default_fonts = "0.37"

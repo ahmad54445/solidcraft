@@ -51,6 +51,12 @@ commands! {
         { id: "factory.window.close", label: "Close Window", run: windows::close_cmd, icon: "delete", params: "tile?: window number (default the active one)" },
         { id: "factory.window.activate", label: "Activate Window", run: windows::activate_cmd, icon: "select", params: "tile: window number" },
         { id: "factory.window.maximise", label: "Maximise Window", run: windows::maximise_cmd, icon: "grid", params: "tile?: window number (default the active one)" },
+        { id: "factory.window.templates", label: "View Templates", run: windows::templates_cmd, icon: "folder" },
+        { id: "factory.window.save_template", label: "Save View Template", run: windows::save_template_cmd, icon: "folder",
+          params: "name: template name; tile?: window number (default the active one)" },
+        { id: "factory.window.apply_template", label: "Apply View Template", run: windows::apply_template_cmd, icon: "folder",
+          params: "name: template name; tile?: window number (default the active one)" },
+        { id: "factory.window.delete_template", label: "Delete View Template", run: windows::delete_template_cmd, icon: "delete", params: "name: template name" },
         // Selection tools (docs/13-selection.md)
         { id: "factory.select.pointer", label: "Pointer/Window", run: select_cmd::pointer, icon: "select" },
         { id: "factory.select.poly", label: "Poly", run: select_cmd::poly, icon: "polygon" },
@@ -113,7 +119,7 @@ static EXTRA_TABS: &[custom_bridge::ui::Tab] = &[
         panels: &[
             custom_bridge::ui::Panel { name: "DISPLAY", commands: &["factory.view.results", "factory.view.visibility_graphics"] },
             // Display windows (docs/14): layout picker, new, close, maximise.
-            custom_bridge::ui::Panel { name: "WINDOWS", commands: &["factory.window.layout", "factory.window.new", "factory.window.close", "factory.window.maximise"] },
+            custom_bridge::ui::Panel { name: "WINDOWS", commands: &["factory.window.layout", "factory.window.new", "factory.window.close", "factory.window.maximise", "factory.window.templates"] },
         ],
     },
     // Selection tools (docs/13-selection.md): screen tools, by data, the selection itself.
@@ -170,5 +176,6 @@ pub fn install() {
         custom_bridge::ui::set_status_bar(ui_status::draw);
         custom_bridge::view::set_overlay(ui_results::overlay);
         custom_bridge::view::set_tiles(ui_windows::layout, ui_windows::overlay);
+        windows::keep_between_sessions(); // the windows and view templates of the last session (docs/14 §10.4)
     }
 }

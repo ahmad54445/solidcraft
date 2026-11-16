@@ -8,7 +8,7 @@ use crate::transfer::Geometry;
 
 /// A subcategory row nested under a category (docs/12 §2.1): an annotation on its objects
 /// (labels, section names, symbols, local axes).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Sub {
     pub visible: bool,
     /// Colour of the text / symbol.
@@ -28,7 +28,7 @@ impl Sub {
 }
 
 /// One category row (Model Categories tab).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Category {
     pub visible: bool,
     /// Line colour (frames; element edges later).
@@ -47,7 +47,7 @@ pub struct Category {
 }
 
 /// What a filter rule matches.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Rule {
     /// Shells and frames whose section / area property has this name.
     SectionIs(String),
@@ -58,7 +58,7 @@ pub enum Rule {
 }
 
 /// What a filter does to the elements it matches.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Action {
     Hide,
     Halftone,
@@ -66,7 +66,7 @@ pub enum Action {
     Colour([u8; 3]),
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Filter {
     pub enabled: bool,
     pub rule: Rule,
@@ -74,7 +74,7 @@ pub struct Filter {
 }
 
 /// View Type (tab View Options, docs/12 §2.2).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum ViewType {
     /// Frames on their centre line, shells on their mid-surface.
     #[default]
@@ -85,7 +85,7 @@ pub enum ViewType {
 }
 
 /// How all objects are drawn (tab View Options › View Type, General).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ViewOptions {
     pub view_type: ViewType,
     /// Every element slightly smaller around its centre, so element borders show.
@@ -106,7 +106,8 @@ impl Default for ViewOptions {
 pub const SHRINK: f64 = 0.85;
 
 /// All settings of the (current) view.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Settings {
     /// Tab View Options.
     pub view: ViewOptions,
@@ -151,7 +152,7 @@ impl Default for Settings {
 }
 
 /// How one element is drawn.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Look {
     Hidden,
     /// Coloured by the result (or the category colour when the contour is off).

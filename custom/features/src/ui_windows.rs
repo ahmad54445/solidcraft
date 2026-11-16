@@ -1,6 +1,7 @@
-//! Display windows on screen (docs/14): each window's title bar and frame, and the layout picker
-//! (§1.1). The pictures themselves are drawn by SolidCraft (`custom_tiles`): the active window is
-//! the ordinary 3D view, the others are drawn from the same GPU data with their own camera.
+//! Display windows on screen (docs/14): each window's title bar and frame, the borders between
+//! windows (§10.2), the layout picker (§1.1, keys §10.3) and the View Templates dialog (§10.1).
+//! The pictures themselves are drawn by SolidCraft (`custom_tiles`): the active window is the
+//! ordinary 3D view, the others are drawn from the same GPU data with their own camera.
 
 use std::sync::{Mutex, PoisonError};
 
@@ -13,13 +14,19 @@ use crate::windows::{self, Layout, Windows};
 const BAR: f32 = 20.0;
 /// How long the pointer rests on a maximise button before the picker opens (seconds).
 const HOVER_OPEN: f64 = 0.45;
+/// Width of the grip on a border between windows (points).
+const GRIP: f32 = 6.0;
+/// Thumbnails per row in the picker.
+const PER_ROW: usize = 3;
 
-/// The open layout picker: for which window, where, and whether hovering opened it.
+/// The open layout picker: for which window, where, whether hovering opened it, and the zone the
+/// keys marked (layout index, zone).
 #[derive(Clone, Copy)]
 struct Picker {
     tile: u64,
     at: egui::Pos2,
     by_hover: bool,
+    focus: Option<(usize, usize)>,
 }
 
 static PICKER: Mutex<Option<Picker>> = Mutex::new(None);
@@ -32,12 +39,34 @@ fn set_picker(p: Option<Picker>) {
     *PICKER.lock().unwrap_or_else(PoisonError::into_inner) = p;
 }
 
-/// The view area: frames and title bars of the windows, the layout picker; where each picture
-/// goes (`None` = one window, the ordinary view).
+/// The View Templates dialog: open, the window it saves from / applies to, the name typed.
+#[derive(Clone, Default)]
+struct TemplatesDialog {
+    open: bool,
+    tile: Option<u64>,
+    name: String,
+}
+
+static DIALOG: Mutex<Option<TemplatesDialog>> = Mutex::new(None);
+
+fn dialog() -> TemplatesDialog {
+    DIALOG.lock().unwrap_or_else(PoisonError::into_inner).clone().unwrap_or_default()
+}
+
+fn set_dialog(d: TemplatesDialog) {
+    *DIALOG.lock().unwrap_or_else(PoisonError::into_inner) = Some(d);
+}
+
+/// The view area: frames and title bars of the windows, the borders, the layout picker; where each
+/// picture goes (`None` = one window, the ordinary view).
 pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
+    windows::keep_up(); // the layout is kept between sessions (§10.4)
     let w = windows::current();
     if windows::take_picker_request() {
-        set_picker(Some(Picker { tile: w.active, at: full.left_top() + egui::vec2(8.0, 8.0), by_hover: false }));
+        set_picker(Some(Picker { tile: w.active, at: full.left_top() + egui::vec2(8.0, 8.0), by_hover: false, focus: None }));
+    }
+    if windows::take_templates_request() {
+        set_dialog(TemplatesDialog { open: true, tile: None, ..dialog() });
     }
     draw_picker(ui.ctx(), &w);
     if w.windows.len() == 1 {
@@ -48,7 +77,7 @@ pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
     let bar_fill = ui.visuals().faint_bg_color;
     let text = ui.visuals().text_color();
     let now = ui.input(|i| i.time);
-    let zones = w.layout.rects();
+    let zones = w.layout.rects_with(w.splits);
     let mut tiles = Vec::new();
     for (k, win) in w.windows.iter().enumerate() {
         let zone = match w.maximised {
@@ -101,7 +130,7 @@ pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
             let since = ui.data(|d| d.get_temp::<f64>(hover_id)).unwrap_or(now);
             ui.data_mut(|d| d.insert_temp(hover_id, since));
             if now - since >= HOVER_OPEN && picker().is_none_or(|p| p.tile != win.id) {
-                set_picker(Some(Picker { tile: win.id, at: max.left_bottom() + egui::vec2(-150.0, 2.0), by_hover: true }));
+                set_picker(Some(Picker { tile: win.id, at: max.left_bottom() + egui::vec2(-150.0, 2.0), by_hover: true, focus: None }));
             }
             ui.ctx().request_repaint_after(std::time::Duration::from_millis(100));
         } else {
@@ -114,6 +143,30 @@ pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
         } else if bar_resp.clicked() && !active {
             windows::activate(win.id);
         }
+        // Right-click on the title bar: view templates (§10.1, VT3).
+        let id = win.id;
+        bar_resp.context_menu(|ui| {
+            let list = windows::templates();
+            ui.menu_button("Apply template", |ui| {
+                if list.is_empty() {
+                    ui.weak("no templates yet");
+                }
+                for t in &list {
+                    if ui.button(&t.name).clicked() {
+                        windows::apply_template(&t.name, id);
+                        ui.close();
+                    }
+                }
+            });
+            if ui.button("Save as template…").clicked() {
+                set_dialog(TemplatesDialog { open: true, tile: Some(id), name: String::new() });
+                ui.close();
+            }
+            if ui.button("View Templates…").clicked() {
+                set_dialog(TemplatesDialog { open: true, tile: Some(id), ..dialog() });
+                ui.close();
+            }
+        });
         // A click in an inactive window makes it active (no tool acts there).
         if !active {
             let resp = ui.interact(content, egui::Id::unique(("factory_window_content", win.id)), egui::Sense::click_and_drag());
@@ -124,7 +177,53 @@ pub fn layout(ui: &mut egui::Ui, full: egui::Rect) -> Option<TilePlan> {
         painter.rect_stroke(zone, 0.0, if active { egui::Stroke::new(2.0, accent) } else { egui::Stroke::new(1.0, faint) }, egui::StrokeKind::Inside);
         tiles.push((win.id, content.shrink(if active { 2.0 } else { 1.0 })));
     }
+    if w.maximised.is_none() {
+        borders(ui, full, &w);
+    }
     Some(TilePlan { tiles, active: w.active })
+}
+
+/// The borders between windows: dragged to resize, double-click makes the windows equal (§10.2).
+fn borders(ui: &mut egui::Ui, full: egui::Rect, w: &Windows) {
+    let (vertical, across, right_only) = w.layout.borders();
+    // Where the borders are drawn (kept within 15 %–85 % as the zones are).
+    let rects = w.layout.rects_with(w.splits);
+    let x = rects.first().map_or(0.5, |r| r[2]);
+    let y = match w.layout {
+        Layout::Four => rects.first().map_or(0.5, |r| r[3]),
+        Layout::OneTwo => rects.get(1).map_or(0.5, |r| r[3]),
+        _ => 0.5,
+    };
+    let at_x = full.left() + x * full.width();
+    let at_y = full.top() + y * full.height();
+    let mut grips = Vec::new();
+    if vertical {
+        grips.push((0, egui::Rect::from_min_max(egui::pos2(at_x - GRIP / 2.0, full.top()), egui::pos2(at_x + GRIP / 2.0, full.bottom()))));
+    }
+    if across || right_only {
+        let left = if across { full.left() } else { at_x + GRIP / 2.0 };
+        grips.push((1, egui::Rect::from_min_max(egui::pos2(left, at_y - GRIP / 2.0), egui::pos2(full.right(), at_y + GRIP / 2.0))));
+    }
+    for (axis, rect) in grips {
+        let resp = ui.interact(rect, egui::Id::unique(("factory_window_border", axis)), egui::Sense::click_and_drag());
+        if resp.hovered() || resp.dragged() {
+            ui.ctx().set_cursor_icon(if axis == 0 { egui::CursorIcon::ResizeHorizontal } else { egui::CursorIcon::ResizeVertical });
+            ui.painter().rect_filled(rect.shrink(1.5), 1.0, ui.visuals().selection.bg_fill.gamma_multiply(0.6));
+        }
+        if resp.double_clicked() {
+            windows::set_splits([0.5, 0.5]);
+        } else if resp.dragged()
+            && let Some(p) = resp.interact_pointer_pos()
+        {
+            let mut s = w.splits;
+            if axis == 0 {
+                s[0] = (p.x - full.left()) / full.width().max(1.0);
+            } else {
+                s[1] = (p.y - full.top()) / full.height().max(1.0);
+            }
+            windows::set_splits(s);
+        }
+    }
 }
 
 /// Over an inactive window: its own legend, and whether its result is still being built.
@@ -145,19 +244,60 @@ pub fn overlay(ui: &mut egui::Ui, tile: u64, area: egui::Rect, _view: &ViewInfo<
     }
 }
 
+/// Arrow keys in the picker (§10.3): ← / → through the zones of all layouts, ↑ / ↓ by a row.
+fn moved(focus: Option<(usize, usize)>, w: &Windows, key: egui::Key) -> (usize, usize) {
+    let all = Layout::ALL;
+    let start = all.iter().position(|l| *l == w.layout).unwrap_or(0);
+    let Some((li, zone)) = focus else { return (start, 0) };
+    let zones = |li: usize| all[li].zones();
+    match key {
+        egui::Key::ArrowRight if zone + 1 < zones(li) => (li, zone + 1),
+        egui::Key::ArrowRight => ((li + 1) % all.len(), 0),
+        egui::Key::ArrowLeft if zone > 0 => (li, zone - 1),
+        egui::Key::ArrowLeft => {
+            let prev = (li + all.len() - 1) % all.len();
+            (prev, zones(prev) - 1)
+        }
+        egui::Key::ArrowDown => {
+            let next = (li + PER_ROW).min(all.len() - 1);
+            (next, zone.min(zones(next) - 1))
+        }
+        egui::Key::ArrowUp => {
+            let prev = li.saturating_sub(PER_ROW);
+            (prev, zone.min(zones(prev) - 1))
+        }
+        _ => (li, zone),
+    }
+}
+
 /// The layout picker (docs/14 §1.1): the current arrangement (P2), then the layouts L5, L1–L4.
 fn draw_picker(ctx: &egui::Context, w: &Windows) {
-    let Some(p) = picker() else { return };
-    if w.index_of(p.tile).is_none() || ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
+    let Some(mut p) = picker() else { return };
+    if w.index_of(p.tile).is_none() || ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Escape)) {
         set_picker(None);
         return;
     }
+    // Keys (§10.3): taken here, so the 3D view does not get them.
+    for key in [egui::Key::ArrowLeft, egui::Key::ArrowRight, egui::Key::ArrowUp, egui::Key::ArrowDown] {
+        if ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, key)) {
+            p.focus = Some(moved(p.focus, w, key));
+            p.by_hover = false; // the keys keep it open
+        }
+    }
+    if let Some((li, zone)) = p.focus
+        && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+    {
+        windows::set_layout(Layout::ALL[li], Some((p.tile, zone)));
+        set_picker(None);
+        return;
+    }
+    set_picker(Some(p));
     let mut chosen: Option<Box<dyn FnOnce()>> = None;
     let area = egui::Area::new(egui::Id::unique("factory_layout_picker")).order(egui::Order::Foreground).fixed_pos(p.at).show(ctx, |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
             if w.windows.len() > 1 && w.maximised.is_none() {
                 ui.label(egui::RichText::new("Current").small());
-                if let Some(zone) = thumbnail(ui, w.layout, |k| w.windows.get(k).map(|x| w.number(x.id).to_string())) {
+                if let Some(zone) = thumbnail(ui, w.layout, None, |k| w.windows.get(k).map(|x| w.number(x.id).to_string())) {
                     if let Some(other) = w.windows.get(zone) {
                         let (a, b) = (p.tile, other.id);
                         chosen = Some(Box::new(move || windows::swap(a, b)));
@@ -165,11 +305,13 @@ fn draw_picker(ctx: &egui::Context, w: &Windows) {
                 }
                 ui.separator();
             }
-            ui.label(egui::RichText::new("Layout").small());
-            for row in Layout::ALL.chunks(3) {
+            ui.label(egui::RichText::new("Layout  (← → ↑ ↓, Enter)").small());
+            for (row, layouts) in Layout::ALL.chunks(PER_ROW).enumerate() {
                 ui.horizontal(|ui| {
-                    for &layout in row {
-                        if let Some(zone) = thumbnail(ui, layout, |_| None) {
+                    for (k, &layout) in layouts.iter().enumerate() {
+                        let li = row * PER_ROW + k;
+                        let marked = p.focus.filter(|(f, _)| *f == li).map(|(_, z)| z);
+                        if let Some(zone) = thumbnail(ui, layout, marked, |_| None) {
                             let tile = p.tile;
                             chosen = Some(Box::new(move || windows::set_layout(layout, Some((tile, zone)))));
                         }
@@ -191,9 +333,9 @@ fn draw_picker(ctx: &egui::Context, w: &Windows) {
     }
 }
 
-/// One layout drawn as its zones; the zone under the pointer lights in the accent colour.
-/// Returns the zone clicked.
-fn thumbnail(ui: &mut egui::Ui, layout: Layout, label: impl Fn(usize) -> Option<String>) -> Option<usize> {
+/// One layout drawn as its zones; the zone under the pointer (or `marked` by the keys) lights in
+/// the accent colour. Returns the zone clicked.
+fn thumbnail(ui: &mut egui::Ui, layout: Layout, marked: Option<usize>, label: impl Fn(usize) -> Option<String>) -> Option<usize> {
     let (rect, _) = ui.allocate_exact_size(egui::vec2(66.0, 44.0), egui::Sense::hover());
     let accent = ui.visuals().selection.bg_fill;
     let idle = ui.visuals().widgets.inactive.bg_fill;
@@ -202,7 +344,7 @@ fn thumbnail(ui: &mut egui::Ui, layout: Layout, label: impl Fn(usize) -> Option<
     for (k, [l, t, r, b]) in layout.rects().into_iter().enumerate() {
         let zone = egui::Rect::from_min_max(rect.lerp_inside(egui::vec2(l, t)), rect.lerp_inside(egui::vec2(r, b))).shrink(1.5);
         let resp = ui.interact(zone, ui.scope_id().with(("factory_zone", layout.key(), k)), egui::Sense::click());
-        let fill = if resp.hovered() { accent } else { idle };
+        let fill = if resp.hovered() || marked == Some(k) { accent } else { idle };
         ui.painter().rect(zone, 3.0, fill, stroke, egui::StrokeKind::Inside);
         if let Some(text) = label(k) {
             ui.painter().text(zone.center(), egui::Align2::CENTER_CENTER, text, egui::FontId::proportional(11.0), ui.visuals().text_color());
@@ -212,4 +354,47 @@ fn thumbnail(ui: &mut egui::Ui, layout: Layout, label: impl Fn(usize) -> Option<
         }
     }
     clicked
+}
+
+/// The View Templates dialog (§10.1, VT3): every template with *Apply* / *Delete*, and *Save*
+/// for the window it was opened from (else the active one). Non-modal.
+pub fn templates_window(ctx: &egui::Context) {
+    let mut d = dialog();
+    if !d.open {
+        return;
+    }
+    let w = windows::current();
+    let tile = d.tile.filter(|t| w.index_of(*t).is_some()).unwrap_or(w.active);
+    let mut open = true;
+    egui::Window::new("View Templates").open(&mut open).resizable(false).collapsible(false).show(ctx, |ui| {
+        ui.label(format!("Window {} – {}", w.number(tile), windows::title(&w, tile)));
+        ui.separator();
+        let list = windows::templates();
+        if list.is_empty() {
+            ui.weak("No templates yet: name the window below and save it.");
+        }
+        egui::Grid::new("factory_templates").striped(true).show(ui, |ui| {
+            for t in &list {
+                ui.label(&t.name);
+                if ui.button("Apply").on_hover_text("Camera, result, Visibility/Graphics and Hide / Isolate of the template").clicked() {
+                    windows::apply_template(&t.name, tile);
+                }
+                if ui.button("Delete").clicked() {
+                    windows::delete_template(&t.name);
+                }
+                ui.end_row();
+            }
+        });
+        ui.separator();
+        ui.horizontal(|ui| {
+            ui.text_edit_singleline(&mut d.name).on_hover_text("A name that exists is replaced");
+            let ok = !d.name.trim().is_empty();
+            if ui.add_enabled(ok, egui::Button::new("Save this window")).clicked() {
+                windows::save_template(&d.name, tile);
+                d.name.clear();
+            }
+        });
+    });
+    d.open = open;
+    set_dialog(d);
 }
