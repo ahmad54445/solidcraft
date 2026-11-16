@@ -37,8 +37,9 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
             !typing && i.modifiers.command && i.key_pressed(egui::Key::A),
         )
     });
-    // The pointer counts only on the view itself – not on a window or menu above it (outside `input`).
-    let hover = hover.filter(|p| area.contains(*p) && ui.ctx().layer_id_at(*p).is_none_or(|l| l == ui.layer_id() || l.order == egui::Order::Background));
+    // The pointer counts only on the view itself – not on a window or menu above it. The view's own
+    // response knows (a layer test here missed the view after a camera change: nothing selected).
+    let hover = hover.filter(|p| area.contains(*p) && view.pointer_on_view);
     let tool = select_cmd::tool();
     let points_id = egui::Id::unique("factory_select_points");
     let (drawn_with, mut points): (Tool, Vec<[f32; 2]>) = ui.ctx().data(|d| d.get_temp(points_id)).unwrap_or_default();
@@ -58,10 +59,8 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
         if clicked {
             match tool {
                 Tool::Pointer => {
-                    let found = selection::at_point(scope, &data, at, &project, view.eye, 6.0);
-                    if !found.set.is_empty() {
-                        selection::apply(found, ctrl);
-                    }
+                    // Also an empty click reports ("0 shells, 0 frames added"); the selection stays.
+                    selection::apply(selection::at_point(scope, &data, at, &project, view.eye, 6.0), ctrl);
                 }
                 _ => {
                     if points.last().is_none_or(|p| (p[0] - at[0]).hypot(p[1] - at[1]) > 3.0) {
@@ -177,6 +176,11 @@ pub fn status_text() -> String {
     let mut t = format!("Selected: {s} shells, {f} frames");
     if selection::deselect_mode() {
         t.push_str(" · DESELECT");
+    }
+    // The last action, so a click that found nothing is visible too.
+    let m = selection::message();
+    if !m.is_empty() {
+        t.push_str(&format!(" · {m}"));
     }
     t
 }

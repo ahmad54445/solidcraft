@@ -192,6 +192,9 @@ pub struct ViewInfo<'a> {
     pub project: &'a dyn Fn([f64; 3]) -> Option<egui::Pos2>,
     /// Camera position (m), for "closest to the viewer".
     pub eye: [f64; 3],
+    /// The pointer is over the 3D view itself (not over a window, menu or panel above it), as the
+    /// view's own response sees it.
+    pub pointer_on_view: bool,
 }
 
 /// What the fork draws over the 3D view.
