@@ -16,8 +16,8 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     let g = transfer::geometry();
     let gestures = custom_bridge::view::take_box_gestures();
     highlight(&g);
-    if g.shells.is_empty() && g.frames.is_empty() {
-        return;
+    if g.shells.is_empty() && g.frames.is_empty() || crate::cut::mode().is_some() || crate::cut::picking() {
+        return; // nothing to select, or Cut Diagram / Select Cuts mode takes the clicks (docs/16 C1, §14.3)
     }
     let data = results_view::snap_data();
     let project = |p: [f64; 3]| (view.project)(p).map(|s| [s.x, s.y]);

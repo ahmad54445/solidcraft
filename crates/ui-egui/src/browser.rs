@@ -2241,6 +2241,7 @@ fn named_view_rows(app: &mut SolveApp, rows: &mut Rows<'_>, depth: usize, acts: 
         let r = node_row(rows, Spec { key: &view_key, ..Default::default() }, Row { depth: depth + 1, icon: "home", label, ..Default::default() });
         if r.double {
             app.animate_view(view);
+            crate::custom_hook::named_view_opened(label); // [CUSTOM] the fork's template of this view
         }
         if let Some(p) = r.secondary {
             acts.menu = Some((p, Target::NamedView { name: label.to_string() }));
@@ -2264,10 +2265,14 @@ fn named_view_rows(app: &mut SolveApp, rows: &mut Rows<'_>, depth: usize, acts: 
             acts.menu = Some((p, Target::NamedView { name }));
         }
     }
+    if let Some(fork_rows) = crate::custom_hook::named_view_rows() {
+        fork_rows(rows.ui(), depth + 1); // [CUSTOM] the fork's views inside Named Views
+    }
 }
 
 /// Turn the camera to a named view (a saved one or a standard one), animated.
 pub fn restore_view(app: &mut SolveApp, name: &str) {
+    crate::custom_hook::named_view_opened(name); // [CUSTOM] the fork's template of this view
     if let Some((_, v)) = STANDARD_VIEWS.iter().find(|(l, _)| *l == name) {
         app.animate_view(v);
         return;
@@ -2289,13 +2294,15 @@ pub fn save_view(app: &mut SolveApp, name: Option<&str>) -> Option<String> {
 /// The menu of a named view.
 pub fn view_items(app: &SolveApp, name: &str) -> Vec<Item> {
     let saved = app.session.doc.named_views.iter().any(|v| v.name == name);
-    vec![
+    let mut items = vec![
         Item::action("ui.restoreView", "Restore", "home").with(json!({ "view": name })),
         Item::action("ui.updateView", "Update to Current View", "perspective").with(json!({ "view": name })).on_if(saved),
         Item::sep(),
         Item::action("ui.rename", "Rename", "rename").with(json!({ "view": name })).on_if(saved),
         Item::action("view.delete", "Delete", "delete").with(json!({ "view": name })).on_if(saved),
-    ]
+    ];
+    items.extend(crate::custom_hook::named_view_items(name)); // [CUSTOM] the fork's View Template submenu
+    items
 }
 
 /// The Analysis folder: the Section Analysis, while there is one (shown or hidden), with an eye

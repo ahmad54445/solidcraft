@@ -119,6 +119,7 @@ pub fn rows(ui: &mut egui::Ui, depth: usize) {
         });
         load_row(ui, "load_case", d + 1, "list", "Load Case", v.load_cases, Table::LoadCases);
         load_row(ui, "load_combination", d + 1, "combine", "Load Combination", v.load_combinations, Table::LoadCombinations);
+        crate::ui_cut::rows(ui, d + 1); // Cut Diagrams (docs/16 C4)
     });
 
     // Linked: IFC and DXF expand to their files

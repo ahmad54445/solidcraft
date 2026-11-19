@@ -342,6 +342,7 @@ impl Dialog {
             f.model.load_cases = cases;
             f.model.load_combinations = combos;
             f.status.program = "CSiBridge";
+            f.model.file = self.model.clone();
             f.status.selected_shells = self.shells;
             f.status.selected_frames = self.frames;
         });

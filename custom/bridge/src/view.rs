@@ -211,3 +211,96 @@ pub fn show_sprites(atlas: &Arc<SpriteAtlas>, atlas_id: u64, sprites: Vec<Sprite
 pub fn clear_sprites() {
     solidcraft_viewport_gpu::view::set_sprites(None);
 }
+
+// ---- Display windows (Factory's docs/14-display-windows.md) ----
+
+/// A display window's own drawn layers, texts and labels, kept while another window is active.
+#[derive(Clone, Default)]
+struct Parked {
+    shown: Vec<GpuCloud>,
+    text: Vec<GpuCloud>,
+    bounds: Option<[[f64; 3]; 2]>,
+    sprites: Option<Arc<solidcraft_viewport_gpu::view::SpriteSet>>,
+}
+
+static PARKED: Mutex<Vec<(u64, Parked)>> = Mutex::new(Vec::new());
+
+fn parked_mut<T>(f: impl FnOnce(&mut Vec<(u64, Parked)>) -> T) -> T {
+    f(&mut PARKED.lock().unwrap_or_else(PoisonError::into_inner))
+}
+
+fn current() -> Parked {
+    Parked {
+        shown: SHOWN.lock().unwrap_or_else(PoisonError::into_inner).clone(),
+        text: TEXT.lock().unwrap_or_else(PoisonError::into_inner).clone(),
+        bounds: solidcraft_ui_egui::custom_hook::extra_bounds(),
+        sprites: solidcraft_viewport_gpu::view::current_sprites(),
+    }
+}
+
+/// Keep what the view shows now as window `tile`'s (it stops being active, or is a new copy of
+/// the active one). Nothing is copied but shared records.
+pub fn park(tile: u64) {
+    let p = current();
+    parked_mut(|v| {
+        v.retain(|(id, _)| *id != tile);
+        v.push((tile, p));
+    });
+}
+
+/// Show window `tile`'s kept layers, texts and labels (it becomes active). `false` when none are kept.
+pub fn unpark(tile: u64) -> bool {
+    let Some(p) = parked_mut(|v| v.iter().position(|(id, _)| *id == tile).map(|k| v.remove(k).1)) else { return false };
+    *SHOWN.lock().unwrap_or_else(PoisonError::into_inner) = p.shown;
+    *TEXT.lock().unwrap_or_else(PoisonError::into_inner) = p.text;
+    publish();
+    solidcraft_ui_egui::custom_hook::set_extra_bounds(p.bounds);
+    solidcraft_viewport_gpu::view::set_sprites(p.sprites);
+    true
+}
+
+/// Forget window `tile` (closed).
+pub fn forget(tile: u64) {
+    parked_mut(|v| v.retain(|(id, _)| *id != tile));
+}
+
+/// New layers for an inactive window `tile` (built for it after a transfer); its texts and labels
+/// are dropped (chosen again when it is active). `ranges` as [`set_ranges`].
+pub fn set_parked(tile: u64, layers: &[Layer], bounds: Option<[[f64; 3]; 2]>, ranges: &[Option<[f32; 2]>]) {
+    let mut shown = clouds(layers, ID_BASE);
+    for (cloud, range) in shown.iter_mut().zip(ranges) {
+        if let Some(r) = range {
+            cloud.style = style(Coloring::Ramp(*r));
+        }
+    }
+    let p = Parked { shown, text: Vec::new(), bounds, sprites: None };
+    parked_mut(|v| {
+        v.retain(|(id, _)| *id != tile);
+        v.push((tile, p));
+    });
+}
+
+fn tile_content(tile: u64) -> solidcraft_ui_egui::custom_tiles::TileContent {
+    let p = parked_mut(|v| v.iter().find(|(id, _)| *id == tile).map(|(_, p)| p.clone())).unwrap_or_default();
+    // The selection is one for every window (docs/14 §2).
+    let selection = SELECTION.lock().unwrap_or_else(PoisonError::into_inner).clone();
+    solidcraft_ui_egui::custom_tiles::TileContent { clouds: p.shown.into_iter().chain(p.text).chain(selection).collect(), sprites: p.sprites }
+}
+
+pub use solidcraft_ui_egui::custom_tiles::{LayoutFn, TileOverlayFn, TilePlan};
+
+/// Split the 3D view into display windows: `layout` draws their frames and says where each
+/// picture goes (`None` = one view); `overlay` draws over an inactive window (its legend). Call once.
+pub fn set_tiles(layout: LayoutFn, overlay: TileOverlayFn) {
+    solidcraft_ui_egui::custom_tiles::set_tiles(layout, tile_content, overlay);
+}
+
+/// Window `tile`'s camera as text (kept in a view template or the saved layout, docs/14 §10).
+pub fn camera_of(tile: u64) -> Option<String> {
+    solidcraft_ui_egui::custom_tiles::camera_json(tile)
+}
+
+/// Give window `tile` a camera saved by [`camera_of`] (applied on the next frame).
+pub fn set_camera_of(tile: u64, camera: &str) -> bool {
+    solidcraft_ui_egui::custom_tiles::set_camera_json(tile, camera)
+}

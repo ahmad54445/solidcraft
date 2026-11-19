@@ -6,6 +6,7 @@
 
 mod connect;
 pub mod csi;
+pub mod cut;
 pub mod display;
 pub mod vv;
 pub mod transfer;
@@ -15,11 +16,14 @@ pub mod sdf;
 pub mod select_cmd;
 pub mod selection;
 pub mod visibility;
+pub mod windows;
 mod plate;
 #[cfg(feature = "ui")]
 mod ui_browser;
 #[cfg(feature = "ui")]
 mod ui_csi;
+#[cfg(feature = "ui")]
+mod ui_cut;
 #[cfg(feature = "ui")]
 mod ui_panels;
 #[cfg(feature = "ui")]
@@ -28,6 +32,8 @@ mod ui_results;
 mod ui_select;
 #[cfg(feature = "ui")]
 mod ui_status;
+#[cfg(feature = "ui")]
+mod ui_windows;
 pub mod units;
 
 use custom_bridge::commands;
@@ -41,6 +47,47 @@ commands! {
         { id: "factory.connect.csi", label: "CSiBridge", run: connect::csi, icon: "import" },
         { id: "factory.view.results", label: "Results", run: display::results, icon: "graph" },
         { id: "factory.view.visibility_graphics", label: "Visibility/Graphics", run: display::visibility_graphics, icon: "eye" },
+        // Display windows (docs/14-display-windows.md)
+        { id: "factory.window.layout", label: "Window Layout", run: windows::layout_cmd, icon: "grid",
+          params: "layout?: 1 | 2 | 2big | 1+2 | 4 (no parameters: opens the layout picker)" },
+        { id: "factory.window.new", label: "New Window", run: windows::new_cmd, icon: "feature_group" },
+        { id: "factory.window.close", label: "Close Window", run: windows::close_cmd, icon: "delete", params: "tile?: window number (default the active one)" },
+        { id: "factory.window.activate", label: "Activate Window", run: windows::activate_cmd, icon: "select", params: "tile: window number" },
+        { id: "factory.window.maximise", label: "Maximise Window", run: windows::maximise_cmd, icon: "grid", params: "tile?: window number (default the active one)" },
+        { id: "factory.window.templates", label: "View Templates", run: windows::templates_cmd, icon: "folder" },
+        { id: "factory.window.save_template", label: "Save View Template", run: windows::save_template_cmd, icon: "folder",
+          params: "name: template name; tile?: window number (default the active one)" },
+        { id: "factory.window.apply_template", label: "Apply View Template", run: windows::apply_template_cmd, icon: "folder",
+          params: "name: template name; tile?: window number (default the active one)" },
+        { id: "factory.window.delete_template", label: "Delete View Template", run: windows::delete_template_cmd, icon: "delete", params: "name: template name" },
+        // Named views (docs/15-named-views.md)
+        { id: "factory.view.new", label: "New Named View", run: windows::view_new_cmd, icon: "perspective" },
+        { id: "factory.view.open", label: "Open Named View", run: windows::view_open_cmd, icon: "perspective", params: "view: view name; tile?: window number (default the active one)" },
+        { id: "factory.view.rename", label: "Rename Named View", run: windows::view_rename_cmd, icon: "perspective", params: "view?: view name (default the active one); name: new name" },
+        { id: "factory.view.duplicate", label: "Duplicate Named View", run: windows::view_duplicate_cmd, icon: "perspective", params: "view?: view name (default the active one)" },
+        { id: "factory.view.delete", label: "Delete Named View", run: windows::view_delete_cmd, icon: "delete", params: "view: view name (not while a window shows it)" },
+        { id: "factory.view.set_template", label: "Set View Template", run: windows::view_set_template_cmd, icon: "folder",
+          params: "view?: view name (default the active one); template?: template name (none: detach)" },
+        { id: "factory.view.set_named_template", label: "Template of a Named View", run: windows::view_set_named_template_cmd, icon: "folder",
+          params: "view: Top, Front, Right, Home or a saved view; template?: template name (none: no template)" },
+        { id: "factory.template.rename", label: "Rename View Template", run: windows::template_rename_cmd, icon: "folder", params: "template: name; name: new name" },
+        { id: "factory.template.include", label: "View Template Parts", run: windows::template_include_cmd, icon: "folder",
+          params: "template: name; vg?, result?, camera?, hidden?: bool (the parts it rules)" },
+        { id: "factory.template.edit", label: "Edit View Template", run: windows::template_edit_cmd, icon: "folder", params: "on?: bool (toggles without)" },
+        // Cut Diagram (docs/16-cut-diagram.md)
+        { id: "factory.cut.mode", label: "Cut Diagram", run: cut::mode_cmd, icon: "line", params: "on?: bool (default true: click two points on the model; Esc leaves)" },
+        { id: "factory.cut.new", label: "New Cut Diagram", run: cut::new_cmd, icon: "line",
+          params: "p1, p2: [x, y, z] m; direction?: \"vertical\" (default) or [x, y, z]; name?: text – returns the name and Section ID" },
+        { id: "factory.cut.rename", label: "Rename Cut Diagram", run: cut::rename_cmd, icon: "line", params: "cut: name; name: new name" },
+        { id: "factory.cut.delete", label: "Delete Cut Diagram", run: cut::delete_cmd, icon: "delete", params: "cut: name" },
+        { id: "factory.cut.show", label: "Show Cut Diagram", run: cut::show_cmd, icon: "eye", params: "cut: name; shown?: bool (default true) – in the active view" },
+        { id: "factory.cut.set", label: "Cut Diagram Properties", run: cut::set_cmd, icon: "line",
+          params: "cut: name; component?: F11 … VMax, Fn, Fnt, Mn, Mnt, Vn or window; scale?: px; text?, fill?, all_values?: bool" },
+        { id: "factory.cut.table", label: "Cut Diagram Table", run: cut::table_cmd, icon: "list", params: "cut: name or Section ID (the active window's result)" },
+        { id: "factory.cut.pick", label: "Select Cuts", run: cut::pick_cmd, icon: "select", params: "on?: bool (default true: draw a line across cuts; Shift adds, Ctrl removes; Esc leaves)" },
+        { id: "factory.cut.select", label: "Select Cuts by Line", run: cut::select_cmd, icon: "select",
+          params: "line: [[x, y, z], …] m, view?: [x, y, z] (default [0, 0, -1]); or ids: [name or ID]; or clear: true; how?: replace | add | remove – returns the selected IDs" },
+        { id: "factory.cut.options", label: "Cut Diagram Options", run: cut::options_cmd, icon: "line", params: "ids?: numbers (S1) | letters (A–A)" },
         // Selection tools (docs/13-selection.md)
         { id: "factory.select.pointer", label: "Pointer/Window", run: select_cmd::pointer, icon: "select" },
         { id: "factory.select.poly", label: "Poly", run: select_cmd::poly, icon: "polygon" },
@@ -100,7 +147,13 @@ static EXTRA_TABS: &[custom_bridge::ui::Tab] = &[
     custom_bridge::ui::Tab {
         name: RESULTS_TAB,
         icon: "graph",
-        panels: &[custom_bridge::ui::Panel { name: "DISPLAY", commands: &["factory.view.results", "factory.view.visibility_graphics"] }],
+        panels: &[
+            custom_bridge::ui::Panel { name: "DISPLAY", commands: &["factory.view.results", "factory.view.visibility_graphics"] },
+            // Display windows (docs/14): layout picker, new, close, maximise.
+            // Cut Diagram (docs/16): shell results along a cut line.
+            custom_bridge::ui::Panel { name: "CUT", commands: &["factory.cut.mode", "factory.cut.pick"] },
+            custom_bridge::ui::Panel { name: "WINDOWS", commands: &["factory.window.layout", "factory.window.new", "factory.window.close", "factory.window.maximise", "factory.window.templates"] },
+        ],
     },
     // Selection tools (docs/13-selection.md): screen tools, by data, the selection itself.
     custom_bridge::ui::Tab {
@@ -155,5 +208,9 @@ pub fn install() {
         custom_bridge::ui::set_browser_rows(ui_browser::rows);
         custom_bridge::ui::set_status_bar(ui_status::draw);
         custom_bridge::view::set_overlay(ui_results::overlay);
+        custom_bridge::view::set_tiles(ui_windows::layout, ui_windows::overlay);
+        custom_bridge::ui::set_named_view_rows(ui_windows::named_view_rows); // docs/15
+        custom_bridge::ui::set_named_view_hooks(ui_windows::named_view_items, windows::named_view_opened); // docs/15 §10
+        windows::keep_between_sessions(); // the windows and view templates of the last session (docs/14 §10.4)
     }
 }

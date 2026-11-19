@@ -29,7 +29,11 @@ fn change(f: impl FnOnce(&mut Set)) {
 
 /// Mark the hidden elements in the looks the view is built from.
 pub fn apply(shells: &mut [crate::vv::Look], frames: &mut [crate::vv::Look]) {
-    let h = HIDDEN.read().unwrap_or_else(PoisonError::into_inner);
+    apply_set(&HIDDEN.read().unwrap_or_else(PoisonError::into_inner), shells, frames);
+}
+
+/// Mark the elements of `h` hidden in the looks (a display window's own hidden set, docs/14).
+pub fn apply_set(h: &Set, shells: &mut [crate::vv::Look], frames: &mut [crate::vv::Look]) {
     for e in h.shells.ones() {
         if let Some(l) = shells.get_mut(e) {
             *l = crate::vv::Look::Hidden;
@@ -79,6 +83,11 @@ pub fn isolate(g: &Geometry, set: &Set) {
         }
         *h = Set { shells, frames };
     });
+}
+
+/// Replace the hidden set (switching display windows, docs/14); the view is not rebuilt.
+pub fn set_hidden(set: Set) {
+    change(|h| *h = set);
 }
 
 /// Show everything hidden by hand.

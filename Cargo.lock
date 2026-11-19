@@ -1609,6 +1609,7 @@ dependencies = [
  "custom-bridge",
  "epaint_default_fonts",
  "memory-stats",
+ "serde",
  "serde_json",
  "ttf-parser",
 ]

@@ -18,6 +18,19 @@ pub fn draw(ui: &mut egui::Ui) {
         // The transferred model, then Factory's own selection (docs/13 R6).
         ui.label(format!("Model: {} shells, {} frames", status.selected_shells, status.selected_frames));
         ui.separator();
+        // The active display window (docs/14 R5).
+        let w = crate::windows::current();
+        if w.windows.len() > 1 {
+            ui.label(format!("Window {}/{}", w.number(w.active), w.windows.len()));
+        }
+        // The active window's named view and its template (docs/15 N1, N3).
+        if let Some(v) = w.view_of(w.active) {
+            ui.label(match &v.template {
+                Some(t) => format!("View: {} [{t}]", v.name),
+                None => format!("View: {}", v.name),
+            });
+        }
+        ui.separator();
         ui.label(crate::ui_select::status_text());
         ui.separator(); // the result choice is in RESULTS › DISPLAY (results panel), not here
         crate::ui_results::status_sync(ui);
@@ -47,6 +60,7 @@ pub fn draw(ui: &mut egui::Ui) {
         });
     });
     crate::ui_browser::windows(ui.ctx());
+    crate::ui_cut::windows(ui.ctx()); // Cut Diagram Properties / Table (docs/16)
     crate::ui_csi::show(ui.ctx());
     crate::ui_panels::show(ui.ctx());
 }

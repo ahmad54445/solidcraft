@@ -44,6 +44,8 @@ pub struct LoadCombination {
 /// What the browser's Structure tree counts.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Model {
+    /// The analysis model's file (as the program reports it); keys the Cut Diagrams (docs/16 §4).
+    pub file: String,
     pub nodes: usize,
     pub elements: usize,
     pub node_local_axes: usize,

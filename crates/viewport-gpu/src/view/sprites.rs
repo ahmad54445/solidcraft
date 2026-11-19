@@ -48,6 +48,11 @@ pub fn set_sprites(set: Option<Arc<SpriteSet>>) {
     *SPRITES.lock().unwrap_or_else(|e| e.into_inner()) = set;
 }
 
+/// The sprites set now (a display window keeps them while another is active).
+pub fn current_sprites() -> Option<Arc<SpriteSet>> {
+    current()
+}
+
 fn current() -> Option<Arc<SpriteSet>> {
     SPRITES.lock().unwrap_or_else(|e| e.into_inner()).clone()
 }
@@ -228,7 +233,12 @@ pub(super) struct SpriteDraws {
 impl SpriteDraws {
     /// Upload a new atlas or new sprites.
     pub(super) fn prepare(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, pipes: &SpritePipes) {
-        let Some(set) = current() else {
+        self.prepare_with(device, queue, pipes, current());
+    }
+
+    /// Upload `set` (a display window's own sprites, `tiles.rs`; `None` draws none).
+    pub(super) fn prepare_with(&mut self, device: &wgpu::Device, queue: &wgpu::Queue, pipes: &SpritePipes, set: Option<Arc<SpriteSet>>) {
+        let Some(set) = set else {
             self.shown = false;
             return;
         };

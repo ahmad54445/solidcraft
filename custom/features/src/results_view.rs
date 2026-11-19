@@ -5,6 +5,7 @@
 //! values, VMax) and nodal averages are computed in one pass over the flat columns (P2, P3).
 
 #[cfg(feature = "ui")]
+use std::collections::HashMap;
 use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock, OnceLock, PoisonError, RwLock};
 
@@ -23,7 +24,7 @@ pub const FRAME_COMPONENTS: [&str; 6] = ["P", "V2", "V3", "T", "M2", "M3"];
 pub const AXIS_COLOURS: [[u8; 3]; 3] = [[220, 50, 40], [40, 170, 60], [40, 90, 220]];
 
 /// Envelope side.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Step {
     #[default]
     Max,
@@ -32,7 +33,7 @@ pub enum Step {
 
 /// Value at a shell joint: the element's own (may jump between elements) or the average of all
 /// elements meeting there (smooth).
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Averaging {
     #[default]
     Element,
@@ -40,7 +41,8 @@ pub enum Averaging {
 }
 
 /// What the user chose.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Choice {
     /// Load case or combination; `None` = elements without colours.
     pub load: Option<String>,
@@ -115,12 +117,34 @@ pub fn shown() -> Shown {
     SHOWN.read().unwrap_or_else(PoisonError::into_inner).clone()
 }
 
+/// Changes when the active display window changes (docs/14): a build started for another window
+/// is not swapped into this one.
+static EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The active display window's result, kept while another window is active (docs/14).
+pub fn park() -> (Shown, Arc<SnapData>) {
+    EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    (shown(), snap_data())
+}
+
+/// Make a window's kept result the shown one. A build that was running for it is started again.
+pub fn unpark(shown: Shown, snap: Arc<SnapData>) {
+    EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    let busy = shown.busy;
+    *SHOWN.write().unwrap_or_else(PoisonError::into_inner) = Shown { busy: false, ..shown };
+    *SNAP.write().unwrap_or_else(PoisonError::into_inner) = snap;
+    if busy {
+        refresh();
+    }
+    repaint();
+}
+
 /// How a worker asks the UI to draw again (set once by the UI).
 pub fn set_repaint(f: Box<dyn Fn() + Send + Sync>) {
     let _ = REPAINT.set(f);
 }
 
-fn repaint() {
+pub(crate) fn repaint() {
     if let Some(repaint) = REPAINT.get() {
         repaint();
     }
@@ -146,11 +170,13 @@ pub fn select(choice: Choice, units: Units) {
         s.units = Some(units);
         s.busy = true;
     }
+    let epoch = EPOCH.load(std::sync::atomic::Ordering::Relaxed);
     std::thread::spawn(move || {
         let outcome = build_with(&transfer::geometry(), &transfer::results(), &choice, units, &settings);
-        // A newer choice may have been made meanwhile: only the latest one is shown.
+        // A newer choice may have been made meanwhile: only the latest one is shown; another
+        // display window may have become active (docs/14).
         let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
-        if s.choice != choice || s.units != Some(units) || vv::settings() != settings {
+        if s.choice != choice || s.units != Some(units) || vv::settings() != settings || EPOCH.load(std::sync::atomic::Ordering::Relaxed) != epoch {
             return;
         }
         match outcome {
@@ -227,6 +253,41 @@ pub fn set_manual_ranges(shell: Option<[f32; 2]>, frame: Option<[f32; 2]>) {
     repaint();
 }
 
+/// Set the choice and the typed legend ranges without building (a window restored before a model
+/// is there, docs/14 §10.4); [`show_kept_or_first`] builds it after the transfer.
+pub fn set_choice_quiet(choice: Choice, manual_shell: Option<[f32; 2]>, manual_frame: Option<[f32; 2]>) {
+    let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
+    s.choice = choice;
+    s.manual_shell = manual_shell;
+    s.manual_frame = manual_frame;
+}
+
+/// Show `choice` with these typed legend ranges (a view template applied, docs/14 §10.1); a load
+/// the model has not is replaced by the first one.
+pub fn select_with_ranges(mut choice: Choice, manual_shell: Option<[f32; 2]>, manual_frame: Option<[f32; 2]>, units: Units) {
+    let loads = loads();
+    if choice.load.as_ref().is_none_or(|l| !loads.contains(l)) {
+        choice.load = loads.into_iter().next();
+    }
+    {
+        let mut s = SHOWN.write().unwrap_or_else(PoisonError::into_inner);
+        s.manual_shell = manual_shell;
+        s.manual_frame = manual_frame;
+    }
+    select(choice, units);
+}
+
+/// After a transfer: the shown choice again when the new model has its load (a window keeps its
+/// result, docs/14 R4), else the first load.
+pub fn show_kept_or_first() {
+    let s = shown();
+    if s.choice.load.as_ref().is_some_and(|l| loads().contains(l)) {
+        select(s.choice, crate::model::read(|f| f.units));
+    } else {
+        show_first();
+    }
+}
+
 /// After a transfer: the first load, the first components, current units.
 pub fn show_first() {
     let units = crate::model::read(|f| f.units);
@@ -258,11 +319,20 @@ pub fn build(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units
 
 /// Colour the transferred elements by `choice`, drawn as the Visibility/Graphics `settings` say.
 pub fn build_with(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units, settings: &Settings) -> Result<Built, String> {
+    build_hidden(g, blocks, choice, units, settings, None)
+}
+
+/// [`build_with`] with these elements hidden by Hide / Isolate (an inactive display window's own,
+/// docs/14) instead of the active window's.
+pub fn build_hidden(g: &Geometry, blocks: &[ResultBlock], choice: &Choice, units: Units, settings: &Settings, hidden: Option<&crate::selection::Set>) -> Result<Built, String> {
     let find = |family: &str| choice.load.as_ref().and_then(|l| blocks.iter().find(|b| &b.name == l && b.family == family));
     let shell_block = find("shell_results");
     let frame_block = find("frame_results");
     let (mut shell_look, mut frame_look) = vv::looks(g, settings);
-    crate::visibility::apply(&mut shell_look, &mut frame_look); // Hide / Isolate (docs/13 §8)
+    match hidden {
+        Some(h) => crate::visibility::apply_set(h, &mut shell_look, &mut frame_look),
+        None => crate::visibility::apply(&mut shell_look, &mut frame_look), // Hide / Isolate (docs/13 §8)
+    }
 
     let (mut shell_values, shell_env) = match shell_block {
         Some(b) => shell_corner_values(g, &Block::read(b)?, choice.shell.min(14), choice.step)?,
@@ -710,6 +780,63 @@ fn shell_corner_values(g: &Geometry, b: &Block, component: usize, step: Step) ->
         }
     }
     Ok((out, envelope))
+}
+
+/// The 8 stored values (F11 … V23, SI) per corner of the shells in `elements` – the Cut Diagram's
+/// input (docs/16 R2). One pass over the block; only the wanted elements are kept. `nodal`: each
+/// corner gets the mean at its joint over every element `counts(e)` meeting there (as the contour's
+/// Avg. Nodal, rule P3).
+pub(crate) fn shell_corner_tensors(g: &Geometry, block: &ResultBlock, step: Step, nodal: bool, counts: &dyn Fn(usize) -> bool, elements: &[usize]) -> Result<HashMap<usize, [[f64; 8]; 4]>, String> {
+    let b = Block::read(block)?;
+    let (e, j, k, n) = (b.named("element"), b.named("joint"), b.named("step_type"), b.named("step_num"));
+    let columns: Option<Vec<(usize, bool)>> = (4..12).map(|c| b.column(c)).collect();
+    let (Some(e), Some(j), Some(k), Some(n), Some(columns)) = (e, j, k, n, columns) else {
+        return Err("shell result block is missing columns".into());
+    };
+    let read = |r: usize| {
+        let mut v = [0.0f64; 8];
+        for (slot, c) in v.iter_mut().zip(&columns) {
+            *slot = b.f64(*c, r);
+        }
+        v
+    };
+    let (keep, _) = step_filter(&b, k, n, step);
+    let mut out: HashMap<usize, [[f64; 8]; 4]> = elements.iter().filter(|e| **e < g.shells.len()).map(|e| (*e, [[0.0; 8]; 4])).collect();
+    let mut joints: HashMap<u32, ([f64; 8], u32)> = HashMap::new();
+    if nodal {
+        for el in out.keys() {
+            for jt in g.shells[*el][..4].iter().filter(|j| **j != u32::MAX) {
+                joints.insert(*jt, ([0.0; 8], 0));
+            }
+        }
+    }
+    for r in (0..b.rows).filter(|r| keep(*r)) {
+        let (el, jt) = (b.u32(e, r) as usize, b.u32(j, r));
+        if nodal {
+            if counts(el)
+                && let Some((sum, count)) = joints.get_mut(&jt)
+            {
+                for (s, v) in sum.iter_mut().zip(read(r)) {
+                    *s += v;
+                }
+                *count += 1;
+            }
+        } else if let (Some(o), Some(s)) = (out.get_mut(&el), g.shells.get(el))
+            && let Some(c) = s[..4].iter().position(|x| *x == jt)
+        {
+            o[c] = read(r);
+        }
+    }
+    if nodal {
+        for (el, o) in out.iter_mut() {
+            for (c, slot) in o.iter_mut().enumerate() {
+                if let Some((sum, count)) = joints.get(&g.shells[*el][c]).filter(|(_, n)| *n > 0) {
+                    *slot = sum.map(|v| v / f64::from(*count));
+                }
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// Frame values per element as (station from I-end in m, value), sorted by station.

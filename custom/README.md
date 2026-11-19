@@ -49,6 +49,14 @@ custom/features   ← das eigene Programm
 | `crates/viewport-gpu/src/view/sprites.rs` | Neue Datei: bildschirmparallele Sprites aus einem Alpha-Atlas (SDF-Text), mit Tiefe der Szene; `set_sprites()` |
 | `crates/viewport-gpu/src/view.rs` | `mod sprites` + Re-Export; Renderer-Felder `sprite_pipes`/`sprites`; Pipeline-Erzeugung; `hash_sprites` im Frame-Key; `prepare` nach den Clouds; `paint` nach den Clouds im Hauptpass |
 | `crates/ui-egui/src/custom_hook.rs` | `tree_row_eye()`: Browser-Zeile mit SolidCraft-Auge (Hide/Isolate, docs/13 §8); `BoxGesture`/`take_box_gestures()` (Auswahl, docs/13) |
+| `crates/ui-egui/src/browser.rs` (2) | `named_view_rows`: Factorys Ansichten in Named Views (`custom_hook::named_view_rows`, docs/15) |
+| `crates/ui-egui/src/browser.rs` (3) | Standardansichten (Doppelklick) und `restore_view` rufen `custom_hook::named_view_opened`; `view_items` hängt das Untermenü *View Template* an (`custom_hook::named_view_items`, docs/15 §10) |
+| `crates/ui-egui/src/custom_tiles.rs` | Neue Datei: Ansichtsfenster (Kacheln, docs/14): Bereich aufteilen, Kamera je Fenster (in `app.cam` getauscht), inaktive Fenster über den Tile-Pfad des Renderers zeichnen; `set_tiles()` |
+| `crates/ui-egui/src/lib.rs` | `mod custom_tiles`; `show_workspace` ruft `custom_tiles::show` statt `viewport::show` (ohne Fenster: unverändert) |
+| `crates/ui-egui/src/viewport.rs` (2) | `custom_tiles::remember(&cb.0)`: der Frame der aktiven Ansicht für die anderen Fenster |
+| `crates/viewport-gpu/src/view/tiles.rs` | Neue Datei: Fenster mit eigenem Uniform und eigenem Offscreen-Bild; Clouds der aktiven Ansicht werden mitbenutzt (kein zweiter Upload) |
+| `crates/viewport-gpu/src/view/clouds.rs` | `has()`, `paint_only()` (für `tiles.rs`) |
+| `crates/viewport-gpu/src/view.rs` (2) | `mod tiles` + `TileFrame`; `Frame` ist `Clone`; Renderer-Feld `tiles` |
 | `crates/ui-egui/src/help.rs` | About-Fenster: Zeile `custom_hook::about_credits()` unter der Beschreibung (Factory: `custom/branding/credits.txt`) |
 | `crates/ui-text/src/lib.rs` | `set_product_name()`; `Catalog::shown()` ersetzt „SolidCraft“ durch den Produktnamen (alle Sprachen); englischer Fallback über `shown()` (aufgerufen von `custom_hook::set_app_name`) |
 | `crates/ui-egui/src/documents.rs` | Fenstertitel „Datei — Factory“ aus `custom_hook::app_name()` |

@@ -10,6 +10,19 @@ pub fn set_browser_rows(rows: RowsFn) {
     solidcraft_ui_egui::custom_hook::set_browser_rows(rows);
 }
 
+pub use solidcraft_ui_egui::custom_hook::NamedViewChoice;
+
+/// A submenu in every named view's menu (standard and saved views) and a call when one is
+/// opened (Factory's view template per named view, docs/15 §10). Call once.
+pub fn set_named_view_hooks(items: fn(&str) -> (String, Vec<NamedViewChoice>), opened: fn(&str)) {
+    solidcraft_ui_egui::custom_hook::set_named_view_hooks(items, opened);
+}
+
+/// Factory's rows inside SolidCraft's Named Views folder, after the design's saved views. Call once.
+pub fn set_named_view_rows(rows: RowsFn) {
+    solidcraft_ui_egui::custom_hook::set_named_view_rows(rows);
+}
+
 /// Factory's status bar along the window's bottom edge, always shown. Call once.
 pub fn set_status_bar(draw: DrawFn) {
     solidcraft_ui_egui::custom_hook::set_status_bar(draw);
