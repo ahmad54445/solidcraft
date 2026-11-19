@@ -250,6 +250,18 @@ fn c8_kept_per_model_and_shown_per_view() {
     assert_eq!(vv::settings().cuts_hidden, vec!["Deck".to_string()]);
     cut::show_in_view(&a, true);
     assert!(cut::shown_in_view(&a));
+    // Positive drawn (§13): Up by default, also for V/G settings kept before it existed; a view
+    // template carries it with Visibility/Graphics.
+    assert!(!vv::Settings::default().cut_flip);
+    let old: vv::Settings = serde_json::from_str(r#"{"contour":true,"cut_plain":true}"#).expect("old V/G");
+    assert!(old.cut_plain && !old.cut_flip);
+    let mut s = vv::settings();
+    s.cut_flip = true;
+    vv::set_quiet(s);
+    assert!(windows::save_template("Flipped", windows::current().active));
+    assert_eq!(windows::template("Flipped").map(|t| t.state.settings.cut_flip), Some(true));
+    windows::delete_template("Flipped");
+    vv::set_quiet(vv::Settings::default());
     // Kept in Factory's file with the windows (§4).
     let text = serde_json::to_string(&windows::stored()).expect("JSON");
     cut::set_all(Vec::new());

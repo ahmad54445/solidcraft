@@ -60,7 +60,7 @@ fn draw_all(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, choice: &C
         let sel = selected.as_deref() == Some(c.name.as_str());
         match cut::diagram_for(c, choice, snap) {
             Some(d) => match d.as_ref() {
-                Ok(d) => draw(ui, area, view, c, d, s.cut_plain, sel),
+                Ok(d) => draw(ui, area, view, c, d, s.cut_plain, s.cut_flip, sel),
                 Err(e) => note(ui, area, view, c, e),
             },
             None => note(ui, area, view, c, "computing …"),
@@ -191,16 +191,20 @@ fn element_dir(view: &ViewInfo<'_>, g: &crate::transfer::Geometry, e: usize, at:
     screen_dir(view, at, a3.map(|x| x * side), f.length).unwrap_or(fallback)
 }
 
-fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &Diagram, plain: bool, selected: bool) {
+#[allow(clippy::too_many_arguments)]
+fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &Diagram, plain: bool, flip: bool, selected: bool) {
     let painter = ui.painter_at(area);
     let ink = ui.visuals().text_color();
     let Some(f) = d.frame else { return };
     let (e1, e2) = ends(&f);
     let (Some(a), Some(b)) = ((view.project)(e1), (view.project)(e2)) else { return };
     painter.line_segment([a, b], egui::Stroke::new(if selected { 3.0 } else { 1.5 }, ink.gamma_multiply(0.7)));
-    let Some(dir) = offset_dir(view, &f) else { return };
+    let Some(base) = offset_dir(view, &f) else { return };
+    // V/G › Cut Diagram › Positive drawn: Down turns every direction over (docs/16 §13).
+    let sign = if flip { -1.0 } else { 1.0 };
+    let dir = base * sign;
     let g = transfer::geometry();
-    let dir_of = |st: &cut::Station| if c.draw_normal { element_dir(view, &g, st.shell, st.at, &f, dir) } else { dir };
+    let dir_of = |st: &cut::Station| if c.draw_normal { element_dir(view, &g, st.shell, st.at, &f, base) * sign } else { dir };
     let big = d.largest();
     let k = if big > 0.0 { f64::from(c.scale_px) / big } else { 0.0 };
     let (lo, hi) = (d.min().map(|s| s.value).unwrap_or(0.0), d.max().map(|s| s.value).unwrap_or(0.0));

@@ -121,6 +121,9 @@ pub struct Settings {
     pub filters: Vec<Filter>,
     /// View Options › Cut Diagram (docs/16 C3): plain colours (+ blue, − red) instead of the result ramp.
     pub cut_plain: bool,
+    /// View Options › Cut Diagram › Positive drawn (docs/16 §13): `false` Up (toward +d, the
+    /// default), `true` Down (toward −d) – every cut in this view; a view template carries it.
+    pub cut_flip: bool,
     /// Cut Diagrams hidden in this view, by name (docs/16 R6: a view template rules it with V/G).
     pub cuts_hidden: Vec<String>,
 }
@@ -152,6 +155,7 @@ impl Default for Settings {
             values: false,
             filters: Vec::new(),
             cut_plain: false,
+            cut_flip: false,
             cuts_hidden: Vec::new(),
         }
     }
