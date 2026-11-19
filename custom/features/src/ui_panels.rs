@@ -455,7 +455,8 @@ fn model_tab(ui: &mut egui::Ui, s: &mut Settings, g: &crate::transfer::Geometry)
 /// View Options (docs/12 §2.2): how all objects are drawn – View Type and General.
 fn view_tab(ui: &mut egui::Ui, s: &mut Settings) {
     use crate::vv::ViewType;
-    ui.horizontal_top(|ui| {
+    // Wraps to the next line when the window is narrow (responsive).
+    ui.horizontal_wrapped(|ui| {
         ui.group(|ui| {
             ui.strong("View Type");
             ui.radio_value(&mut s.view.view_type, ViewType::Standard, "Standard");
@@ -669,13 +670,27 @@ pub(crate) fn template_editor(ctx: &egui::Context) {
     let loads = results_view::loads();
     let mut open = true;
     let mut close = false;
-    egui::Window::new("View Templates").id(egui::Id::unique("factory_template_editor")).open(&mut open).resizable(true).default_width(980.0).default_height(620.0).show(ctx, |ui| {
+    // Responsive: the window starts at a size that fits the screen, can be made smaller, and its
+    // parts follow its size (list width, scroll heights, rows that wrap).
+    let screen = ctx.content_rect().size();
+    let default = egui::vec2((screen.x * 0.8).clamp(420.0, 980.0), (screen.y * 0.75).clamp(320.0, 620.0));
+    egui::Window::new("View Templates")
+        .id(egui::Id::unique("factory_template_editor"))
+        .open(&mut open)
+        .resizable(true)
+        .default_size(default)
+        .min_size(egui::vec2(360.0, 260.0))
+        .max_size(screen * 0.98)
+        .show(ctx, |ui| {
+        // Room for the OK / Cancel row at the bottom.
+        let body = (ui.available_height() - 44.0).max(160.0);
+        let list_w = (ui.available_width() * 0.22).clamp(130.0, 230.0);
         ui.horizontal_top(|ui| {
             // Left: the templates.
             ui.vertical(|ui| {
-                ui.set_width(210.0);
+                ui.set_width(list_w);
                 ui.strong("View Templates");
-                egui::ScrollArea::vertical().id_salt("factory_template_list").max_height(380.0).show(ui, |ui| {
+                egui::ScrollArea::vertical().id_salt("factory_template_list").max_height((body - 120.0).max(80.0)).show(ui, |ui| {
                     for t in &list {
                         let users = w.views.iter().filter(|v| v.template.as_deref() == Some(t.name.as_str())).count();
                         let label = if users > 0 { format!("{}   ({users})", t.name) } else { t.name.clone() };
@@ -689,7 +704,7 @@ pub(crate) fn template_editor(ctx: &egui::Context) {
                     }
                 });
                 ui.separator();
-                ui.text_edit_singleline(&mut e.name).on_hover_text("Name for New / Rename");
+                ui.add(egui::TextEdit::singleline(&mut e.name).desired_width(list_w)).on_hover_text("Name for New / Rename");
                 ui.horizontal_wrapped(|ui| {
                     let named = !e.name.trim().is_empty();
                     if ui.add_enabled(named, egui::Button::new("New")).on_hover_text("From this window's view as it is now").clicked() && crate::windows::save_template(&e.name, tile) {
@@ -727,7 +742,7 @@ pub(crate) fn template_editor(ctx: &egui::Context) {
                 ui.heading(name.as_str());
                 let users: Vec<&str> = w.views.iter().filter(|v| v.template.as_deref() == Some(name.as_str())).map(|v| v.name.as_str()).collect();
                 ui.weak(if users.is_empty() { "Used by no view yet.".to_string() } else { format!("Used by: {}", users.join(", ")) });
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     ui.label("This template rules:");
                     ui.checkbox(&mut inc.vg, "Visibility/Graphics");
                     ui.checkbox(&mut inc.result, "Result");
@@ -735,7 +750,7 @@ pub(crate) fn template_editor(ctx: &egui::Context) {
                     ui.checkbox(&mut inc.hidden, "Hide / Isolate");
                 });
                 ui.separator();
-                ui.horizontal(|ui| {
+                ui.horizontal_wrapped(|ui| {
                     for (k, t) in EDITOR_TABS.iter().enumerate() {
                         if ui.selectable_label(e.tab as usize == k, *t).clicked() {
                             e.tab = k as u8;
@@ -743,7 +758,8 @@ pub(crate) fn template_editor(ctx: &egui::Context) {
                     }
                 });
                 ui.separator();
-                egui::ScrollArea::vertical().id_salt("factory_template_parts").max_height(460.0).show(ui, |ui| match e.tab {
+                let parts = (ui.available_height() - 44.0).max(120.0);
+                egui::ScrollArea::both().id_salt("factory_template_parts").max_height(parts).auto_shrink([false, true]).show(ui, |ui| match e.tab {
                     0 => {
                         if !inc.vg {
                             ui.weak("Not ruled: each view keeps its own Visibility/Graphics.");
@@ -811,7 +827,7 @@ pub(crate) fn template_editor(ctx: &egui::Context) {
             });
         });
         ui.separator();
-        ui.horizontal(|ui| {
+        ui.horizontal_wrapped(|ui| {
             if let (Some(v), Some(sel)) = (&view, &e.selected) {
                 let used = v.template.as_deref() == Some(sel.as_str());
                 let text = if used { format!("Detach from {}", v.name) } else { format!("Use for {}", v.name) };
