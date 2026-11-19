@@ -18,8 +18,20 @@ static SELECTED: Mutex<Option<String>> = Mutex::new(None);
 static PROPERTIES: Mutex<Option<(String, Cut)>> = Mutex::new(None);
 /// The table window's cut.
 static TABLE: Mutex<Option<String>> = Mutex::new(None);
-/// Mode option: vertical cut plane (default, decided) or along the view direction.
-static VERTICAL: Mutex<bool> = Mutex::new(true);
+/// The *Global plane* form (§12.1), while open.
+static GLOBAL_FORM: Mutex<Option<GlobalForm>> = Mutex::new(None);
+
+/// What the *Global plane* form holds: plane (0 XY, 1 XZ, 2 YZ), at, along X (else Y, for XY),
+/// from, to, the line's place on the remaining axis (display units).
+#[derive(Clone, Debug, Default)]
+struct GlobalForm {
+    plane: u8,
+    at: f64,
+    along_x: bool,
+    from: f64,
+    to: f64,
+    other: f64,
+}
 
 fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     m.lock().unwrap_or_else(PoisonError::into_inner)
@@ -68,34 +80,51 @@ fn mode(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, hit: Option<[f
     let on_view = hover.filter(|p| area.contains(*p) && view.pointer_on_view);
     let painter = ui.painter_at(area);
     let orange = egui::Color32::from_rgb(240, 130, 30);
-    if let Some(first) = m.first.and_then(|p| (view.project)(p)) {
-        painter.rect_filled(egui::Rect::from_center_size(first, egui::vec2(7.0, 7.0)), 0.0, orange);
-        let to = hit.and_then(|p| (view.project)(p)).or(on_view);
-        if let Some(to) = to {
-            painter.line_segment([first, to], egui::Stroke::new(2.0, orange));
-        }
+    let shown: Vec<egui::Pos2> = m.points.iter().filter_map(|p| (view.project)(*p)).collect();
+    for p in &shown {
+        painter.rect_filled(egui::Rect::from_center_size(*p, egui::vec2(7.0, 7.0)), 0.0, orange);
     }
-    let mut vertical = *lock(&VERTICAL);
+    if shown.len() >= 2 {
+        painter.line_segment([shown[0], shown[1]], egui::Stroke::new(2.0, orange));
+    }
+    if let (Some(last), Some(to)) = (shown.last(), hit.and_then(|p| (view.project)(p)).or(on_view)) {
+        let stroke = if shown.len() >= 2 { egui::Stroke::new(1.0, orange.gamma_multiply(0.6)) } else { egui::Stroke::new(2.0, orange) };
+        painter.line_segment([*last, to], stroke);
+    }
+    let mut kind = m.kind;
     egui::Area::new(egui::Id::unique("factory_cut_mode")).order(egui::Order::Foreground).fixed_pos(area.left_top() + egui::vec2(12.0, 12.0)).show(ui.ctx(), |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| {
-            ui.strong(match (&m.redraw, m.first) {
-                (Some(n), None) => format!("Redraw {n}: click point 1"),
-                (Some(n), Some(_)) => format!("Redraw {n}: click point 2"),
-                (None, None) => "Cut Diagram: click point 1 on the model".into(),
-                (None, Some(_)) => "Cut Diagram: click point 2".into(),
+            let what = match (kind, m.points.len()) {
+                (cut::Kind::ThreePoints, 2) => "click point 3 – it sets the plane's tilt".to_string(),
+                (_, k) => format!("click point {} of {}", k + 1, kind.clicks()),
+            };
+            ui.strong(match &m.redraw {
+                Some(n) => format!("Redraw {n}: {what}"),
+                None => format!("Cut Diagram: {what}"),
             });
-            ui.checkbox(&mut vertical, "Vertical cut plane (Z)").on_hover_text("Off: the plane goes along the view direction");
+            ui.add_enabled_ui(m.points.is_empty(), |ui| {
+                ui.horizontal(|ui| {
+                    for k in cut::Kind::ALL {
+                        ui.radio_value(&mut kind, k, k.label());
+                    }
+                });
+            });
+            ui.weak(match kind {
+                cut::Kind::Vertical => "Plane: the line extruded along Z – slabs, the deck",
+                cut::Kind::Horizontal => "Plane: horizontal at point 1's level – webs, walls, piers",
+                cut::Kind::ThreePoints => "Plane: through 3 points – anything inclined",
+            });
             ui.weak("Snaps to joints within 10 px · Esc leaves");
         });
     });
-    *lock(&VERTICAL) = vertical;
-    if clicked && on_view.is_some() {
-        if let Some(p) = hit {
-            let dir = [p[0] - view.eye[0], p[1] - view.eye[1], p[2] - view.eye[2]];
-            if let Some(name) = cut::click(p, vertical, dir) {
-                *lock(&SELECTED) = Some(name);
-            }
-        }
+    if kind != m.kind {
+        cut::set_mode(Some(cut::Mode { kind, ..m.clone() }));
+    }
+    if clicked && on_view.is_some()
+        && let Some(p) = hit
+        && let Some(name) = cut::click(p)
+    {
+        *lock(&SELECTED) = Some(name);
     }
 }
 
@@ -122,35 +151,56 @@ fn colour(v: f64, lo: f64, hi: f64, plain: bool, alpha: u8) -> egui::Color32 {
     egui::Color32::from_rgba_unmultiplied(r, g, b, alpha)
 }
 
-/// The screen direction values are drawn to: the cut plane's extrusion as seen, or – looking
-/// along it (a vertical cut seen from above) – square to the cut line on the screen.
-fn offset_dir(view: &ViewInfo<'_>, c: &Cut, f: &cut::Frame) -> Option<egui::Vec2> {
-    let mid = [0, 1, 2].map(|i| (c.p1[i] + c.p2[i]) / 2.0);
-    let to = [mid[0] - view.eye[0], mid[1] - view.eye[1], mid[2] - view.eye[2]];
+/// The cut line's two ends as the frame has them (point 2 taken into the plane, §12.1).
+fn ends(f: &cut::Frame) -> ([f64; 3], [f64; 3]) {
+    (f.origin, [0, 1, 2].map(|i| f.origin[i] + f.u[i] * f.length))
+}
+
+/// The screen direction of world direction `w` at `at`; `None` when it is seen end-on.
+fn screen_dir(view: &ViewInfo<'_>, at: [f64; 3], w: [f64; 3], size: f64) -> Option<egui::Vec2> {
+    let to = [at[0] - view.eye[0], at[1] - view.eye[1], at[2] - view.eye[2]];
     let l = (to[0] * to[0] + to[1] * to[1] + to[2] * to[2]).sqrt().max(1e-12);
-    let along = (to[0] * f.d[0] + to[1] * f.d[1] + to[2] * f.d[2]).abs() / l;
-    let m = (view.project)(mid)?;
-    if along < 0.9 {
-        let k = f.length.max(1e-3) * 0.1;
-        let tip = (view.project)([mid[0] + f.d[0] * k, mid[1] + f.d[1] * k, mid[2] + f.d[2] * k])?;
-        let v = tip - m;
-        if v.length() > 1.0 {
-            return Some(v.normalized());
-        }
+    if (to[0] * w[0] + to[1] * w[1] + to[2] * w[2]).abs() / l >= 0.9 {
+        return None;
     }
-    let (a, b) = ((view.project)(c.p1)?, (view.project)(c.p2)?);
+    let k = size.max(1e-3) * 0.1;
+    let v = (view.project)([at[0] + w[0] * k, at[1] + w[1] * k, at[2] + w[2] * k])? - (view.project)(at)?;
+    (v.length() > 1.0).then(|| v.normalized())
+}
+
+/// The screen direction values are drawn to (§12.3): in the cut plane square to the line (`d`)
+/// as seen, or – looking along it (a vertical cut seen from above) – square to the cut line on
+/// the screen.
+fn offset_dir(view: &ViewInfo<'_>, f: &cut::Frame) -> Option<egui::Vec2> {
+    let (p1, p2) = ends(f);
+    let mid = [0, 1, 2].map(|i| (p1[i] + p2[i]) / 2.0);
+    if let Some(v) = screen_dir(view, mid, f.d, f.length) {
+        return Some(v);
+    }
+    let (a, b) = ((view.project)(p1)?, (view.project)(p2)?);
     let line = (b - a).normalized();
     let perp = egui::vec2(line.y, -line.x);
     Some(if perp.y > 0.0 { -perp } else { perp })
 }
 
+/// *Square to each element* (§12.3): shell `e`'s local axis 3 (as `d` turns: on the side of `d`),
+/// or the plane's direction when the axes are missing or seen end-on.
+fn element_dir(view: &ViewInfo<'_>, g: &crate::transfer::Geometry, e: usize, at: [f64; 3], f: &cut::Frame, fallback: egui::Vec2) -> egui::Vec2 {
+    let Some(a3) = g.shell_axes.get(e).and_then(crate::transfer::local_axes).map(|a| a[2]) else { return fallback };
+    let side = if a3[0] * f.d[0] + a3[1] * f.d[1] + a3[2] * f.d[2] < 0.0 { -1.0 } else { 1.0 };
+    screen_dir(view, at, a3.map(|x| x * side), f.length).unwrap_or(fallback)
+}
+
 fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &Diagram, plain: bool, selected: bool) {
     let painter = ui.painter_at(area);
     let ink = ui.visuals().text_color();
-    let (Some(a), Some(b)) = ((view.project)(c.p1), (view.project)(c.p2)) else { return };
-    painter.line_segment([a, b], egui::Stroke::new(if selected { 3.0 } else { 1.5 }, ink.gamma_multiply(0.7)));
     let Some(f) = d.frame else { return };
-    let Some(dir) = offset_dir(view, c, &f) else { return };
+    let (e1, e2) = ends(&f);
+    let (Some(a), Some(b)) = ((view.project)(e1), (view.project)(e2)) else { return };
+    painter.line_segment([a, b], egui::Stroke::new(if selected { 3.0 } else { 1.5 }, ink.gamma_multiply(0.7)));
+    let Some(dir) = offset_dir(view, &f) else { return };
+    let g = transfer::geometry();
+    let dir_of = |st: &cut::Station| if c.draw_normal { element_dir(view, &g, st.shell, st.at, &f, dir) } else { dir };
     let big = d.largest();
     let k = if big > 0.0 { f64::from(c.scale_px) / big } else { 0.0 };
     let (lo, hi) = (d.min().map(|s| s.value).unwrap_or(0.0), d.max().map(|s| s.value).unwrap_or(0.0));
@@ -166,7 +216,7 @@ fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &D
     let mut labels: Vec<(egui::Pos2, f64)> = Vec::new();
     for [s0, s1] in &d.pieces {
         let (Some(p0), Some(p1)) = ((view.project)(s0.at), (view.project)(s1.at)) else { continue };
-        let (t0, t1) = (p0 + dir * (s0.value * k) as f32, p1 + dir * (s1.value * k) as f32);
+        let (t0, t1) = (p0 + dir_of(s0) * (s0.value * k) as f32, p1 + dir_of(s1) * (s1.value * k) as f32);
         if c.fill {
             if s0.value * s1.value < 0.0 {
                 let r = (s0.value / (s0.value - s1.value)) as f32;
@@ -187,10 +237,10 @@ fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &D
     }
     painter.add(egui::Shape::mesh(mesh));
     if c.text {
-        let at = |st: &cut::Station| (view.project)(st.at).map(|p| p + dir * (st.value * k) as f32);
+        let at = |st: &cut::Station| (view.project)(st.at).map(|p| (p + dir_of(st) * (st.value * k) as f32, dir_of(st)));
         let ends = [d.pieces.first().map(|p| &p[0]), d.pieces.last().map(|p| &p[1]), d.max(), d.min()];
         for st in ends.into_iter().flatten() {
-            if let Some(p) = at(st) {
+            if let Some((p, _)) = at(st) {
                 labels.push((p, st.value));
             }
         }
@@ -216,7 +266,8 @@ fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &D
 }
 
 fn note(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, text: &str) {
-    let (Some(a), Some(b)) = ((view.project)(c.p1), (view.project)(c.p2)) else { return };
+    let (e1, e2) = c.frame().map(|f| ends(&f)).unwrap_or((c.p1, c.p2));
+    let (Some(a), Some(b)) = ((view.project)(e1), (view.project)(e2)) else { return };
     let painter = ui.painter_at(area);
     let ink = ui.visuals().text_color();
     painter.line_segment([a, b], egui::Stroke::new(1.5, ink.gamma_multiply(0.7)));
@@ -278,8 +329,12 @@ fn menu(ui: &mut egui::Ui) {
     let area = egui::Area::new(egui::Id::unique("factory_cut_menu_area")).order(egui::Order::Foreground).fixed_pos(at).show(&ctx, |ui| {
         egui::Frame::popup(ui.style()).show(ui, |ui| match &menu {
             Menu::Folder => {
-                if ui.button("New Cut Diagram").clicked() {
+                if ui.button("New Cut Diagram").on_hover_text("Click 2 or 3 points on the model").clicked() {
                     cut::set_mode(Some(cut::Mode::default()));
+                    done = true;
+                }
+                if ui.button("New by Global Plane…").on_hover_text("XY, XZ or YZ at a typed value").clicked() {
+                    *lock(&GLOBAL_FORM) = Some(GlobalForm { along_x: true, plane: 1, to: 10.0, ..GlobalForm::default() });
                     done = true;
                 }
             }
@@ -295,7 +350,7 @@ fn menu(ui: &mut egui::Ui) {
                     done = true;
                 }
                 if ui.button("Redraw").on_hover_text("Click two new points").clicked() {
-                    cut::set_mode(Some(cut::Mode { redraw: Some(name.clone()), first: None }));
+                    cut::set_mode(Some(cut::Mode::redraw(name)));
                     done = true;
                 }
                 if ui.button("Table…").clicked() {
@@ -328,6 +383,80 @@ fn open_properties(name: &str) {
 pub fn windows(ctx: &egui::Context) {
     properties(ctx);
     table_window(ctx);
+    global_form(ctx);
+}
+
+/// *New by Global Plane* (§12.1): XY / XZ / YZ at a value, from – to along the plane's axis.
+fn global_form(ctx: &egui::Context) {
+    let Some(mut f) = lock(&GLOBAL_FORM).clone() else { return };
+    let units = model::read(|m| m.units);
+    let (scale, unit) = (units.length.to_si(), units.length.symbol());
+    let mut open = true;
+    let mut close = false;
+    let mut error = None;
+    egui::Window::new("New Cut by Global Plane").id(egui::Id::unique("factory_cut_global")).open(&mut open).resizable(false).show(ctx, |ui| {
+        egui::Grid::new("factory_cut_global_grid").num_columns(2).show(ui, |ui| {
+            ui.label("Plane");
+            ui.horizontal(|ui| {
+                for (v, label) in [(0u8, "XY"), (1, "XZ"), (2, "YZ")] {
+                    ui.radio_value(&mut f.plane, v, label);
+                }
+            });
+            ui.end_row();
+            let (at_axis, line_axis, other_axis) = match (f.plane, f.along_x) {
+                (0, true) => ("Z", "X", "Y"),
+                (0, false) => ("Z", "Y", "X"),
+                (1, _) => ("Y", "X", "Z"),
+                _ => ("X", "Y", "Z"),
+            };
+            ui.label(format!("at {at_axis} ="));
+            ui.add(egui::DragValue::new(&mut f.at).speed(0.01).suffix(format!(" {unit}")));
+            ui.end_row();
+            if f.plane == 0 {
+                ui.label("Along");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut f.along_x, true, "X");
+                    ui.radio_value(&mut f.along_x, false, "Y");
+                });
+                ui.end_row();
+            }
+            ui.label(format!("{line_axis} from"));
+            ui.horizontal(|ui| {
+                ui.add(egui::DragValue::new(&mut f.from).speed(0.01).suffix(format!(" {unit}")));
+                ui.label("to");
+                ui.add(egui::DragValue::new(&mut f.to).speed(0.01).suffix(format!(" {unit}")));
+            });
+            ui.end_row();
+            ui.label(format!("line at {other_axis} ="));
+            ui.add(egui::DragValue::new(&mut f.other).speed(0.01).suffix(format!(" {unit}"))).on_hover_text("Where the cut line is drawn (and the band's middle)");
+            ui.end_row();
+        });
+        ui.weak(match f.plane {
+            0 => "A horizontal cut (webs, walls, piers).",
+            _ => "A vertical cut (slabs, the deck).",
+        });
+        ui.separator();
+        ui.horizontal(|ui| {
+            if ui.button("OK").clicked() {
+                let plane = ["XY", "XZ", "YZ"][usize::from(f.plane.min(2))];
+                let axis = if f.along_x { 'X' } else { 'Y' };
+                match cut::global(plane, f.at * scale, axis, f.from * scale, f.to * scale, f.other * scale).and_then(|(p1, p2, d)| cut::add(None, p1, p2, d)) {
+                    Some(name) => {
+                        *lock(&SELECTED) = Some(name);
+                        close = true;
+                    }
+                    None => error = Some("No cut: from and to are equal."),
+                }
+            }
+            if ui.button("Cancel").clicked() {
+                close = true;
+            }
+        });
+        if let Some(e) = error {
+            ui.colored_label(ui.visuals().error_fg_color, e);
+        }
+    });
+    *lock(&GLOBAL_FORM) = (open && !close).then_some(f);
 }
 
 fn point_row(ui: &mut egui::Ui, label: &str, p: &mut [f64; 3], scale: f64, unit: &str) {
@@ -358,20 +487,68 @@ fn properties(ctx: &egui::Context) {
             point_row(ui, "Point 1", &mut work.p1, scale, unit);
             point_row(ui, "Point 2", &mut work.p2, scale, unit);
             ui.label("Cut plane");
-            ui.horizontal(|ui| {
-                let mut vertical = work.direction == Direction::Vertical;
-                ui.radio_value(&mut vertical, true, "Vertical (Z)");
-                ui.radio_value(&mut vertical, false, "Along");
-                let mut d = match work.direction {
-                    Direction::Along(d) => d,
-                    Direction::Vertical => [0.0, 0.0, 1.0],
-                };
-                ui.add_enabled_ui(!vertical, |ui| {
-                    for v in d.iter_mut() {
-                        ui.add(egui::DragValue::new(v).speed(0.01));
+            ui.vertical(|ui| {
+                ui.horizontal(|ui| {
+                    let mut k: u8 = match work.direction {
+                        Direction::Vertical => 0,
+                        Direction::Horizontal => 1,
+                        Direction::Plane3(_) => 2,
+                        Direction::Along(_) => 3,
+                    };
+                    for (v, label) in [(0, "Vertical (Z)"), (1, "Horizontal"), (2, "3 points"), (3, "Along")] {
+                        ui.radio_value(&mut k, v, label);
                     }
+                    let mid = [0, 1, 2].map(|i| (work.p1[i] + work.p2[i]) / 2.0);
+                    work.direction = match (k, work.direction) {
+                        (0, _) => Direction::Vertical,
+                        (1, _) => Direction::Horizontal,
+                        (2, Direction::Plane3(p3)) => Direction::Plane3(p3),
+                        (2, _) => Direction::Plane3([mid[0], mid[1], mid[2] + 1.0]),
+                        (_, Direction::Along(d)) => Direction::Along(d),
+                        _ => Direction::Along([0.0, 0.0, 1.0]),
+                    };
                 });
-                work.direction = if vertical { Direction::Vertical } else { Direction::Along(d) };
+                match &mut work.direction {
+                    Direction::Along(d) => {
+                        ui.horizontal(|ui| {
+                            ui.label("direction");
+                            for v in d.iter_mut() {
+                                ui.add(egui::DragValue::new(v).speed(0.01));
+                            }
+                        });
+                    }
+                    Direction::Plane3(p3) => {
+                        ui.horizontal(|ui| {
+                            ui.label("point 3");
+                            for v in p3.iter_mut() {
+                                let mut shown = *v / scale;
+                                if ui.add(egui::DragValue::new(&mut shown).speed(0.01).suffix(format!(" {unit}"))).changed() {
+                                    *v = shown * scale;
+                                }
+                            }
+                        });
+                    }
+                    Direction::Horizontal => {
+                        ui.weak("at point 1's level");
+                    }
+                    Direction::Vertical => {}
+                }
+            });
+            ui.end_row();
+            ui.label("Cut");
+            ui.horizontal(|ui| {
+                let mut near = work.band.is_some();
+                ui.radio_value(&mut near, false, "Whole plane");
+                ui.radio_value(&mut near, true, "Only near the line");
+                let mut width = work.band.unwrap_or(1.0) / scale;
+                ui.add_enabled(near, egui::DragValue::new(&mut width).speed(0.01).range(0.001..=1.0e6).suffix(format!(" {unit} band")));
+                work.band = near.then_some(width * scale);
+            });
+            ui.end_row();
+            ui.label("Values drawn");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut work.draw_normal, false, "In the cut plane");
+                ui.radio_value(&mut work.draw_normal, true, "Square to each element");
             });
             ui.end_row();
             ui.label("Component");
@@ -409,10 +586,11 @@ fn properties(ctx: &egui::Context) {
             if ui.button("OK").clicked() && commit(&work) {
                 close = true;
             }
-            if ui.button("Apply").clicked() && commit(&work) {
-                if let Some(s) = lock(&SELECTED).as_mut().filter(|s| **s == name) {
-                    *s = work.name.clone();
-                }
+            if ui.button("Apply").clicked()
+                && commit(&work)
+                && let Some(s) = lock(&SELECTED).as_mut().filter(|s| **s == name)
+            {
+                *s = work.name.clone();
             }
             if ui.button("Cancel").clicked() {
                 close = true;

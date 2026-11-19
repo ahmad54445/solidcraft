@@ -28,7 +28,47 @@ pub const CUT_AXES: usize = 15;
 pub enum Direction {
     #[default]
     Vertical,
+    /// Phase 1's *along the view direction* (or typed): the line extruded along this direction.
     Along([f64; 3]),
+    /// Horizontal, at the level of point 1 (§12.1).
+    Horizontal,
+    /// Through points 1, 2 and this third point (§12.1).
+    Plane3([f64; 3]),
+}
+
+/// The plane type chosen in the mode (§12.5).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Kind {
+    #[default]
+    Vertical,
+    Horizontal,
+    ThreePoints,
+}
+
+impl Kind {
+    pub const ALL: [Kind; 3] = [Kind::Vertical, Kind::Horizontal, Kind::ThreePoints];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Kind::Vertical => "Vertical (Z)",
+            Kind::Horizontal => "Horizontal",
+            Kind::ThreePoints => "3 points",
+        }
+    }
+
+    /// Clicks it takes.
+    pub fn clicks(self) -> usize {
+        if self == Kind::ThreePoints { 3 } else { 2 }
+    }
+
+    /// The kind a kept cut was made with (Redraw keeps it).
+    pub fn of(d: Direction) -> Kind {
+        match d {
+            Direction::Horizontal => Kind::Horizontal,
+            Direction::Plane3(_) => Kind::ThreePoints,
+            _ => Kind::Vertical,
+        }
+    }
 }
 
 /// One cut (docs/16 C5).
@@ -50,11 +90,15 @@ pub struct Cut {
     /// A value at every element edge, not only ends, max and min.
     pub all_values: bool,
     pub fill: bool,
+    /// Draw the values square to each element (local axis 3) instead of in the cut plane (§12.3).
+    pub draw_normal: bool,
+    /// *Only near the line*: shells within this band width (m) around the drawn line (§12.4).
+    pub band: Option<f64>,
 }
 
 impl Default for Cut {
     fn default() -> Self {
-        Cut { name: String::new(), model: String::new(), p1: [0.0; 3], p2: [0.0; 3], direction: Direction::Vertical, component: None, scale_px: 60.0, text: true, all_values: false, fill: true }
+        Cut { name: String::new(), model: String::new(), p1: [0.0; 3], p2: [0.0; 3], direction: Direction::Vertical, component: None, scale_px: 60.0, text: true, all_values: false, fill: true, draw_normal: false, band: None }
     }
 }
 
@@ -80,7 +124,8 @@ fn lerp(a: [f64; 3], b: [f64; 3], t: f64) -> [f64; 3] {
     [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t]
 }
 
-/// The cut's frame: along the line `u`, the extrusion `d`, the plane's normal `n`, the length.
+/// The cut's frame (§12.2): along the line `u`, in the plane square to the line `d = n × u`, the
+/// plane's normal `n`, the length, and the band around the line (§12.4).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Frame {
     pub origin: [f64; 3],
@@ -88,6 +133,7 @@ pub struct Frame {
     pub d: [f64; 3],
     pub n: [f64; 3],
     pub length: f64,
+    pub band: Option<f64>,
 }
 
 impl Cut {
@@ -96,15 +142,38 @@ impl Cut {
         if self.p1.iter().chain(&self.p2).any(|v| !v.is_finite()) {
             return None;
         }
-        let d = match self.direction {
-            Direction::Vertical => [0.0, 0.0, 1.0],
-            Direction::Along(v) => unit(v)?,
-        };
+        let band = self.band.filter(|b| b.is_finite() && *b > 0.0);
         let line = sub(self.p2, self.p1);
-        let along = sub(line, scaled(d, dot(line, d)));
-        let length = dot(along, along).sqrt();
-        let u = unit(along)?;
-        (length > 1e-9).then_some(Frame { origin: self.p1, u, d, n: cross(u, d), length })
+        // A line extruded along `e`: the line without its `e` part, normal u × e.
+        let extruded = |e: [f64; 3]| -> Option<Frame> {
+            let along = sub(line, scaled(e, dot(line, e)));
+            let length = dot(along, along).sqrt();
+            let u = unit(along)?;
+            (length > 1e-9).then_some(Frame { origin: self.p1, u, d: e, n: cross(u, e), length, band })
+        };
+        const Z: [f64; 3] = [0.0, 0.0, 1.0];
+        match self.direction {
+            Direction::Vertical => extruded(Z),
+            Direction::Along(v) => extruded(unit(v)?),
+            Direction::Horizontal => {
+                let f = extruded(Z)?;
+                Some(Frame { n: Z, d: cross(Z, f.u), ..f })
+            }
+            Direction::Plane3(p3) => {
+                if p3.iter().any(|v| !v.is_finite()) {
+                    return None;
+                }
+                let length = dot(line, line).sqrt();
+                let u = unit(line)?;
+                let normal = cross(line, sub(p3, self.p1));
+                // 3 points (nearly) in one line give no plane.
+                if dot(normal, normal).sqrt() <= 1e-9 * length * length.max(1.0) {
+                    return None;
+                }
+                let n = unit(normal)?;
+                (length > 1e-9).then_some(Frame { origin: self.p1, u, d: cross(n, u), n, length, band })
+            }
+        }
     }
 }
 
@@ -222,6 +291,14 @@ fn triangle_piece(e: usize, t: &[usize; 3], pts: &[[f64; 3]; 4], dist: &[f64; 4]
     let (s0, s1) = (sa.max(0.0), sb.min(f.length));
     let (p0, w0) = clip(s0);
     let (p1, w1) = clip(s1);
+    // Only near the line (§12.4): the piece's middle within half the band of the line.
+    if let Some(b) = f.band {
+        let r = sub(lerp(p0, p1, 0.5), f.origin);
+        let off = sub(r, scaled(f.u, dot(r, f.u)));
+        if dot(off, off).sqrt() > b / 2.0 {
+            return None;
+        }
+    }
     Some(Piece { shell: e, s: [s0, s1], at: [p0, p1], w: [w0, w1] })
 }
 
@@ -505,11 +582,19 @@ pub fn show_in_view(name: &str, shown: bool) {
 
 // ---- Cut Diagram mode (C1) ----
 
-/// The mode: on, the cut being redrawn (or a new one), the first point when clicked.
+/// The mode: the cut being redrawn (or a new one), the plane type, the points clicked so far.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Mode {
     pub redraw: Option<String>,
-    pub first: Option<[f64; 3]>,
+    pub kind: Kind,
+    pub points: Vec<[f64; 3]>,
+}
+
+impl Mode {
+    /// Redraw cut `name` with the type it was made with.
+    pub fn redraw(name: &str) -> Mode {
+        Mode { redraw: Some(name.to_string()), kind: get(name).map(|c| Kind::of(c.direction)).unwrap_or_default(), points: Vec::new() }
+    }
 }
 
 static MODE: LazyLock<Mutex<Option<Mode>>> = LazyLock::new(|| Mutex::new(None));
@@ -524,24 +609,46 @@ pub fn set_mode(m: Option<Mode>) {
     results_view::repaint();
 }
 
-/// A click in the mode at `p` (m), with the view direction `view_dir` (for `Along` cuts only).
-/// The second click makes (or redraws) the cut and leaves the mode; returns its name.
-pub fn click(p: [f64; 3], vertical: bool, view_dir: [f64; 3]) -> Option<String> {
+/// A click in the mode at `p` (m). The last click of the plane type (2, or 3 for *3 points*) makes
+/// (or redraws) the cut and leaves the mode; returns its name. A last click that makes no cut
+/// (points equal or in one line) is dropped and the mode stays.
+pub fn click(p: [f64; 3]) -> Option<String> {
     let mut m = mode()?;
-    let Some(first) = m.first else {
-        m.first = Some(p);
+    m.points.push(p);
+    if m.points.len() < m.kind.clicks() {
         set_mode(Some(m));
         return None;
+    }
+    let (p1, p2) = (m.points[0], m.points[1]);
+    let direction = match m.kind {
+        Kind::Vertical => Direction::Vertical,
+        Kind::Horizontal => Direction::Horizontal,
+        Kind::ThreePoints => Direction::Plane3(p),
     };
-    let direction = if vertical { Direction::Vertical } else { Direction::Along(view_dir) };
     let made = match &m.redraw {
-        Some(name) => get(name).and_then(|c| replace(name, Cut { p1: first, p2: p, direction, ..c }).then(|| name.clone())),
-        None => add(None, first, p, direction),
+        Some(name) => get(name).and_then(|c| replace(name, Cut { p1, p2, direction, ..c }).then(|| name.clone())),
+        None => add(None, p1, p2, direction),
     };
     if made.is_some() {
         set_mode(None);
+    } else {
+        m.points.pop();
+        set_mode(Some(m));
     }
     made
+}
+
+/// *Global plane* (§12.1): the points and direction of a cut in plane `plane` ("XY", "XZ", "YZ")
+/// at `at` (m), from `from` to `to` along the plane's axis (XZ: X, YZ: Y, XY: `axis` X or Y), the
+/// line placed at `other` (m) on the remaining axis. `None` for an unknown plane or axis.
+pub fn global(plane: &str, at: f64, axis: char, from: f64, to: f64, other: f64) -> Option<([f64; 3], [f64; 3], Direction)> {
+    match (plane.to_ascii_uppercase().as_str(), axis.to_ascii_uppercase()) {
+        ("XZ", _) => Some(([from, at, other], [to, at, other], Direction::Vertical)),
+        ("YZ", _) => Some(([at, from, other], [at, to, other], Direction::Vertical)),
+        ("XY", 'X') => Some(([from, other, at], [to, other, at], Direction::Horizontal)),
+        ("XY", 'Y') => Some(([other, from, at], [other, to, at], Direction::Horizontal)),
+        _ => None,
+    }
 }
 
 // ---- commands (R8) ----
@@ -568,13 +675,27 @@ pub fn mode_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     Ok(json!({ "mode": on }))
 }
 
-/// `factory.cut.new`: a cut from `p1` to `p2` (m); `direction`: "vertical" (default) or [x, y, z].
+/// `factory.cut.new`: a cut from `p1` to `p2` (m) – `type`: "vertical" (default), "horizontal",
+/// "3points" (with `p3`), or `direction` [x, y, z]; or by a global plane: `plane` XY | XZ | YZ,
+/// `at`, `from`, `to`, `axis`? (X | Y, for XY), `other`? (m, default 0) (§12.5).
 pub fn new_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
-    let (p1, p2) = (point(params, "p1")?, point(params, "p2")?);
-    let direction = match params.get("direction") {
-        None => Direction::Vertical,
-        Some(Value::String(s)) if s.eq_ignore_ascii_case("vertical") => Direction::Vertical,
-        Some(v) => Direction::Along(point(&json!({ "d": v }), "d")?),
+    let num = |k: &str| params.get(k).and_then(Value::as_f64).filter(|v| v.is_finite()).ok_or_else(|| custom_bridge::Error(format!("give {k} (m)")));
+    let (p1, p2, direction) = if let Some(plane) = params.get("plane").and_then(Value::as_str) {
+        let axis = params.get("axis").and_then(Value::as_str).and_then(|a| a.chars().next()).unwrap_or('X');
+        let other = params.get("other").and_then(Value::as_f64).filter(|v| v.is_finite()).unwrap_or(0.0);
+        global(plane, num("at")?, axis, num("from")?, num("to")?, other).ok_or_else(|| custom_bridge::Error(format!("plane {plane:?}: XY, XZ or YZ; axis X or Y")))?
+    } else {
+        let (p1, p2) = (point(params, "p1")?, point(params, "p2")?);
+        let kind = params.get("type").and_then(Value::as_str).map(str::to_ascii_lowercase);
+        let direction = match (kind.as_deref(), params.get("direction")) {
+            (Some("horizontal"), _) => Direction::Horizontal,
+            (Some("3points"), _) => Direction::Plane3(point(params, "p3")?),
+            (Some("vertical"), _) | (None, None) => Direction::Vertical,
+            (None, Some(Value::String(s))) if s.eq_ignore_ascii_case("vertical") => Direction::Vertical,
+            (None, Some(v)) => Direction::Along(point(&json!({ "d": v }), "d")?),
+            (Some(t), _) => return Err(custom_bridge::Error(format!("type {t:?}: vertical, horizontal or 3points"))),
+        };
+        (p1, p2, direction)
     };
     let name = params.get("name").and_then(Value::as_str);
     let made = add(name, p1, p2, direction).ok_or_else(|| custom_bridge::Error("no cut: equal points, the line along the direction, or the name is taken".into()))?;
@@ -603,7 +724,8 @@ pub fn show_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     report()
 }
 
-/// `factory.cut.set`: component (name, or "window"), scale (px), text, fill, all_values.
+/// `factory.cut.set`: component (name, or "window"), scale (px), text, fill, all_values,
+/// draw_normal, band (m; 0 = the whole plane).
 pub fn set_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     let mut c = cut_param(params)?;
     if let Some(name) = params.get("component").and_then(Value::as_str) {
@@ -619,7 +741,10 @@ pub fn set_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
         }
         c.scale_px = px as f32;
     }
-    for (key, slot) in [("text", &mut c.text), ("fill", &mut c.fill), ("all_values", &mut c.all_values)] {
+    if let Some(b) = params.get("band").and_then(Value::as_f64) {
+        c.band = (b.is_finite() && b > 0.0).then_some(b);
+    }
+    for (key, slot) in [("text", &mut c.text), ("fill", &mut c.fill), ("all_values", &mut c.all_values), ("draw_normal", &mut c.draw_normal)] {
         if let Some(b) = params.get(key).and_then(Value::as_bool) {
             *slot = b;
         }
