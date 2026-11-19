@@ -60,6 +60,7 @@ pub fn draw(ui: &mut egui::Ui) {
         });
     });
     crate::ui_browser::windows(ui.ctx());
+    crate::ui_cut::windows(ui.ctx()); // Cut Diagram Properties / Table (docs/16)
     crate::ui_csi::show(ui.ctx());
     crate::ui_panels::show(ui.ctx());
 }

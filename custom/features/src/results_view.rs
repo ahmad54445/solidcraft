@@ -5,6 +5,7 @@
 //! values, VMax) and nodal averages are computed in one pass over the flat columns (P2, P3).
 
 #[cfg(feature = "ui")]
+use std::collections::HashMap;
 use std::collections::BTreeMap;
 use std::sync::{Arc, LazyLock, OnceLock, PoisonError, RwLock};
 
@@ -779,6 +780,63 @@ fn shell_corner_values(g: &Geometry, b: &Block, component: usize, step: Step) ->
         }
     }
     Ok((out, envelope))
+}
+
+/// The 8 stored values (F11 … V23, SI) per corner of the shells in `elements` – the Cut Diagram's
+/// input (docs/16 R2). One pass over the block; only the wanted elements are kept. `nodal`: each
+/// corner gets the mean at its joint over every element `counts(e)` meeting there (as the contour's
+/// Avg. Nodal, rule P3).
+pub(crate) fn shell_corner_tensors(g: &Geometry, block: &ResultBlock, step: Step, nodal: bool, counts: &dyn Fn(usize) -> bool, elements: &[usize]) -> Result<HashMap<usize, [[f64; 8]; 4]>, String> {
+    let b = Block::read(block)?;
+    let (e, j, k, n) = (b.named("element"), b.named("joint"), b.named("step_type"), b.named("step_num"));
+    let columns: Option<Vec<(usize, bool)>> = (4..12).map(|c| b.column(c)).collect();
+    let (Some(e), Some(j), Some(k), Some(n), Some(columns)) = (e, j, k, n, columns) else {
+        return Err("shell result block is missing columns".into());
+    };
+    let read = |r: usize| {
+        let mut v = [0.0f64; 8];
+        for (slot, c) in v.iter_mut().zip(&columns) {
+            *slot = b.f64(*c, r);
+        }
+        v
+    };
+    let (keep, _) = step_filter(&b, k, n, step);
+    let mut out: HashMap<usize, [[f64; 8]; 4]> = elements.iter().filter(|e| **e < g.shells.len()).map(|e| (*e, [[0.0; 8]; 4])).collect();
+    let mut joints: HashMap<u32, ([f64; 8], u32)> = HashMap::new();
+    if nodal {
+        for el in out.keys() {
+            for jt in g.shells[*el][..4].iter().filter(|j| **j != u32::MAX) {
+                joints.insert(*jt, ([0.0; 8], 0));
+            }
+        }
+    }
+    for r in (0..b.rows).filter(|r| keep(*r)) {
+        let (el, jt) = (b.u32(e, r) as usize, b.u32(j, r));
+        if nodal {
+            if counts(el)
+                && let Some((sum, count)) = joints.get_mut(&jt)
+            {
+                for (s, v) in sum.iter_mut().zip(read(r)) {
+                    *s += v;
+                }
+                *count += 1;
+            }
+        } else if let (Some(o), Some(s)) = (out.get_mut(&el), g.shells.get(el))
+            && let Some(c) = s[..4].iter().position(|x| *x == jt)
+        {
+            o[c] = read(r);
+        }
+    }
+    if nodal {
+        for (el, o) in out.iter_mut() {
+            for (c, slot) in o.iter_mut().enumerate() {
+                if let Some((sum, count)) = joints.get(&g.shells[*el][c]).filter(|(_, n)| *n > 0) {
+                    *slot = sum.map(|v| v / f64::from(*count));
+                }
+            }
+        }
+    }
+    Ok(out)
 }
 
 /// Frame values per element as (station from I-end in m, value), sorted by station.

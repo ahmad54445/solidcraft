@@ -202,7 +202,8 @@ fn borders(ui: &mut egui::Ui, full: egui::Rect, w: &Windows) {
 }
 
 /// Over an inactive window: its own legend, and whether its result is still being built.
-pub fn overlay(ui: &mut egui::Ui, tile: u64, area: egui::Rect, _view: &ViewInfo<'_>) {
+pub fn overlay(ui: &mut egui::Ui, tile: u64, area: egui::Rect, view: &ViewInfo<'_>) {
+    crate::ui_cut::overlay_tile(ui, tile, area, view); // Cut Diagrams of this window (docs/16)
     let w = windows::current();
     let Some(saved) = w.windows.iter().find(|x| x.id == tile).and_then(|x| x.saved.as_ref()) else { return };
     if saved.settings.legend {

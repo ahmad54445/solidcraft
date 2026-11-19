@@ -469,6 +469,11 @@ fn view_tab(ui: &mut egui::Ui, s: &mut Settings) {
             ui.add_enabled(s.view.fill, egui::Checkbox::new(&mut s.view.edges, "Show Edges"))
                 .on_hover_text("Element edges in the Shells line colour (Model Categories).");
         });
+        ui.group(|ui| {
+            ui.strong("Cut Diagram");
+            ui.radio_value(&mut s.cut_plain, false, "Result ramp");
+            ui.radio_value(&mut s.cut_plain, true, "Plain (+ blue, − red)");
+        });
     });
     ui.weak("Computed from the transferred geometry on a worker thread – nothing is read from CSiBridge again.");
 }

@@ -843,6 +843,8 @@ pub struct Stored {
     pub seeded: bool,
     /// SolidCraft's named views and their templates (docs/15 §10).
     pub named_templates: Vec<(String, String)>,
+    /// The Cut Diagrams of every model (docs/16 §4).
+    pub cuts: Vec<crate::cut::Cut>,
 }
 
 /// The windows and templates as they would be stored now.
@@ -856,6 +858,7 @@ pub fn stored() -> Stored {
         views: w.views.clone(),
         shown: w.windows.iter().map(|x| x.view.clone()).collect(),
         named_templates: w.named_templates.clone(),
+        cuts: crate::cut::all(),
         seeded: SEEDED.load(std::sync::atomic::Ordering::Relaxed),
         layout: w.layout.key().to_string(),
         splits: w.splits,
@@ -871,6 +874,7 @@ pub fn restore(st: &Stored) {
     let layout = Layout::from_key(&st.layout).unwrap_or_default();
     let n = st.windows.len().max(st.shown.len()).clamp(1, MAX_WINDOWS).min(layout.zones().max(1));
     *TEMPLATES.write().unwrap_or_else(PoisonError::into_inner) = st.templates.clone();
+    crate::cut::set_all(st.cuts.clone());
     SEEDED.store(st.seeded, std::sync::atomic::Ordering::Relaxed);
     reset();
     // The views; a file of §14 (no views) gets one view per window from its states.
@@ -1000,6 +1004,7 @@ fn fingerprint() -> u64 {
         (&v.name, &v.template).hash(&mut h);
     }
     w.named_templates.hash(&mut h);
+    crate::cut::version().hash(&mut h);
     h.finish()
 }
 

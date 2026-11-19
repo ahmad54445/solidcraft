@@ -31,7 +31,8 @@ pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     if flags.legend {
         legend(ui, area);
     }
-    value_snap(ui, area, view);
+    let hit = value_snap(ui, area, view);
+    crate::ui_cut::overlay(ui, area, view, hit); // Cut Diagram (docs/16)
 }
 
 /// One text block in the view: lines (text, colour) stacked around a world anchor, lifted toward
@@ -217,11 +218,11 @@ fn shell_centre(g: &crate::transfer::Geometry, e: usize) -> [f64; 3] {
 /// is – the corner value near a corner (square marker), else the value interpolated at the point
 /// (round marker); "no result" / "not contoured" when the shell has none; frame stations win when
 /// nearer. Second line: element and component (or section when no result is chosen).
-fn value_snap(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
-    let Some(cursor) = ui.input(|i| i.pointer.hover_pos()).filter(|p| area.contains(*p)) else { return };
+fn value_snap(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) -> Option<[f64; 3]> {
+    let Some(cursor) = ui.input(|i| i.pointer.hover_pos()).filter(|p| area.contains(*p)) else { return None };
     let geometry = crate::transfer::geometry();
     if geometry.shells.is_empty() && geometry.frames.is_empty() {
-        return;
+        return None;
     }
     let data = results_view::snap_data();
     let project = |p: [f64; 3]| (view.project)(p).map(|s| [s.x, s.y]);
@@ -244,8 +245,8 @@ fn value_snap(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
             index
         }
     };
-    let Some(hit) = results_view::snap_indexed(&geometry, &data, &index, [cursor.x, cursor.y], &project, view.eye, 10.0) else { return };
-    let Some(at) = (view.project)(hit.at) else { return };
+    let Some(hit) = results_view::snap_indexed(&geometry, &data, &index, [cursor.x, cursor.y], &project, view.eye, 10.0) else { return None };
+    let Some(at) = (view.project)(hit.at) else { return None };
     let painter = ui.painter_at(area);
     let orange = egui::Color32::from_rgb(240, 130, 30);
     if hit.corner {
@@ -275,6 +276,7 @@ fn value_snap(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>) {
     pos.y = pos.y.max(area.top() + 4.0).min(area.bottom() - size.y - 4.0);
     painter.rect_filled(egui::Rect::from_min_size(pos, size).expand(2.0), 2.0, egui::Color32::from_rgba_unmultiplied(255, 255, 255, 220));
     painter.galley(pos, galley, egui::Color32::BLACK);
+    Some(hit.at)
 }
 
 /// The legend: one colour bar per shown layer, at the right edge of the 3D view.
