@@ -479,6 +479,12 @@ fn view_tab(ui: &mut egui::Ui, s: &mut Settings) {
                 ui.radio_value(&mut s.cut_flip, false, "Up").on_hover_text("Toward +d: up for a vertical cut, left of the line for a horizontal one, toward point 3 for 3 points");
                 ui.radio_value(&mut s.cut_flip, true, "Down").on_hover_text("The other side: every cut in this view");
             });
+            ui.separator();
+            ui.label("Section");
+            ui.horizontal(|ui| {
+                ui.radio_value(&mut s.cut_section_line, false, "Shape").on_hover_text("The section the cut makes: each shell cut, widened to its thickness, transparent");
+                ui.radio_value(&mut s.cut_section_line, true, "Line only").on_hover_text("Only the cut line and its Section ID");
+            });
         });
     });
     ui.weak("Computed from the transferred geometry on a worker thread – nothing is read from CSiBridge again.");

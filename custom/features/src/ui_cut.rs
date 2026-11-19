@@ -1,6 +1,6 @@
 //! Cut Diagram on screen (docs/16): the mode's clicks (C1), the diagram over each display window
-//! (C3), the Browser rows under Structure (C4), Properties (C5) and the table (C6). The numbers
-//! come from [`crate::cut`].
+//! (C3) with its section and Section ID (§14), Select Cuts (§14.3), the Browser rows under
+//! Structure (C4), Properties (C5) and the table (C6). The numbers come from [`crate::cut`].
 
 use std::sync::{Arc, Mutex, PoisonError};
 
@@ -12,8 +12,8 @@ use crate::cut::{self, CUT_COMPONENTS, Cut, Diagram, Direction};
 use crate::results_view::{self, Choice, SnapData};
 use crate::{model, transfer, vv};
 
-/// The cut chosen in the Browser (drawn thicker).
-static SELECTED: Mutex<Option<String>> = Mutex::new(None);
+/// Select Cuts (§14.3): the line's points on the screen so far.
+static PICK_LINE: Mutex<Vec<egui::Pos2>> = Mutex::new(Vec::new());
 /// Properties: (the cut's name when opened, the working copy).
 static PROPERTIES: Mutex<Option<(String, Cut)>> = Mutex::new(None);
 /// The table window's cut.
@@ -43,8 +43,10 @@ fn lock<T>(m: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
 /// snap radius, else the point on the shell), used as the clicked point.
 pub fn overlay(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, hit: Option<[f64; 3]>) {
     let s = vv::settings();
-    draw_all(ui, area, view, &results_view::shown().choice, &results_view::snap_data(), &s);
+    let (choice, snap) = (results_view::shown().choice, results_view::snap_data());
+    draw_all(ui, area, view, &choice, &snap, &s);
     mode(ui, area, view, hit);
+    pick(ui, area, view, &choice, &snap, &s);
 }
 
 /// Over an inactive display window `tile` (docs/14): its own result and V/G.
@@ -55,12 +57,12 @@ pub fn overlay_tile(ui: &mut egui::Ui, tile: u64, area: egui::Rect, view: &ViewI
 }
 
 fn draw_all(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, choice: &Choice, snap: &Arc<SnapData>, s: &vv::Settings) {
-    let selected = lock(&SELECTED).clone();
+    let selected = cut::selection();
     for c in cut::cuts().iter().filter(|c| !s.cuts_hidden.contains(&c.name)) {
-        let sel = selected.as_deref() == Some(c.name.as_str());
+        let sel = selected.contains(&c.name);
         match cut::diagram_for(c, choice, snap) {
             Some(d) => match d.as_ref() {
-                Ok(d) => draw(ui, area, view, c, d, s.cut_plain, s.cut_flip, sel),
+                Ok(d) => draw(ui, area, view, c, d, s, sel),
                 Err(e) => note(ui, area, view, c, e),
             },
             None => note(ui, area, view, c, "computing …"),
@@ -124,8 +126,100 @@ fn mode(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, hit: Option<[f
         && let Some(p) = hit
         && let Some(name) = cut::click(p)
     {
-        *lock(&SELECTED) = Some(name);
+        cut::select(&[name], cut::How::Replace);
     }
+}
+
+/// Select Cuts (§14.3): click points of a line, double-click or Enter selects the shown cuts it
+/// crosses (their section, or the cut line); Shift adds, Ctrl removes; Esc clears, then leaves.
+fn pick(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, choice: &Choice, snap: &Arc<SnapData>, s: &vv::Settings) {
+    if !cut::picking() {
+        lock(&PICK_LINE).clear();
+        return;
+    }
+    let typing = ui.ctx().text_edit_focused();
+    let (hover, clicked, double, enter, esc, mods) = ui.input(|i| {
+        (
+            i.pointer.hover_pos(),
+            i.pointer.primary_clicked(),
+            i.pointer.button_double_clicked(egui::PointerButton::Primary),
+            !typing && i.key_pressed(egui::Key::Enter),
+            !typing && i.key_pressed(egui::Key::Escape),
+            i.modifiers,
+        )
+    });
+    let on_view = hover.filter(|p| area.contains(*p) && view.pointer_on_view);
+    let mut line = lock(&PICK_LINE).clone();
+    if esc {
+        if line.is_empty() {
+            cut::set_picking(false);
+        }
+        lock(&PICK_LINE).clear();
+        return;
+    }
+    if clicked && let Some(p) = on_view
+        && line.last().is_none_or(|q| q.distance(p) > 2.0)
+    {
+        line.push(p);
+    }
+    if (double || enter) && line.len() >= 2 {
+        let flat = |p: egui::Pos2| [f64::from(p.x), f64::from(p.y)];
+        let shapes: Vec<(String, Vec<Vec<[f64; 2]>>)> = cut::cuts()
+            .into_iter()
+            .filter(|c| !s.cuts_hidden.contains(&c.name))
+            .map(|c| {
+                let d = cut::diagram_for(&c, choice, snap);
+                let d = d.as_deref().and_then(|r| r.as_ref().ok());
+                let sh = cut::pick_shapes(&c, d, s.cut_section_line).iter().filter_map(|q| q.iter().map(|p| (view.project)(*p).map(flat)).collect::<Option<Vec<_>>>()).collect();
+                (c.name, sh)
+            })
+            .collect();
+        let pts: Vec<[f64; 2]> = line.iter().map(|p| flat(*p)).collect();
+        let how = if mods.shift {
+            cut::How::Add
+        } else if mods.command || mods.ctrl {
+            cut::How::Remove
+        } else {
+            cut::How::Replace
+        };
+        cut::select(&cut::hit_cuts(&pts, &shapes), how);
+        line.clear();
+    }
+    let painter = ui.painter_at(area);
+    let amber = egui::Color32::from_rgb(255, 196, 0);
+    for p in &line {
+        painter.rect_filled(egui::Rect::from_center_size(*p, egui::vec2(6.0, 6.0)), 0.0, amber);
+    }
+    let mut drawn = line.clone();
+    if let Some(p) = on_view.filter(|_| !line.is_empty()) {
+        drawn.push(p);
+    }
+    if drawn.len() >= 2 {
+        painter.add(egui::Shape::dashed_line(&drawn, egui::Stroke::new(2.0, amber), 8.0, 5.0));
+    }
+    *lock(&PICK_LINE) = line;
+    let chosen: Vec<String> = cut::selection().iter().filter_map(|n| cut::get(n)).map(|c| cut::id_text(c.id)).collect();
+    egui::Area::new(egui::Id::unique("factory_cut_pick")).order(egui::Order::Foreground).fixed_pos(area.left_top() + egui::vec2(12.0, 12.0)).show(ui.ctx(), |ui| {
+        egui::Frame::popup(ui.style()).show(ui, |ui| {
+            ui.strong("Select Cuts: click points of a line across the cuts");
+            ui.weak("Double-click or Enter selects · Shift adds · Ctrl removes · Esc leaves");
+            ui.horizontal(|ui| {
+                ui.label("Section ID");
+                let mut letters = cut::letters();
+                ui.radio_value(&mut letters, false, "S1, S2");
+                ui.radio_value(&mut letters, true, "A–A, B–B");
+                if letters != cut::letters() {
+                    cut::set_letters(letters);
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.label(if chosen.is_empty() { "Selected: –".to_string() } else { format!("Selected: {}", chosen.join(", ")) });
+                if !chosen.is_empty() && ui.small_button("Clear").clicked() {
+                    cut::select(&[], cut::How::Replace);
+                }
+            });
+        });
+    });
 }
 
 // ---- drawing (C3) ----
@@ -191,14 +285,55 @@ fn element_dir(view: &ViewInfo<'_>, g: &crate::transfer::Geometry, e: usize, at:
     screen_dir(view, at, a3.map(|x| x * side), f.length).unwrap_or(fallback)
 }
 
-#[allow(clippy::too_many_arguments)]
-fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &Diagram, plain: bool, flip: bool, selected: bool) {
+/// The section's colour (§14.2) and the selection colour (docs/13).
+const SECTION: egui::Color32 = egui::Color32::from_rgb(0, 150, 170);
+const SELECTION: egui::Color32 = egui::Color32::from_rgb(255, 196, 0);
+
+/// The section (§14.2): every slab filled transparent with an outline.
+fn draw_section(painter: &egui::Painter, view: &ViewInfo<'_>, d: &Diagram, selected: bool) {
+    let mut mesh = egui::Mesh::default();
+    let fill = egui::Color32::from_rgba_unmultiplied(SECTION.r(), SECTION.g(), SECTION.b(), 40);
+    let stroke = if selected { egui::Stroke::new(2.0, SELECTION) } else { egui::Stroke::new(1.0, SECTION) };
+    for s in &d.section {
+        let Some(q) = s.quad.iter().map(|p| (view.project)(*p)).collect::<Option<Vec<_>>>() else { continue };
+        let i = mesh.vertices.len() as u32;
+        for p in &q {
+            mesh.colored_vertex(*p, fill);
+        }
+        mesh.add_triangle(i, i + 1, i + 2);
+        mesh.add_triangle(i, i + 2, i + 3);
+        painter.add(egui::Shape::closed_line(q, stroke));
+    }
+    painter.add(egui::Shape::mesh(mesh));
+}
+
+/// The Section ID at both ends of the cut line, just outside it (§14.1).
+fn draw_tags(painter: &egui::Painter, a: egui::Pos2, b: egui::Pos2, c: &Cut, selected: bool) {
+    let along = if (b - a).length() > 1.0 { (b - a).normalized() } else { egui::vec2(1.0, 0.0) };
+    let tag = cut::id_tag(c.id);
+    let font = egui::FontId::proportional(13.0);
+    let colour = if selected { SELECTION } else { SECTION };
+    for (p, k) in [(a, -1.0), (b, 1.0)] {
+        let at = p + along * (14.0 * k);
+        let r = painter.text(at, egui::Align2::CENTER_CENTER, &tag, font.clone(), egui::Color32::WHITE);
+        painter.rect_filled(r.expand(3.0), 3.0, colour);
+        painter.text(at, egui::Align2::CENTER_CENTER, &tag, font.clone(), egui::Color32::WHITE);
+    }
+}
+
+fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &Diagram, s: &vv::Settings, selected: bool) {
+    let (plain, flip) = (s.cut_plain, s.cut_flip);
     let painter = ui.painter_at(area);
     let ink = ui.visuals().text_color();
     let Some(f) = d.frame else { return };
     let (e1, e2) = ends(&f);
     let (Some(a), Some(b)) = ((view.project)(e1), (view.project)(e2)) else { return };
-    painter.line_segment([a, b], egui::Stroke::new(if selected { 3.0 } else { 1.5 }, ink.gamma_multiply(0.7)));
+    // V/G › Cut Diagram › Section: Shape draws the section the cut makes (docs/16 §14.2).
+    if !s.cut_section_line {
+        draw_section(&painter, view, d, selected);
+    }
+    painter.line_segment([a, b], egui::Stroke::new(if selected { 3.0 } else { 1.5 }, if selected { SELECTION } else { ink.gamma_multiply(0.7) }));
+    draw_tags(&painter, a, b, c, selected);
     let Some(base) = offset_dir(view, &f) else { return };
     // V/G › Cut Diagram › Positive drawn: Down turns every direction over (docs/16 §13).
     let sign = if flip { -1.0 } else { 1.0 };
@@ -259,7 +394,7 @@ fn draw(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, d: &D
         }
     }
     let comp = CUT_COMPONENTS.get(d.component).copied().unwrap_or("");
-    let mut title = format!("{} · {comp} [{}]", c.name, d.unit);
+    let mut title = format!("{} · {} · {comp} [{}]", cut::id_text(c.id), c.name, d.unit);
     if let Some((r, u)) = &d.resultant {
         title.push_str(&format!("   ∫ = {} {u}", fmt(*r)));
     }
@@ -275,7 +410,8 @@ fn note(ui: &mut egui::Ui, area: egui::Rect, view: &ViewInfo<'_>, c: &Cut, text:
     let painter = ui.painter_at(area);
     let ink = ui.visuals().text_color();
     painter.line_segment([a, b], egui::Stroke::new(1.5, ink.gamma_multiply(0.7)));
-    painter.text(b + egui::vec2(6.0, 6.0), egui::Align2::LEFT_TOP, format!("{}: {text}", c.name), egui::FontId::proportional(11.0), ui.visuals().weak_text_color());
+    draw_tags(&painter, a, b, c, false);
+    painter.text(b + egui::vec2(6.0, 6.0), egui::Align2::LEFT_TOP, format!("{} · {}: {text}", cut::id_text(c.id), c.name), egui::FontId::proportional(11.0), ui.visuals().weak_text_color());
 }
 
 // ---- Browser (C4) ----
@@ -306,17 +442,23 @@ pub fn rows(ui: &mut egui::Ui, depth: usize) {
         ui.data_mut(|d| d.insert_temp(menu_id(), (at, Menu::Folder)));
     }
     if open && !r.toggled {
-        let selected = lock(&SELECTED).clone();
+        let selected = cut::selection();
         for c in &list {
             let shown = cut::shown_in_view(&c.name);
             let comp = c.component.and_then(|k| CUT_COMPONENTS.get(k).copied()).unwrap_or("window");
-            let label = if selected.as_deref() == Some(c.name.as_str()) { format!("▸ {}", c.name) } else { c.name.clone() };
+            let id = cut::id_text(c.id);
+            let label = if selected.contains(&c.name) { format!("▸ {id} · {}", c.name) } else { format!("{id} · {}", c.name) };
             let rr = tree_row_eye(ui, &format!("cut_diagrams/{}", c.name), depth + 1, None, "line", &label, comp, shown);
             if rr.eye {
                 cut::show_in_view(&c.name, !shown);
             } else if rr.clicked {
-                *lock(&SELECTED) = Some(c.name.clone());
-                results_view::repaint();
+                let (shift, ctrl) = ui.input(|i| (i.modifiers.shift, i.modifiers.command || i.modifiers.ctrl));
+                let one = [c.name.clone()];
+                match (shift, ctrl, selected.contains(&c.name)) {
+                    (true, _, _) | (_, true, false) => cut::select(&one, cut::How::Add),
+                    (_, true, true) => cut::select(&one, cut::How::Remove),
+                    _ => cut::select(&one, cut::How::Replace),
+                }
             }
             if let Some(at) = rr.context_at {
                 ui.data_mut(|d| d.insert_temp(menu_id(), (at, Menu::Cut(c.name.clone()))));
@@ -339,6 +481,16 @@ fn menu(ui: &mut egui::Ui) {
                 }
                 if ui.button("New by Global Plane…").on_hover_text("XY, XZ or YZ at a typed value").clicked() {
                     *lock(&GLOBAL_FORM) = Some(GlobalForm { along_x: true, plane: 1, to: 10.0, ..GlobalForm::default() });
+                    done = true;
+                }
+                if ui.button("Select Cuts").on_hover_text("Draw a line across cuts: their Section IDs are selected").clicked() {
+                    cut::set_picking(true);
+                    done = true;
+                }
+                ui.separator();
+                let letters = cut::letters();
+                if ui.button(if letters { "Section ID: S1, S2 …" } else { "Section ID: A–A, B–B …" }).on_hover_text("How the Section IDs are shown (the IDs stay the same)").clicked() {
+                    cut::set_letters(!letters);
                     done = true;
                 }
             }
@@ -446,7 +598,7 @@ fn global_form(ctx: &egui::Context) {
                 let axis = if f.along_x { 'X' } else { 'Y' };
                 match cut::global(plane, f.at * scale, axis, f.from * scale, f.to * scale, f.other * scale).and_then(|(p1, p2, d)| cut::add(None, p1, p2, d)) {
                     Some(name) => {
-                        *lock(&SELECTED) = Some(name);
+                        cut::select(&[name], cut::How::Replace);
                         close = true;
                     }
                     None => error = Some("No cut: from and to are equal."),
@@ -483,8 +635,11 @@ fn properties(ctx: &egui::Context) {
     let mut open = true;
     let mut close = false;
     let mut error = None;
-    egui::Window::new(format!("Cut Diagram – {name}")).id(egui::Id::unique("factory_cut_properties")).open(&mut open).resizable(false).show(ctx, |ui| {
+    egui::Window::new(format!("Cut Diagram – {} · {name}", cut::id_text(work.id))).id(egui::Id::unique("factory_cut_properties")).open(&mut open).resizable(false).show(ctx, |ui| {
         egui::Grid::new("factory_cut_props").num_columns(2).show(ui, |ui| {
+            ui.label("Section ID");
+            ui.label(cut::id_text(work.id)).on_hover_text("Fixed: given when the cut was made, never reused (docs/16 §14.1)");
+            ui.end_row();
             ui.label("Name");
             ui.text_edit_singleline(&mut work.name);
             ui.end_row();
@@ -590,11 +745,8 @@ fn properties(ctx: &egui::Context) {
             if ui.button("OK").clicked() && commit(&work) {
                 close = true;
             }
-            if ui.button("Apply").clicked()
-                && commit(&work)
-                && let Some(s) = lock(&SELECTED).as_mut().filter(|s| **s == name)
-            {
-                *s = work.name.clone();
+            if ui.button("Apply").clicked() {
+                commit(&work);
             }
             if ui.button("Cancel").clicked() {
                 close = true;
@@ -623,7 +775,7 @@ fn table_window(ctx: &egui::Context) {
     let units = model::read(|f| f.units);
     let d = cut::diagram_for(&c, &results_view::shown().choice, &results_view::snap_data());
     let mut open = true;
-    egui::Window::new(format!("Cut Diagram Table – {name}")).id(egui::Id::unique("factory_cut_table")).open(&mut open).resizable(true).default_width(560.0).show(ctx, |ui| {
+    egui::Window::new(format!("Cut Diagram Table – {} · {name}", cut::id_text(c.id))).id(egui::Id::unique("factory_cut_table")).open(&mut open).resizable(true).default_width(560.0).show(ctx, |ui| {
         let Some(d) = d else {
             ui.label("Computing …");
             return;

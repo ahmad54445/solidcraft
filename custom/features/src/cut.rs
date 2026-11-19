@@ -4,7 +4,7 @@
 //! UI, so it is tested and runs headless.
 
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, LazyLock, Mutex, PoisonError, RwLock};
 
 use custom_bridge::{Ctx, Result, Value, json};
@@ -76,6 +76,8 @@ impl Kind {
 #[serde(default)]
 pub struct Cut {
     pub name: String,
+    /// Section ID (§14.1): fixed, given once, never reused in the model; 0 = not given yet.
+    pub id: u32,
     /// The analysis model's file it belongs to (§4).
     pub model: String,
     /// The two points (m).
@@ -98,7 +100,7 @@ pub struct Cut {
 
 impl Default for Cut {
     fn default() -> Self {
-        Cut { name: String::new(), model: String::new(), p1: [0.0; 3], p2: [0.0; 3], direction: Direction::Vertical, component: None, scale_px: 60.0, text: true, all_values: false, fill: true, draw_normal: false, band: None }
+        Cut { name: String::new(), id: 0, model: String::new(), p1: [0.0; 3], p2: [0.0; 3], direction: Direction::Vertical, component: None, scale_px: 60.0, text: true, all_values: false, fill: true, draw_normal: false, band: None }
     }
 }
 
@@ -189,11 +191,22 @@ pub struct Piece {
     pub w: [[f64; 4]; 2],
 }
 
+/// One shell's part of the section (§14.2): where the plane cuts it, widened to its thickness –
+/// a quad in the cut plane (m).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Slab {
+    pub shell: usize,
+    pub quad: [[f64; 3]; 4],
+}
+
 /// Where a cut crosses the shells.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Crossing {
     /// Sorted by station.
     pub pieces: Vec<Piece>,
+    /// The section (§14.2): one slab per shell the plane cuts within the line's stations – also
+    /// shells cut square to the line (a web under a vertical cut), which give no piece.
+    pub section: Vec<Slab>,
     /// Shells lying in the cut plane (R5), skipped.
     pub in_plane: usize,
 }
@@ -236,18 +249,27 @@ pub fn crossing(g: &Geometry, frame: &Frame, shown: &[bool]) -> Crossing {
             continue;
         }
         let tris: &[[usize; 3]] = if n == 3 { &[[0, 1, 2]] } else { &[[0, 1, 2], [0, 2, 3]] };
+        let mut seg: Vec<[f64; 3]> = Vec::new();
         for t in tris {
-            if let Some(p) = triangle_piece(e, t, &pts, &dist, frame, tol) {
-                out.pieces.push(p);
+            if let Some(ends) = tri_ends(t, &pts, &dist, tol) {
+                seg.extend([ends[0].0, ends[1].0]);
+                if let Some(p) = triangle_piece(e, ends, frame, tol) {
+                    out.pieces.push(p);
+                }
             }
+        }
+        let thickness = g.shell_thickness.get(s[4] as usize).copied().filter(|t| t.is_finite() && *t > 0.0).unwrap_or(0.0);
+        if let Some(quad) = slab(&pts[..n], &seg, thickness, frame, tol) {
+            out.section.push(Slab { shell: e, quad });
         }
     }
     out.pieces.sort_by(|a, b| a.s[0].total_cmp(&b.s[0]).then(a.s[1].total_cmp(&b.s[1])));
     out
 }
 
-/// The cut inside one triangle (corners `t` of the element), clipped to the stations 0..length.
-fn triangle_piece(e: usize, t: &[usize; 3], pts: &[[f64; 3]; 4], dist: &[f64; 4], f: &Frame, tol: f64) -> Option<Piece> {
+/// Where the plane cuts one triangle (corners `t` of the element): the two ends and their corner
+/// weights.
+fn tri_ends(t: &[usize; 3], pts: &[[f64; 3]; 4], dist: &[f64; 4], tol: f64) -> Option<[([f64; 3], [f64; 4]); 2]> {
     let mut ends: Vec<([f64; 3], [f64; 4])> = Vec::new();
     let mut push = |p: [f64; 3], w: [f64; 4]| {
         if !ends.iter().any(|(q, _)| dot(sub(*q, p), sub(*q, p)).sqrt() <= tol) {
@@ -273,6 +295,11 @@ fn triangle_piece(e: usize, t: &[usize; 3], pts: &[[f64; 3]; 4], dist: &[f64; 4]
     if ends.len() != 2 {
         return None;
     }
+    Some([ends[0], ends[1]])
+}
+
+/// The cut inside one triangle (its two ends), clipped to the stations 0..length.
+fn triangle_piece(e: usize, ends: [([f64; 3], [f64; 4]); 2], f: &Frame, tol: f64) -> Option<Piece> {
     let station = |p: [f64; 3]| dot(sub(p, f.origin), f.u);
     let (mut a, mut b) = (ends[0], ends[1]);
     let (mut sa, mut sb) = (station(a.0), station(b.0));
@@ -292,14 +319,61 @@ fn triangle_piece(e: usize, t: &[usize; 3], pts: &[[f64; 3]; 4], dist: &[f64; 4]
     let (p0, w0) = clip(s0);
     let (p1, w1) = clip(s1);
     // Only near the line (§12.4): the piece's middle within half the band of the line.
-    if let Some(b) = f.band {
-        let r = sub(lerp(p0, p1, 0.5), f.origin);
-        let off = sub(r, scaled(f.u, dot(r, f.u)));
-        if dot(off, off).sqrt() > b / 2.0 {
-            return None;
-        }
+    if !in_band(f, lerp(p0, p1, 0.5)) {
+        return None;
     }
     Some(Piece { shell: e, s: [s0, s1], at: [p0, p1], w: [w0, w1] })
+}
+
+/// Whether a point lies within the band around the line (§12.4); always without a band.
+fn in_band(f: &Frame, p: [f64; 3]) -> bool {
+    let Some(b) = f.band else { return true };
+    let r = sub(p, f.origin);
+    let off = sub(r, scaled(f.u, dot(r, f.u)));
+    dot(off, off).sqrt() <= b / 2.0
+}
+
+/// One shell's slab of the section (§14.2) from the points where the plane cuts it (`seg`), its
+/// corners (for its normal) and thickness: the cut through the shell's mid-surface clipped to the
+/// line's stations, widened in the plane to the shell's thickness – thickness / |sin| of the angle
+/// between shell and plane, so a skew cut shows the wider strip it really makes.
+fn slab(corners: &[[f64; 3]], seg: &[[f64; 3]], thickness: f64, f: &Frame, tol: f64) -> Option<[[f64; 3]; 4]> {
+    // The two farthest points: both triangles of a quad give one slab.
+    let mut best = (0.0, [0.0; 3], [0.0; 3]);
+    for (i, a) in seg.iter().enumerate() {
+        for b in &seg[i + 1..] {
+            let l = dot(sub(*b, *a), sub(*b, *a));
+            if l > best.0 {
+                best = (l, *a, *b);
+            }
+        }
+    }
+    let (_, mut a, mut b) = best;
+    if best.0.sqrt() <= tol {
+        return None;
+    }
+    let station = |p: [f64; 3]| dot(sub(p, f.origin), f.u);
+    let (mut sa, mut sb) = (station(a), station(b));
+    if sa > sb {
+        std::mem::swap(&mut a, &mut b);
+        std::mem::swap(&mut sa, &mut sb);
+    }
+    if sb < -tol || sa > f.length + tol {
+        return None;
+    }
+    if sb - sa > tol {
+        let at = |s: f64| lerp(a, b, ((s - sa) / (sb - sa)).clamp(0.0, 1.0));
+        (a, b) = (at(sa.max(0.0)), at(sb.min(f.length)));
+    }
+    if !in_band(f, lerp(a, b, 0.5)) {
+        return None;
+    }
+    let m = unit(cross(sub(corners[1], corners[0]), sub(corners[2], corners[0])))?;
+    let w = unit(cross(f.n, sub(b, a)))?;
+    let h = thickness / 2.0 / dot(m, w).abs().max(0.2);
+    let off = scaled(w, h);
+    let add = |p: [f64; 3], k: f64| [p[0] + off[0] * k, p[1] + off[1] * k, p[2] + off[2] * k];
+    Some([add(a, 1.0), add(b, 1.0), add(b, -1.0), add(a, -1.0)])
 }
 
 /// cos θ, sin θ from shell `e`'s local axis 1 to the cut's normal, in the element plane (R4).
@@ -364,6 +438,8 @@ pub struct Diagram {
     pub frame: Option<Frame>,
     /// Notes: shells in the plane, shells without local axes, no result.
     pub notes: Vec<String>,
+    /// The section the cut makes (§14.2).
+    pub section: Vec<Slab>,
 }
 
 impl Diagram {
@@ -381,7 +457,7 @@ impl Diagram {
 /// The diagram from the crossings and the 8 values per corner of the crossed shells (SI).
 pub fn evaluate(g: &Geometry, cut: &Cut, frame: &Frame, crossing: &Crossing, tensors: &HashMap<usize, [[f64; 8]; 4]>, component: usize, units: Units) -> Diagram {
     let (scale, unit_text) = unit_of(component, units);
-    let mut d = Diagram { component, unit: unit_text.clone(), frame: Some(*frame), ..Default::default() };
+    let mut d = Diagram { component, unit: unit_text.clone(), frame: Some(*frame), section: crossing.section.clone(), ..Default::default() };
     let mut no_axes = 0usize;
     let mut no_result = 0usize;
     for p in &crossing.pieces {
@@ -408,7 +484,7 @@ pub fn evaluate(g: &Geometry, cut: &Cut, frame: &Frame, crossing: &Crossing, ten
     if no_result > 0 {
         d.notes.push(format!("{no_result} pieces without a result for this load"));
     }
-    if crossing.pieces.is_empty() {
+    if crossing.pieces.is_empty() && crossing.section.is_empty() {
         d.notes.push("the cut crosses no shown shell".into());
     }
     if integrable(component) && !d.pieces.is_empty() {
@@ -472,6 +548,14 @@ pub fn compute(g: &Geometry, blocks: &[ResultBlock], cut: &Cut, choice: &Choice,
 
 static CUTS: RwLock<Vec<Cut>> = RwLock::new(Vec::new());
 static VERSION: AtomicU64 = AtomicU64::new(0);
+/// Per model, the highest Section ID given (§14.1): IDs are never reused.
+static NEXT: LazyLock<Mutex<HashMap<String, u32>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+/// Section IDs shown as letters (`A–A`) instead of numbers (`S1`) (§14.1).
+static LETTERS: AtomicBool = AtomicBool::new(false);
+/// The cuts chosen (Browser click, Select Cuts, §14.3), by name.
+static SELECTION: Mutex<Vec<String>> = Mutex::new(Vec::new());
+/// Select Cuts mode is on (§14.3).
+static PICKING: AtomicBool = AtomicBool::new(false);
 
 fn changed() {
     VERSION.fetch_add(1, Ordering::Relaxed);
@@ -489,10 +573,85 @@ pub fn all() -> Vec<Cut> {
     CUTS.read().unwrap_or_else(PoisonError::into_inner).clone()
 }
 
-/// Put back the cuts as stored.
-pub fn set_all(cuts: Vec<Cut>) {
+/// Put back the cuts as stored; cuts kept without an ID get the next ones, in their order (§14.1).
+pub fn set_all(mut cuts: Vec<Cut>) {
+    {
+        let mut next = NEXT.lock().unwrap_or_else(PoisonError::into_inner);
+        for c in &cuts {
+            let hi = next.entry(c.model.clone()).or_insert(0);
+            *hi = (*hi).max(c.id);
+        }
+        for c in cuts.iter_mut().filter(|c| c.id == 0) {
+            let hi = next.entry(c.model.clone()).or_insert(0);
+            *hi += 1;
+            c.id = *hi;
+        }
+    }
     *CUTS.write().unwrap_or_else(PoisonError::into_inner) = cuts;
+    SELECTION.lock().unwrap_or_else(PoisonError::into_inner).clear();
     changed();
+}
+
+/// The highest ID given per model (for saving).
+pub fn next_ids() -> Vec<(String, u32)> {
+    let mut v: Vec<(String, u32)> = NEXT.lock().unwrap_or_else(PoisonError::into_inner).iter().map(|(k, v)| (k.clone(), *v)).collect();
+    v.sort();
+    v
+}
+
+/// Put back the highest IDs as stored (before [`set_all`]).
+pub fn set_next_ids(v: Vec<(String, u32)>) {
+    *NEXT.lock().unwrap_or_else(PoisonError::into_inner) = v.into_iter().collect();
+}
+
+/// Section IDs shown as letters (§14.1).
+pub fn letters() -> bool {
+    LETTERS.load(Ordering::Relaxed)
+}
+
+pub fn set_letters(on: bool) {
+    if LETTERS.swap(on, Ordering::Relaxed) != on {
+        changed();
+    }
+}
+
+/// `1 → A, 26 → Z, 27 → AA`.
+fn letters_of(mut n: u32) -> String {
+    let mut s = Vec::new();
+    while n > 0 {
+        n -= 1;
+        s.push(char::from(b'A' + (n % 26) as u8));
+        n /= 26;
+    }
+    s.iter().rev().collect()
+}
+
+/// The Section ID as shown (§14.1): `S3`, or `C–C` with letters.
+pub fn id_text(id: u32) -> String {
+    if letters() {
+        let l = letters_of(id);
+        format!("{l}–{l}")
+    } else {
+        format!("S{id}")
+    }
+}
+
+/// The tag at the cut line's ends: `S3`, or `C` with letters.
+pub fn id_tag(id: u32) -> String {
+    if letters() { letters_of(id) } else { format!("S{id}") }
+}
+
+/// A cut of the current model by name, by Section ID (`S3`, `C–C`, `C`) or by number.
+pub fn find(key: &str) -> Option<Cut> {
+    let key = key.trim();
+    let list = cuts();
+    if let Some(c) = list.iter().find(|c| c.name == key) {
+        return Some(c.clone());
+    }
+    let n = key.parse::<u32>().ok().or_else(|| key.strip_prefix(['S', 's']).and_then(|r| r.parse().ok()));
+    let upper = key.to_ascii_uppercase();
+    let letters = upper.split(['–', '-']).next().unwrap_or("").trim().to_string();
+    list.into_iter().find(|c| Some(c.id) == n || (!letters.is_empty() && letters_of(c.id) == letters))
 }
 
 /// The model the cuts now belong to.
@@ -522,6 +681,7 @@ fn write<R>(f: impl FnOnce(&mut Vec<Cut>, &str) -> R) -> R {
 pub fn add(name: Option<&str>, p1: [f64; 3], p2: [f64; 3], direction: Direction) -> Option<String> {
     let mut cut = Cut { p1, p2, direction, model: current_model(), ..Cut::default() };
     cut.frame()?;
+    let used = all().iter().filter(|c| c.model == cut.model).map(|c| c.id).max().unwrap_or(0);
     let taken: Vec<String> = cuts().into_iter().map(|c| c.name).collect();
     cut.name = match name.map(str::trim).filter(|n| !n.is_empty()) {
         Some(n) if !taken.iter().any(|t| t == n) => n.to_string(),
@@ -529,6 +689,12 @@ pub fn add(name: Option<&str>, p1: [f64; 3], p2: [f64; 3], direction: Direction)
         None => (1..).map(|i| format!("Cut {i}")).find(|c| !taken.contains(c)).unwrap_or_default(),
     };
     let name = cut.name.clone();
+    {
+        let mut next = NEXT.lock().unwrap_or_else(PoisonError::into_inner);
+        let hi = next.entry(cut.model.clone()).or_insert(0);
+        *hi = (*hi).max(used) + 1;
+        cut.id = *hi;
+    }
     write(|all, _| all.push(cut));
     Some(name)
 }
@@ -538,14 +704,22 @@ pub fn replace(name: &str, mut cut: Cut) -> bool {
     if cut.frame().is_none() || cut.name.trim().is_empty() || (cut.name != name && get(&cut.name).is_some()) {
         return false;
     }
-    write(|all, m| match all.iter_mut().find(|c| c.model == m && c.name == name) {
+    let new_name = cut.name.clone();
+    let done = write(|all, m| match all.iter_mut().find(|c| c.model == m && c.name == name) {
         Some(c) => {
             cut.model = m.to_string();
+            cut.id = c.id; // the ID never changes (§14.1)
             *c = cut;
             true
         }
         None => false,
-    })
+    });
+    if done && new_name != name {
+        for s in SELECTION.lock().unwrap_or_else(PoisonError::into_inner).iter_mut().filter(|s| *s == name) {
+            *s = new_name.clone();
+        }
+    }
+    done
 }
 
 pub fn rename(old: &str, new: &str) -> bool {
@@ -557,6 +731,7 @@ pub fn rename(old: &str, new: &str) -> bool {
 }
 
 pub fn delete(name: &str) -> bool {
+    SELECTION.lock().unwrap_or_else(PoisonError::into_inner).retain(|s| s != name);
     write(|all, m| {
         let before = all.len();
         all.retain(|c| !(c.model == m && c.name == name));
@@ -578,6 +753,112 @@ pub fn show_in_view(name: &str, shown: bool) {
     }
     vv::set_quiet(s);
     changed();
+}
+
+// ---- selecting cuts (§14.3) ----
+
+/// The cuts chosen, by name (current model, in the order made).
+pub fn selection() -> Vec<String> {
+    let chosen = SELECTION.lock().unwrap_or_else(PoisonError::into_inner).clone();
+    cuts().into_iter().map(|c| c.name).filter(|n| chosen.contains(n)).collect()
+}
+
+/// How a new pick meets the selection: replace it, add (Shift), remove (Ctrl).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum How {
+    #[default]
+    Replace,
+    Add,
+    Remove,
+}
+
+pub fn select(names: &[String], how: How) {
+    {
+        let mut s = SELECTION.lock().unwrap_or_else(PoisonError::into_inner);
+        match how {
+            How::Replace => *s = names.to_vec(),
+            How::Add => {
+                let new: Vec<String> = names.iter().filter(|n| !s.contains(n)).cloned().collect();
+                s.extend(new);
+            }
+            How::Remove => s.retain(|n| !names.contains(n)),
+        }
+    }
+    changed();
+}
+
+pub fn picking() -> bool {
+    PICKING.load(Ordering::Relaxed)
+}
+
+/// Select Cuts mode on / off; it ends the Cut Diagram mode (one mode at a time).
+pub fn set_picking(on: bool) {
+    if on {
+        set_mode(None);
+    }
+    PICKING.store(on, Ordering::Relaxed);
+    #[cfg(feature = "ui")]
+    results_view::repaint();
+}
+
+fn cross2(o: [f64; 2], a: [f64; 2], b: [f64; 2]) -> f64 {
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+}
+
+/// Whether segments a–b and c–d meet (touching counts).
+fn segments_meet(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2]) -> bool {
+    let (d1, d2, d3, d4) = (cross2(c, d, a), cross2(c, d, b), cross2(a, b, c), cross2(a, b, d));
+    let on = |p: [f64; 2], q: [f64; 2], r: [f64; 2]| r[0] >= p[0].min(q[0]) && r[0] <= p[0].max(q[0]) && r[1] >= p[1].min(q[1]) && r[1] <= p[1].max(q[1]);
+    if ((d1 > 0.0 && d2 < 0.0) || (d1 < 0.0 && d2 > 0.0)) && ((d3 > 0.0 && d4 < 0.0) || (d3 < 0.0 && d4 > 0.0)) {
+        return true;
+    }
+    (d1 == 0.0 && on(c, d, a)) || (d2 == 0.0 && on(c, d, b)) || (d3 == 0.0 && on(a, b, c)) || (d4 == 0.0 && on(a, b, d))
+}
+
+fn inside(p: [f64; 2], poly: &[[f64; 2]]) -> bool {
+    let mut odd = false;
+    for (i, a) in poly.iter().enumerate() {
+        let b = poly[(i + 1) % poly.len()];
+        if (a[1] > p[1]) != (b[1] > p[1]) && p[0] < a[0] + (b[0] - a[0]) * (p[1] - a[1]) / (b[1] - a[1]) {
+            odd = !odd;
+        }
+    }
+    odd
+}
+
+/// Whether the drawn polyline `line` crosses `shape` (2-D, §14.3): a segment (2 points) or a closed
+/// polygon (3 or more) – an edge crossed, or the line inside it.
+pub fn line_hits(line: &[[f64; 2]], shape: &[[f64; 2]]) -> bool {
+    let finite = |p: &[f64; 2]| p[0].is_finite() && p[1].is_finite();
+    if line.len() < 2 || shape.len() < 2 || !line.iter().chain(shape).all(finite) {
+        return false;
+    }
+    let closed = shape.len() >= 3;
+    let edges = if closed { shape.len() } else { 1 };
+    for l in line.windows(2) {
+        for i in 0..edges {
+            if segments_meet(l[0], l[1], shape[i], shape[(i + 1) % shape.len()]) {
+                return true;
+            }
+        }
+    }
+    closed && inside(line[0], shape)
+}
+
+/// The cuts (name, 2-D shapes: the cut line and the section's quads) a drawn line crosses.
+pub fn hit_cuts(line: &[[f64; 2]], cuts: &[(String, Vec<Vec<[f64; 2]>>)]) -> Vec<String> {
+    cuts.iter().filter(|(_, shapes)| shapes.iter().any(|s| line_hits(line, s))).map(|(n, _)| n.clone()).collect()
+}
+
+/// The 3-D shapes Select Cuts tests for `cut` (§14.3): the cut line, and the section's quads
+/// unless the view draws *Line only*.
+pub fn pick_shapes(cut: &Cut, d: Option<&Diagram>, line_only: bool) -> Vec<Vec<[f64; 3]>> {
+    let Some(f) = cut.frame() else { return Vec::new() };
+    let mut v = vec![vec![f.origin, [0, 1, 2].map(|i| f.origin[i] + f.u[i] * f.length)]];
+    if !line_only && let Some(d) = d {
+        v.extend(d.section.iter().map(|s| s.quad.to_vec()));
+    }
+    v
 }
 
 // ---- Cut Diagram mode (C1) ----
@@ -604,6 +885,9 @@ pub fn mode() -> Option<Mode> {
 }
 
 pub fn set_mode(m: Option<Mode>) {
+    if m.is_some() {
+        PICKING.store(false, Ordering::Relaxed);
+    }
     *MODE.lock().unwrap_or_else(PoisonError::into_inner) = m;
     #[cfg(feature = "ui")]
     results_view::repaint();
@@ -660,12 +944,12 @@ fn point(params: &Value, key: &str) -> Result<[f64; 3]> {
 }
 
 fn cut_param(params: &Value) -> Result<Cut> {
-    let name = params.get("cut").and_then(Value::as_str).ok_or_else(|| custom_bridge::Error("give the cut's name".into()))?;
-    get(name).ok_or_else(|| custom_bridge::Error(format!("no cut {name:?}")))
+    let name = params.get("cut").and_then(Value::as_str).ok_or_else(|| custom_bridge::Error("give the cut's name or Section ID".into()))?;
+    find(name).ok_or_else(|| custom_bridge::Error(format!("no cut {name:?}")))
 }
 
 fn report() -> Result<Value> {
-    Ok(json!({ "cuts": cuts().iter().map(|c| json!({ "name": c.name, "p1": c.p1, "p2": c.p2, "shown": shown_in_view(&c.name) })).collect::<Vec<_>>() }))
+    Ok(json!({ "cuts": cuts().iter().map(|c| json!({ "id": id_text(c.id), "name": c.name, "p1": c.p1, "p2": c.p2, "shown": shown_in_view(&c.name) })).collect::<Vec<_>>() }))
 }
 
 /// `factory.cut.mode`: Cut Diagram mode on (off with `on: false`).
@@ -699,7 +983,8 @@ pub fn new_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     };
     let name = params.get("name").and_then(Value::as_str);
     let made = add(name, p1, p2, direction).ok_or_else(|| custom_bridge::Error("no cut: equal points, the line along the direction, or the name is taken".into()))?;
-    Ok(json!({ "cut": made }))
+    let id = get(&made).map(|c| id_text(c.id)).unwrap_or_default();
+    Ok(json!({ "cut": made, "id": id }))
 }
 
 pub fn rename_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
@@ -754,6 +1039,84 @@ pub fn set_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     report()
 }
 
+/// `factory.cut.pick`: Select Cuts mode on (off with `on: false`) (§14.3).
+pub fn pick_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let on = params.get("on").and_then(Value::as_bool).unwrap_or(true);
+    set_picking(on);
+    Ok(json!({ "picking": on }))
+}
+
+/// `factory.cut.select` (§14.3): `line` [[x, y, z], …] (m) seen along `view` [x, y, z] (default
+/// from above, [0, 0, -1]) selects the shown cuts it crosses; or `ids` (names or IDs); or `clear`.
+/// `how`: "replace" (default), "add", "remove". Returns the selected IDs.
+pub fn select_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    let how = match params.get("how").and_then(Value::as_str).map(str::to_ascii_lowercase).as_deref() {
+        None | Some("replace") => How::Replace,
+        Some("add") => How::Add,
+        Some("remove") => How::Remove,
+        Some(h) => return Err(custom_bridge::Error(format!("how {h:?}: replace, add or remove"))),
+    };
+    if params.get("clear").and_then(Value::as_bool) == Some(true) {
+        select(&[], How::Replace);
+    } else if let Some(ids) = params.get("ids").and_then(Value::as_array) {
+        let mut names = Vec::new();
+        for k in ids {
+            let k = k.as_str().map(str::to_string).or_else(|| k.as_u64().map(|n| n.to_string())).unwrap_or_default();
+            names.push(find(&k).ok_or_else(|| custom_bridge::Error(format!("no cut {k:?}")))?.name);
+        }
+        select(&names, how);
+    } else if let Some(line) = params.get("line").and_then(Value::as_array) {
+        let mut pts: Vec<[f64; 3]> = Vec::new();
+        for (i, p) in line.iter().enumerate() {
+            pts.push(point(&json!({ "p": p }), "p").map_err(|e| custom_bridge::Error(format!("line[{i}]: {}", e.0)))?);
+        }
+        if pts.len() < 2 {
+            return Err(custom_bridge::Error("line: at least two points".into()));
+        }
+        let view = match params.get("view") {
+            Some(v) => point(&json!({ "view": v }), "view")?,
+            None => [0.0, 0.0, -1.0],
+        };
+        let v = unit(view).ok_or_else(|| custom_bridge::Error("view: not a direction".into()))?;
+        let up = if v[2].abs() > 0.9 { [0.0, 1.0, 0.0] } else { [0.0, 0.0, 1.0] };
+        let e1 = unit(cross(up, v)).unwrap_or([1.0, 0.0, 0.0]);
+        let e2 = cross(v, e1);
+        let flat = |p: &[f64; 3]| [dot(*p, e1), dot(*p, e2)];
+        let g = transfer::geometry();
+        let s = vv::settings();
+        let units = model::read(|f| f.units);
+        let choice = results_view::shown().choice;
+        let snap = results_view::snap_data();
+        let blocks = transfer::results();
+        let shapes: Vec<(String, Vec<Vec<[f64; 2]>>)> = cuts()
+            .into_iter()
+            .filter(|c| !s.cuts_hidden.contains(&c.name))
+            .map(|c| {
+                let d = compute(&g, &blocks, &c, &choice, &snap.shell_shown, units).ok();
+                let sh = pick_shapes(&c, d.as_ref(), s.cut_section_line).iter().map(|q| q.iter().map(flat).collect()).collect();
+                (c.name, sh)
+            })
+            .collect();
+        let line2: Vec<[f64; 2]> = pts.iter().map(flat).collect();
+        select(&hit_cuts(&line2, &shapes), how);
+    } else {
+        return Err(custom_bridge::Error("give line, ids or clear".into()));
+    }
+    let chosen: Vec<String> = selection().iter().filter_map(|n| get(n)).map(|c| id_text(c.id)).collect();
+    Ok(json!({ "selected": chosen }))
+}
+
+/// `factory.cut.options`: `ids` "numbers" (S1) or "letters" (A–A) (§14.1).
+pub fn options_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
+    match params.get("ids").and_then(Value::as_str).map(str::to_ascii_lowercase).as_deref() {
+        Some("numbers") => set_letters(false),
+        Some("letters") => set_letters(true),
+        None => {}
+        Some(x) => return Err(custom_bridge::Error(format!("ids {x:?}: numbers or letters"))),
+    }
+    Ok(json!({ "ids": if letters() { "letters" } else { "numbers" } }))
+}
+
 /// `factory.cut.table`: the table of a cut for the active window's result.
 pub fn table_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     let c = cut_param(params)?;
@@ -765,6 +1128,7 @@ pub fn table_cmd(_: &mut Ctx, params: &Value) -> Result<Value> {
     let rows: Vec<Value> = table(&g, &d, units).into_iter().map(|(s, at, e, v)| json!({ "station": s, "at": at, "element": e, "value": v })).collect();
     Ok(json!({
         "cut": c.name,
+        "id": id_text(c.id),
         "component": CUT_COMPONENTS.get(d.component),
         "unit": d.unit,
         "rows": rows,

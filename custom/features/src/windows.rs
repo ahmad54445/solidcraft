@@ -845,6 +845,10 @@ pub struct Stored {
     pub named_templates: Vec<(String, String)>,
     /// The Cut Diagrams of every model (docs/16 §4).
     pub cuts: Vec<crate::cut::Cut>,
+    /// Per model, the highest Section ID given (docs/16 §14.1).
+    pub cut_next: Vec<(String, u32)>,
+    /// Section IDs shown as letters (docs/16 §14.1).
+    pub cut_letters: bool,
 }
 
 /// The windows and templates as they would be stored now.
@@ -859,6 +863,8 @@ pub fn stored() -> Stored {
         shown: w.windows.iter().map(|x| x.view.clone()).collect(),
         named_templates: w.named_templates.clone(),
         cuts: crate::cut::all(),
+        cut_next: crate::cut::next_ids(),
+        cut_letters: crate::cut::letters(),
         seeded: SEEDED.load(std::sync::atomic::Ordering::Relaxed),
         layout: w.layout.key().to_string(),
         splits: w.splits,
@@ -874,6 +880,8 @@ pub fn restore(st: &Stored) {
     let layout = Layout::from_key(&st.layout).unwrap_or_default();
     let n = st.windows.len().max(st.shown.len()).clamp(1, MAX_WINDOWS).min(layout.zones().max(1));
     *TEMPLATES.write().unwrap_or_else(PoisonError::into_inner) = st.templates.clone();
+    crate::cut::set_next_ids(st.cut_next.clone());
+    crate::cut::set_letters(st.cut_letters);
     crate::cut::set_all(st.cuts.clone());
     SEEDED.store(st.seeded, std::sync::atomic::Ordering::Relaxed);
     reset();

@@ -124,6 +124,9 @@ pub struct Settings {
     /// View Options › Cut Diagram › Positive drawn (docs/16 §13): `false` Up (toward +d, the
     /// default), `true` Down (toward −d) – every cut in this view; a view template carries it.
     pub cut_flip: bool,
+    /// View Options › Cut Diagram › Section (docs/16 §14.2): `false` Shape (the transparent section,
+    /// the default), `true` Line only.
+    pub cut_section_line: bool,
     /// Cut Diagrams hidden in this view, by name (docs/16 R6: a view template rules it with V/G).
     pub cuts_hidden: Vec<String>,
 }
@@ -156,6 +159,7 @@ impl Default for Settings {
             filters: Vec::new(),
             cut_plain: false,
             cut_flip: false,
+            cut_section_line: false,
             cuts_hidden: Vec::new(),
         }
     }

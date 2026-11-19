@@ -77,13 +77,17 @@ commands! {
         // Cut Diagram (docs/16-cut-diagram.md)
         { id: "factory.cut.mode", label: "Cut Diagram", run: cut::mode_cmd, icon: "line", params: "on?: bool (default true: click two points on the model; Esc leaves)" },
         { id: "factory.cut.new", label: "New Cut Diagram", run: cut::new_cmd, icon: "line",
-          params: "p1, p2: [x, y, z] m; direction?: \"vertical\" (default) or [x, y, z]; name?: text" },
+          params: "p1, p2: [x, y, z] m; direction?: \"vertical\" (default) or [x, y, z]; name?: text – returns the name and Section ID" },
         { id: "factory.cut.rename", label: "Rename Cut Diagram", run: cut::rename_cmd, icon: "line", params: "cut: name; name: new name" },
         { id: "factory.cut.delete", label: "Delete Cut Diagram", run: cut::delete_cmd, icon: "delete", params: "cut: name" },
         { id: "factory.cut.show", label: "Show Cut Diagram", run: cut::show_cmd, icon: "eye", params: "cut: name; shown?: bool (default true) – in the active view" },
         { id: "factory.cut.set", label: "Cut Diagram Properties", run: cut::set_cmd, icon: "line",
           params: "cut: name; component?: F11 … VMax, Fn, Fnt, Mn, Mnt, Vn or window; scale?: px; text?, fill?, all_values?: bool" },
-        { id: "factory.cut.table", label: "Cut Diagram Table", run: cut::table_cmd, icon: "list", params: "cut: name (the active window's result)" },
+        { id: "factory.cut.table", label: "Cut Diagram Table", run: cut::table_cmd, icon: "list", params: "cut: name or Section ID (the active window's result)" },
+        { id: "factory.cut.pick", label: "Select Cuts", run: cut::pick_cmd, icon: "select", params: "on?: bool (default true: draw a line across cuts; Shift adds, Ctrl removes; Esc leaves)" },
+        { id: "factory.cut.select", label: "Select Cuts by Line", run: cut::select_cmd, icon: "select",
+          params: "line: [[x, y, z], …] m, view?: [x, y, z] (default [0, 0, -1]); or ids: [name or ID]; or clear: true; how?: replace | add | remove – returns the selected IDs" },
+        { id: "factory.cut.options", label: "Cut Diagram Options", run: cut::options_cmd, icon: "line", params: "ids?: numbers (S1) | letters (A–A)" },
         // Selection tools (docs/13-selection.md)
         { id: "factory.select.pointer", label: "Pointer/Window", run: select_cmd::pointer, icon: "select" },
         { id: "factory.select.poly", label: "Poly", run: select_cmd::poly, icon: "polygon" },
@@ -147,7 +151,7 @@ static EXTRA_TABS: &[custom_bridge::ui::Tab] = &[
             custom_bridge::ui::Panel { name: "DISPLAY", commands: &["factory.view.results", "factory.view.visibility_graphics"] },
             // Display windows (docs/14): layout picker, new, close, maximise.
             // Cut Diagram (docs/16): shell results along a cut line.
-            custom_bridge::ui::Panel { name: "CUT", commands: &["factory.cut.mode"] },
+            custom_bridge::ui::Panel { name: "CUT", commands: &["factory.cut.mode", "factory.cut.pick"] },
             custom_bridge::ui::Panel { name: "WINDOWS", commands: &["factory.window.layout", "factory.window.new", "factory.window.close", "factory.window.maximise", "factory.window.templates"] },
         ],
     },

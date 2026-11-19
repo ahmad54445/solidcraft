@@ -13,6 +13,9 @@ static GLOBAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn start() -> std::sync::MutexGuard<'static, ()> {
     let g = GLOBAL.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+    cut::set_next_ids(Vec::new());
+    cut::set_letters(false);
+    cut::set_picking(false);
     cut::set_all(Vec::new());
     model::write(|f| f.model.file = "test.bdb".into());
     vv::set_quiet(vv::Settings::default());
@@ -401,4 +404,146 @@ fn c14_kept_phase_1_cuts_read_back() {
         let back: Cut = serde_json::from_str(&serde_json::to_string(&c).expect("JSON")).expect("back");
         assert_eq!(back, c);
     }
+}
+
+// ---- §14: Section ID, section shape, Select Cuts ----
+
+#[test]
+fn c15_section_ids_are_fixed_and_never_reused() {
+    let _g = start();
+    for k in 0..3 {
+        cut::add(None, [0.0, k as f64, 0.0], [1.0, k as f64, 0.0], Direction::Vertical).expect("a cut");
+    }
+    let ids: Vec<u32> = cut::cuts().iter().map(|c| c.id).collect();
+    assert_eq!(ids, vec![1, 2, 3]);
+    assert_eq!(cut::id_text(3), "S3");
+    assert_eq!(cut::find("S3").map(|c| c.name), Some("Cut 3".into()));
+    assert_eq!(cut::find("2").map(|c| c.name), Some("Cut 2".into()));
+    // Deleting gives no ID back; renaming keeps it.
+    assert!(cut::delete("Cut 2"));
+    let made = cut::add(None, [0.0, 5.0, 0.0], [1.0, 5.0, 0.0], Direction::Vertical).expect("a cut");
+    assert_eq!(cut::get(&made).map(|c| c.id), Some(4), "2 is not reused");
+    assert!(cut::rename("Cut 3", "Pier"));
+    assert_eq!(cut::get("Pier").map(|c| c.id), Some(3));
+    // Properties cannot change the ID.
+    let mut c = cut::get("Pier").expect("there");
+    c.id = 99;
+    assert!(cut::replace("Pier", c));
+    assert_eq!(cut::get("Pier").map(|c| c.id), Some(3));
+    // Letters only change how it is shown.
+    cut::set_letters(true);
+    assert_eq!((cut::id_text(3), cut::id_tag(3), cut::id_text(26), cut::id_text(27)), ("C–C".into(), "C".into(), "Z–Z".into(), "AA–AA".into()));
+    assert_eq!(cut::find("C–C").map(|c| c.name), Some("Pier".into()));
+    cut::set_letters(false);
+    assert_eq!(cut::get("Pier").map(|c| c.id), Some(3));
+    // Kept with the windows: the highest ID too, so a deleted last ID is not given again.
+    assert!(cut::delete(&made));
+    let text = serde_json::to_string(&windows::stored()).expect("JSON");
+    cut::set_next_ids(Vec::new());
+    cut::set_all(Vec::new());
+    windows::restore(&serde_json::from_str(&text).expect("back"));
+    let again = cut::add(None, [0.0, 7.0, 0.0], [1.0, 7.0, 0.0], Direction::Vertical).expect("a cut");
+    assert_eq!(cut::get(&again).map(|c| c.id), Some(5));
+    // Cuts kept before IDs existed get them in their order.
+    cut::set_next_ids(Vec::new());
+    let old: Vec<Cut> = serde_json::from_str(r#"[{"name":"a","model":"test.bdb","p1":[0,0,0],"p2":[1,0,0]},{"name":"b","model":"test.bdb","p1":[0,1,0],"p2":[1,1,0]}]"#).expect("old cuts");
+    cut::set_all(old);
+    assert_eq!(cut::cuts().iter().map(|c| c.id).collect::<Vec<_>>(), vec![1, 2]);
+}
+
+/// A box: a deck at z = 1 (x 0..2, y 0..2, 0.3 m thick) on two webs at y = 0 and y = 2 (z 0..1, 0.5 m).
+fn box_girder() -> Geometry {
+    Geometry {
+        joints: vec![
+            [0.0, 0.0, 1.0], [2.0, 0.0, 1.0], [2.0, 2.0, 1.0], [0.0, 2.0, 1.0],
+            [0.0, 0.0, 0.0], [2.0, 0.0, 0.0], [0.0, 2.0, 0.0], [2.0, 2.0, 0.0],
+        ],
+        shells: vec![[0, 1, 2, 3, 0], [4, 5, 1, 0, 1], [6, 7, 2, 3, 1]],
+        shell_names: vec!["Deck".into(), "W0".into(), "W2".into()],
+        shell_axes: vec![IDENTITY, WEB_AXES, WEB_AXES],
+        shell_thickness: vec![0.3, 0.5],
+        ..Default::default()
+    }
+}
+
+fn extent(q: &[[f64; 3]; 4], axis: usize) -> (f64, f64) {
+    let v = q.iter().map(|p| p[axis]);
+    (v.clone().fold(f64::INFINITY, f64::min), v.fold(f64::NEG_INFINITY, f64::max))
+}
+
+fn near(a: (f64, f64), b: (f64, f64)) -> bool {
+    (a.0 - b.0).abs() < 1e-9 && (a.1 - b.1).abs() < 1e-9
+}
+
+#[test]
+fn c16_section_is_the_shape_the_cut_makes() {
+    let _g = start();
+    let g = box_girder();
+    // A vertical cut across the box at x = 1, from y 0 to 2.
+    let c = Cut { name: "x".into(), p1: [1.0, 0.0, 1.0], p2: [1.0, 2.0, 1.0], ..Cut::default() };
+    let f = c.frame().expect("frame");
+    let x = cut::crossing(&g, &f, &[]);
+    assert_eq!(x.section.len(), 3, "deck and both webs: {:?}", x.section);
+    let deck = x.section.iter().find(|s| s.shell == 0).expect("deck");
+    assert!(near(extent(&deck.quad, 1), (0.0, 2.0)) && near(extent(&deck.quad, 2), (0.85, 1.15)), "deck strip 0.3 thick: {:?}", deck.quad);
+    let web = x.section.iter().find(|s| s.shell == 1).expect("web at y = 0");
+    assert!(near(extent(&web.quad, 1), (-0.25, 0.25)) && near(extent(&web.quad, 2), (0.0, 1.0)), "web 0.5 thick, 1 m high: {:?}", web.quad);
+    assert!(x.pieces.iter().all(|p| p.shell == 0), "webs cut square to the line give no diagram piece");
+    // A hidden web is left out of the section.
+    let x = cut::crossing(&g, &f, &[true, false, true]);
+    assert_eq!(x.section.iter().map(|s| s.shell).collect::<Vec<_>>(), vec![0, 2]);
+    // The diagram carries it; a cut through nothing has none.
+    let d = cut::evaluate(&g, &c, &f, &cut::crossing(&g, &f, &[]), &HashMap::new(), M11, Units::default());
+    assert_eq!(d.section.len(), 3);
+    let off = Cut { p1: [5.0, 0.0, 1.0], p2: [5.0, 2.0, 1.0], ..c.clone() };
+    assert!(cut::crossing(&g, &off.frame().expect("frame"), &[]).section.is_empty());
+    // A cut skew to the web in plan shows the wider strip: 0.5 / sin 45°.
+    let skew = Cut { p1: [0.0, -1.0, 1.0], p2: [2.0, 1.0, 1.0], ..c.clone() };
+    let x = cut::crossing(&g, &skew.frame().expect("frame"), &[]);
+    let web = x.section.iter().find(|s| s.shell == 1).expect("web");
+    let w = ((web.quad[0][0] - web.quad[3][0]).powi(2) + (web.quad[0][1] - web.quad[3][1]).powi(2)).sqrt();
+    assert!((w - 0.5 / std::f64::consts::FRAC_1_SQRT_2).abs() < 1e-9, "width {w}");
+    // V/G › Section: Shape by default and for settings kept before it existed.
+    assert!(!vv::Settings::default().cut_section_line);
+    let old: vv::Settings = serde_json::from_str(r#"{"cut_flip":true}"#).expect("old V/G");
+    assert!(!old.cut_section_line);
+}
+
+#[test]
+fn c17_select_cuts_with_a_line() {
+    let _g = start();
+    let seg = vec![[0.0, 0.0], [10.0, 0.0]];
+    let quad = vec![[20.0, -5.0], [30.0, -5.0], [30.0, 5.0], [20.0, 5.0]];
+    assert!(cut::line_hits(&[[5.0, -1.0], [5.0, 1.0]], &seg), "crosses the cut line");
+    assert!(!cut::line_hits(&[[5.0, 1.0], [5.0, 3.0]], &seg), "misses it");
+    assert!(cut::line_hits(&[[25.0, -9.0], [25.0, 9.0]], &quad), "crosses the section");
+    assert!(cut::line_hits(&[[22.0, 0.0], [28.0, 0.0]], &quad), "inside the section");
+    assert!(!cut::line_hits(&[[f64::NAN, 0.0], [28.0, 0.0]], &quad), "hostile input selects nothing");
+    let cuts = vec![("A".to_string(), vec![seg.clone()]), ("B".to_string(), vec![seg.clone(), quad.clone()]), ("C".to_string(), vec![vec![[0.0, 50.0], [10.0, 50.0]]])];
+    // A polyline across A and B's section, not C.
+    assert_eq!(cut::hit_cuts(&[[5.0, -1.0], [5.0, 1.0], [25.0, 1.0]], &cuts), vec!["A".to_string(), "B".to_string()]);
+    // The selection: replace, add (Shift), remove (Ctrl); rename and delete follow it.
+    for k in 0..3 {
+        cut::add(None, [0.0, k as f64, 0.0], [1.0, k as f64, 0.0], Direction::Vertical).expect("a cut");
+    }
+    cut::select(&["Cut 1".into()], cut::How::Replace);
+    cut::select(&["Cut 3".into()], cut::How::Add);
+    assert_eq!(cut::selection(), vec!["Cut 1".to_string(), "Cut 3".to_string()]);
+    cut::select(&["Cut 1".into()], cut::How::Remove);
+    assert!(cut::rename("Cut 3", "Pier"));
+    assert_eq!(cut::selection(), vec!["Pier".to_string()]);
+    assert!(cut::delete("Pier"));
+    assert!(cut::selection().is_empty());
+    // The shapes tested: the line, and the section unless the view draws Line only.
+    let c = cut::get("Cut 1").expect("there");
+    let d = cut::Diagram { section: vec![cut::Slab { shell: 0, quad: [[0.0; 3]; 4] }], ..Default::default() };
+    assert_eq!(cut::pick_shapes(&c, Some(&d), false).len(), 2);
+    assert_eq!(cut::pick_shapes(&c, Some(&d), true).len(), 1);
+    // One mode at a time.
+    cut::set_picking(true);
+    cut::set_mode(Some(cut::Mode::default()));
+    assert!(!cut::picking());
+    cut::set_picking(true);
+    assert!(cut::mode().is_none() && cut::picking());
+    cut::set_picking(false);
 }
