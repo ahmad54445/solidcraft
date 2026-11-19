@@ -469,21 +469,31 @@ fn view_tab(ui: &mut egui::Ui, s: &mut Settings) {
             ui.add_enabled(s.view.fill, egui::Checkbox::new(&mut s.view.edges, "Show Edges"))
                 .on_hover_text("Element edges in the Shells line colour (Model Categories).");
         });
-        ui.group(|ui| {
+    });
+    // Cut Diagram on its own row, one line per setting (a separator in the row above stretched
+    // the group to the window's height).
+    ui.group(|ui| {
+        ui.vertical(|ui| {
             ui.strong("Cut Diagram");
-            ui.radio_value(&mut s.cut_plain, false, "Result ramp");
-            ui.radio_value(&mut s.cut_plain, true, "Plain (+ blue, − red)");
-            ui.separator();
-            ui.label("Positive drawn");
-            ui.horizontal(|ui| {
-                ui.radio_value(&mut s.cut_flip, false, "Up").on_hover_text("Toward +d: up for a vertical cut, left of the line for a horizontal one, toward point 3 for 3 points");
-                ui.radio_value(&mut s.cut_flip, true, "Down").on_hover_text("The other side: every cut in this view");
-            });
-            ui.separator();
-            ui.label("Section");
-            ui.horizontal(|ui| {
-                ui.radio_value(&mut s.cut_section_line, false, "Shape").on_hover_text("The section the cut makes: each shell cut, widened to its thickness, transparent");
-                ui.radio_value(&mut s.cut_section_line, true, "Line only").on_hover_text("Only the cut line and its Section ID");
+            egui::Grid::new("factory_vv_cut").num_columns(2).spacing([16.0, 6.0]).show(ui, |ui| {
+                ui.label("Colours");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut s.cut_plain, false, "Result ramp");
+                    ui.radio_value(&mut s.cut_plain, true, "Plain (+ blue, − red)");
+                });
+                ui.end_row();
+                ui.label("Positive drawn");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut s.cut_flip, false, "Up").on_hover_text("Toward +d: up for a vertical cut, left of the line for a horizontal one, toward point 3 for 3 points");
+                    ui.radio_value(&mut s.cut_flip, true, "Down").on_hover_text("The other side: every cut in this view");
+                });
+                ui.end_row();
+                ui.label("Section");
+                ui.horizontal(|ui| {
+                    ui.radio_value(&mut s.cut_section_line, false, "Shape").on_hover_text("The section the cut makes: each shell cut, widened to its thickness, transparent");
+                    ui.radio_value(&mut s.cut_section_line, true, "Line only").on_hover_text("Only the cut line and its Section ID");
+                });
+                ui.end_row();
             });
         });
     });
